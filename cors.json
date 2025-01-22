@@ -1,0 +1,13 @@
+[
+  {
+    "origin": [
+      "https://www.spacesmetaverse.com",
+      "https://spaces.disruptive.live",
+      "http://localhost:5173"
+    ],
+    "method": [
+      "GET"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

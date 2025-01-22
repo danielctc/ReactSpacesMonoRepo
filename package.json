@@ -1,0 +1,23 @@
+{
+  "name": "react-spaces-mono-repo",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm-run-all --serial build:* prep-deploy",
+    "build:webgl": "cross-env NODE_ENV=production npm --prefix packages/webgl run build",
+    "build:header-auth-links": "cross-env NODE_ENV=production npm --prefix packages/header-auth-links run build",
+    "build:chat": "cross-env NODE_ENV=production npm --prefix packages/chat run build",
+    "build:testing": "cross-env NODE_ENV=production npm --prefix packages/testing run build",
+    "prep-deploy": "shx rm -rf dist/ && shx mkdir -p dist && shx cp index.html dist/  && node scripts/manage-builds.js",
+    "deploy": "npm run build && firebase deploy",
+    "reset": "rimraf './node_modules' './packages/*/node_modules' './**/package-lock.json' && npm install"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^5.0.5",
+    "shx": "^0.3.4"
+  }
+}

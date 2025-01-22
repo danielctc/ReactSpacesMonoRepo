@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+
+  //*************************************************
+  // Temporary rules to allow known admin  users access
+ match /{document=**} {
+   allow read, write: if request.auth != null && 
+   (
+   request.auth.uid == 'lppDQiMb3hhloApQ7llOtk5tckY2' || // neil@pursey.net
+   request.auth.uid == 'XutdlDmDSncMBUw6vwlQGdkpjNr2' || // tet@email.com
+   request.auth.uid == 'aMhQYu0ArucoNCc6pJJtyfRbn8k2' || // josh@disruptive.live
+   request.auth.uid == 'fJVBogzjtTQqUHnYCYLhTt6jBW13' // andrew@andrew.com
+   )
+  }
+
+  // Disruptive Admin user, full access to everything
+  //*************************************************
+  // note: This rule doesn't seem to work. Could be the rule could be the custom auth in the admin.
+  // May need to move this into react admin app.
+  match /{document=**} {
+    allow read, write: if request.auth != null && 
+      ('disruptiveAdmin' in request.auth.token.claims.groups || 
+      'disruptiveAdmin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups);
+  }
+  //*************************************************
+
+  match /databases/{database}/documents {
+    // Users can read and write their own profile records.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Spaces
+    match /spaces/{spaceId} {
+      // Allow read access if the space is public or the user's UID is in the usersAdmin, usersModerators, or usersAllowed arrays
+      allow read: if resource.data.isPublic == true 
+                  || request.auth.uid in resource.data.usersAdmin 
+                  || request.auth.uid in resource.data.usersModerators 
+                  || request.auth.uid in resource.data.usersAllowed;
+
+      // Allow write access if the user's UID is in the usersAdmin or usersModerators arrays
+      allow write: if request.auth.uid in resource.data.usersAdmin 
+                   || request.auth.uid in resource.data.usersModerators;
+
+      // Space Chat
+      match /chatMessages/{messageId} {
+        // Allow read/write access if the space is public or the user's UID is in the usersAdmin, usersModerators, or usersAllowed arrays
+        allow read, write: if get(/databases/$(database)/documents/spaces/$(spaceId)).data.isPublic == true 
+                           || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersAdmin 
+                           || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersModerators 
+                           || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersAllowed;
+      }
+
+      // Space Videos (if needed)
+      match /videos/{videoId} {
+        allow read: if get(/databases/$(database)/documents/spaces/$(spaceId)).data.isPublic == true 
+                   || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersAdmin 
+                   || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersModerators 
+                   || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersAllowed;
+      }
+    }
+  }
+}
