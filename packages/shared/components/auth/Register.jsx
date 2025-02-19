@@ -25,7 +25,7 @@ import {
 } from "@chakra-ui/react";
 import { EditIcon } from "@chakra-ui/icons";
 
-function Register({ mode, label }) {
+function Register({ mode, label, buttonProps = {} }) {
     const { register, handleSubmit, formState: { errors } } = useForm();
     const { register: userProviderRegister } = useContext(UserContext);
     const toast = useToast();
@@ -85,15 +85,12 @@ function Register({ mode, label }) {
             {label}
         </Link>
     ) : (
-        <Tooltip label={label} hasArrow portalProps={{ containerRef: fullscreenRef }}>
-            <IconButton
-                aria-label={label}
-                icon={<EditIcon />}
-                onClick={toggleModal}
-                variant="iconButton"
-                mr={1}
-            />
-        </Tooltip>
+        <Button
+            onClick={toggleModal}
+            {...buttonProps}
+        >
+            {label}
+        </Button>
     );
 
     return (
@@ -202,6 +199,7 @@ function Register({ mode, label }) {
 Register.propTypes = {
     mode: PropTypes.oneOf(['button', 'link']),
     label: PropTypes.string,
+    buttonProps: PropTypes.object
 };
 
 Register.defaultProps = {

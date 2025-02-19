@@ -2,7 +2,6 @@ import React, { useContext } from "react";
 import PropTypes from "prop-types";
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
-
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 import {
@@ -13,9 +12,7 @@ import {
 } from "@chakra-ui/react";
 import { UnlockIcon } from "@chakra-ui/icons";
 
-
 function SignOut({ mode, label }) {
-
     const toast = useToast();
     const { signOut } = useContext(UserContext);
     const { fullscreenRef } = useFullscreenContext();
@@ -32,6 +29,8 @@ function SignOut({ mode, label }) {
                 position: "top",
                 container: fullscreenRef.current
             });
+            // Redirect using window.location instead of react-router
+            window.location.href = '/';
         } catch (error) {
             console.error("SignOut Error:", error);
             toast({
@@ -46,13 +45,11 @@ function SignOut({ mode, label }) {
         }
     }
 
-
     const signOutTrigger = mode === 'link' ? (
-        <Link variant="header" onClick={handleSignOut} style={{ cursor: 'pointer', textDecoration: 'underline' }}>
+        <Link variant="header" onClick={handleSignOut} style={{ cursor: 'pointer' }}>
             {label}
         </Link>
     ) : (
-
         <Tooltip label="Sign Out" hasArrow portalProps={{ containerRef: fullscreenRef }}>
             <IconButton
                 aria-label="Sign Out"
@@ -61,16 +58,12 @@ function SignOut({ mode, label }) {
                 variant="iconButton"
             />
         </Tooltip>
-
     );
 
-
     return (
-
         <>
             {signOutTrigger}
         </>
-
     );
 }
 
@@ -83,4 +76,5 @@ SignOut.defaultProps = {
     mode: 'button',
     label: 'Sign Out',
 };
+
 export default SignOut;

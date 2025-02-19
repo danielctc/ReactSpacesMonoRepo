@@ -27,7 +27,7 @@ import {
 } from "@chakra-ui/react";
 import { LockIcon } from "@chakra-ui/icons";
 
-function SignIn({ mode, label }) {
+function SignIn({ mode, label, buttonProps = {} }) {
     const { signIn } = useContext(UserContext);
     const { fullscreenRef } = useFullscreenContext();
     const toast = useToast();
@@ -72,14 +72,12 @@ function SignIn({ mode, label }) {
             {label}
         </Link>
     ) : (
-        <Tooltip label="Sign In" hasArrow portalProps={{ containerRef: fullscreenRef }}>
-            <IconButton
-                aria-label={label}
-                icon={<LockIcon />}
-                onClick={toggleModal}
-                variant="iconButton"
-            />
-        </Tooltip>
+        <Button
+            onClick={toggleModal}
+            {...buttonProps}
+        >
+            {label}
+        </Button>
     );
 
     return (
@@ -131,8 +129,9 @@ function SignIn({ mode, label }) {
 }
 
 SignIn.propTypes = {
-    mode: PropTypes.oneOf(['button', 'link']), // 'button' or 'link' to specify the trigger type
-    label: PropTypes.string, // Label for the button or link
+    mode: PropTypes.oneOf(['button', 'link']),
+    label: PropTypes.string,
+    buttonProps: PropTypes.object
 };
 
 SignIn.defaultProps = {

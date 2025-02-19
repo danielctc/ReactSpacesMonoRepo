@@ -45,7 +45,12 @@ function ReadyPlayerMeModal({ open, onClose }) {
 
       // Update the rpmURL field in Firestore for the current user
       if (user && user.uid) {
-        await updateRpmUrlInFirestore(user.uid, avatarUrl);
+        try {
+          await updateRpmUrlInFirestore(user.uid, avatarUrl);
+          onClose(); // Close the modal after successful update
+        } catch (error) {
+          console.error('Error updating RPM URL:', error);
+        }
       } else {
         console.error('No authenticated user found to update rpmURL.');
       }

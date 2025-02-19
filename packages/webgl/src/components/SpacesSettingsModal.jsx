@@ -42,7 +42,7 @@ function SpacesSettingsModal({ open, onClose }) {
               <TabPanel>
                 {/* Audio settings content */}
                 <Box p={4} bg="gray.800" borderRadius="md">
-                  Audio settings content goes here.
+                  Audio settings content will go here.
                 </Box>
               </TabPanel>
               <TabPanel>

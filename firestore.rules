@@ -10,7 +10,9 @@ service cloud.firestore {
    request.auth.uid == 'lppDQiMb3hhloApQ7llOtk5tckY2' || // neil@pursey.net
    request.auth.uid == 'XutdlDmDSncMBUw6vwlQGdkpjNr2' || // tet@email.com
    request.auth.uid == 'aMhQYu0ArucoNCc6pJJtyfRbn8k2' || // josh@disruptive.live
-   request.auth.uid == 'fJVBogzjtTQqUHnYCYLhTt6jBW13' // andrew@andrew.com
+ request.auth.uid == 'fJVBogzjtTQqUHnYCYLhTt6jBW13' ||// andrew@andrew.com
+   request.auth.uid == '9NrbbBoc2rOYQC3xAkRBDkig8eg1' // andrew@disruptive.live
+   
    )
   }
 

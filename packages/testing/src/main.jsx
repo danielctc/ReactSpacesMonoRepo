@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component } from "react";
+import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { ChakraProvider, Box, Flex, VStack, AspectRatio, Text, Container } from "@chakra-ui/react";
 import { loadTheme } from "@disruptive-spaces/shared/themes/loadTheme";
@@ -41,26 +41,25 @@ const rootElement = document.getElementById("root");
 
 if (rootElement) {
     const spaceID = rootElement.getAttribute("data-space-id");
-    const initialThemeName = rootElement ? rootElement.getAttribute("data-theme") || "default" : "default";
+    const initialThemeName = rootElement.getAttribute("data-theme") || "default";
 
     const App = () => {
         const [theme, setTheme] = useState(null);
 
+        // Combine useEffects and remove console.logs
         useEffect(() => {
+            // Load theme
             loadTheme(initialThemeName).then(setTheme);
-        }, []);
 
-        useEffect(() => {
+            // Handle visibility
             const handleVisibilityChange = () => {
-                if (document.hidden) {
-                    console.log('Tab is hidden');
-                } else {
-                    console.log('Tab is visible');
+                if (!document.hidden) {
+                    // Only reload theme when tab becomes visible
+                    loadTheme(initialThemeName).then(setTheme);
                 }
             };
 
             document.addEventListener('visibilitychange', handleVisibilityChange);
-
             return () => {
                 document.removeEventListener('visibilitychange', handleVisibilityChange);
             };
@@ -71,39 +70,36 @@ if (rootElement) {
         }
 
         return (
-            <>
-                {theme && (
-                    <ChakraProvider theme={theme}>
-                        <UserProvider>
-                            <FullScreenProvider>
-                                <VStack spacing={4} align="stretch">
-                                    <Flex justify="space-between" align="center" p={4} bg="gray.700" m={0}>
-                                        <Text fontSize="xl" fontWeight="bold" color="white">LOGO</Text>
-                                        <HeaderAuthLinks />
-                                    </Flex>
+            <ChakraProvider theme={theme}>
+                <UserProvider>
+                    <FullScreenProvider>
+                        <VStack spacing={4} align="stretch">
+                            <Flex justify="space-between" align="center" p={4} bg="gray.700" m={0}>
+                                <Text fontSize="xl" fontWeight="bold" color="white">LOGO</Text>
+                                <HeaderAuthLinks />
+                            </Flex>
 
-                                    <Container maxW="container.xl" p={0}>
-                                        <AspectRatio ratio={16 / 9} bg="blue.100" m={0}>
-                                            <Box id="webgl-root" data-space-id={spaceID} w="100%" m={0}>
-                                                <WebGLErrorBoundary>
-                                                    <WebGLLoader spaceID={spaceID} />
-                                                </WebGLErrorBoundary>
-                                            </Box>
-                                        </AspectRatio>
-                                    </Container>
+                            <Container maxW="container.xl" p={0}>
+                                <AspectRatio ratio={16 / 9} bg="blue.100" m={0}>
+                                    <Box id="webgl-root" data-space-id={spaceID} w="100%" m={0}>
+                                        <WebGLErrorBoundary>
+                                            <WebGLLoader spaceID={spaceID} />
+                                        </WebGLErrorBoundary>
+                                    </Box>
+                                </AspectRatio>
+                            </Container>
 
-                                    <Container maxW="container.xl" p={0}>
-                                        <Chat spaceID={spaceID} />
-                                    </Container>
-                                </VStack>
-                            </FullScreenProvider>
-                        </UserProvider>
-                    </ChakraProvider>
-                )}
-            </>
+                            <Container maxW="container.xl" p={0}>
+                                <Chat spaceID={spaceID} />
+                            </Container>
+                        </VStack>
+                    </FullScreenProvider>
+                </UserProvider>
+            </ChakraProvider>
         );
     };
 
+    // Remove StrictMode and render directly
     ReactDOM.createRoot(rootElement).render(<App />);
 } else {
     console.error("Root element 'root' not found.");

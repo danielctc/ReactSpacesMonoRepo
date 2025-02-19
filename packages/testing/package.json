@@ -19,13 +19,10 @@
     "@emotion/react": "^11.11.3",
     "@emotion/styled": "^11.11.0",
     "framer-motion": "^10.17.12",
-    "npm": "^10.2.4",
     "prop-types": "^15.8.1",
     "react-hook-form": "^7.51.3",
     "react-icons": "^4.11.0",
-    "react-unity-webgl": "^9.5.0",
-    "run": "^1.4.0",
-    "watch": "^1.0.2"
+    "react-unity-webgl": "^9.5.0"
   },
   "peerDependencies": {
     "react": "^18.2.0",

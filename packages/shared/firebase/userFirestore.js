@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '@disruptive-spaces/shared/firebase/firebase';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
@@ -40,14 +40,43 @@ const registerUser = async (email, password, additionalData) => {
     }
 };
 
-// Function to update rpmURL in Firestore
+// Add new function for real-time RPM URL updates
+const onUserRpmUrlChange = (userId, callback) => {
+    try {
+        Logger.log(`userFirestore: Setting up RPM URL listener for user ID: ${userId}`);
+        const userDocRef = doc(db, 'users', userId);
+        
+        // Set up real-time listener
+        const unsubscribe = onSnapshot(userDocRef, (doc) => {
+            if (doc.exists()) {
+                const userData = doc.data();
+                if (userData.rpmURL) {
+                    Logger.log('userFirestore: RPM URL updated');
+                    callback(userData.rpmURL);
+                }
+            }
+        }, (error) => {
+            Logger.error('userFirestore: Error in RPM URL listener:', error);
+        });
+
+        return unsubscribe;
+    } catch (error) {
+        Logger.error('userFirestore: Error setting up RPM URL listener:', error);
+        throw error;
+    }
+};
+
+// Update the existing updateRpmUrlInFirestore function to trigger a refresh
 const updateRpmUrlInFirestore = async (userId, newRpmUrl) => {
     try {
         Logger.log(`userFirestore: Updating rpmURL for user ID: ${userId}`);
         const userDocRef = doc(db, 'users', userId);
 
         // Perform the update with the new rpmURL
-        await updateDoc(userDocRef, { rpmURL: newRpmUrl });
+        await updateDoc(userDocRef, { 
+            rpmURL: newRpmUrl,
+            lastUpdated: new Date().toISOString() // Add timestamp to force refresh
+        });
 
         Logger.log('userFirestore: rpmURL updated successfully.');
     } catch (error) {
@@ -56,7 +85,12 @@ const updateRpmUrlInFirestore = async (userId, newRpmUrl) => {
     }
 };
 
-export { getUserProfileData, registerUser, updateRpmUrlInFirestore };
+export { 
+    getUserProfileData, 
+    registerUser, 
+    updateRpmUrlInFirestore,
+    onUserRpmUrlChange // Export the new function
+};
 
 
 

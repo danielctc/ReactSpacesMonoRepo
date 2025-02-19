@@ -7,7 +7,8 @@ import {
   ModalContent,
   ModalBody,
   useDisclosure,
-  Box
+  Box,
+  Portal
 } from "@chakra-ui/react";
 import { useUnityOnPlayVideo } from "../hooks/unityEvents";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
@@ -50,47 +51,56 @@ function VideoPlayer() {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="lg" isCentered>
-      <ModalOverlay bg="rgba(0, 0, 0, 0.8)" />
-      <ModalContent
-        bg="gray.900"
-        color="white"
-        borderRadius="lg"
-        overflow="hidden"
-        maxWidth="80vw"
-        maxHeight="80vh"
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        position="relative"
+    <Portal containerRef={fullscreenRef}>
+      <Modal 
+        isOpen={isOpen} 
+        onClose={handleClose} 
+        size="lg" 
+        isCentered
+        portalProps={{ containerRef: fullscreenRef }}
       >
-        <ModalCloseButton
-          size="lg"
-          bg="gray.700"
+        <ModalOverlay bg="rgba(0, 0, 0, 0.8)" />
+        <ModalContent
+          bg="gray.900"
           color="white"
-          borderRadius="full"
-          zIndex="2"
-          _hover={{ bg: "gray.600" }}
-          _focus={{ boxShadow: "none" }}
-          position="absolute"
-          top="10px"
-          right="10px"
-        />
-        <ModalBody p={0} width="100%">
-          {currentVideoUrl && (
-            <Box style={iframeStyles.iframeContainer}>
-              <iframe
-                src={currentVideoUrl}
-                style={iframeStyles.iframe}
-                allow="autoplay; fullscreen"
-                allowFullScreen
-                title="Video Player"
-              ></iframe>
-            </Box>
-          )}
-        </ModalBody>
-      </ModalContent>
-    </Modal>
+          borderRadius="lg"
+          overflow="hidden"
+          maxWidth="80vw"
+          maxHeight="80vh"
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          position="relative"
+          zIndex="modal"
+        >
+          <ModalCloseButton
+            size="lg"
+            bg="gray.700"
+            color="white"
+            borderRadius="full"
+            zIndex="modal"
+            _hover={{ bg: "gray.600" }}
+            _focus={{ boxShadow: "none" }}
+            position="absolute"
+            top="10px"
+            right="10px"
+          />
+          <ModalBody p={0} width="100%">
+            {currentVideoUrl && (
+              <Box style={iframeStyles.iframeContainer}>
+                <iframe
+                  src={currentVideoUrl}
+                  style={iframeStyles.iframe}
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                  title="Video Player"
+                ></iframe>
+              </Box>
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+    </Portal>
   );
 }
 
