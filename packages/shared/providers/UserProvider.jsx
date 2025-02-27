@@ -60,7 +60,12 @@ export const UserProvider = ({ children }) => {
 
     const register = async (email, password, additionalData) => {
         try {
-            const user = await registerUser(email, password, additionalData);
+            // Generate nickname from first name and last name initials, ensuring they are capitalized
+            const { firstName, lastName } = additionalData; // Assuming additionalData contains firstName and lastName
+            const nickname = `${firstName.charAt(0).toUpperCase()}${lastName.charAt(0).toUpperCase()}`; // Create nickname from initials
+
+            // Include nickname in the user registration data
+            const user = await registerUser(email, password, { ...additionalData, nickname });
             console.log(additionalData);
             setUser(user);
             currentUserRef.current = user;
