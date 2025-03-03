@@ -50,14 +50,16 @@ function SignOut({ mode, label }) {
             {label}
         </Link>
     ) : (
-        <Tooltip label="Sign Out" hasArrow portalProps={{ containerRef: fullscreenRef }}>
+        // Comment out the Tooltip and IconButton while keeping the structure
+        /* <Tooltip label="Sign Out" hasArrow portalProps={{ containerRef: fullscreenRef }}>
             <IconButton
                 aria-label="Sign Out"
                 icon={<UnlockIcon />}
                 onClick={handleSignOut}
                 variant="iconButton"
             />
-        </Tooltip>
+        </Tooltip> */
+        null
     );
 
     return (

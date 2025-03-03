@@ -74,12 +74,22 @@ if (rootElement) {
                 <UserProvider>
                     <FullScreenProvider>
                         <VStack spacing={4} align="stretch">
-                            <Flex justify="space-between" align="center" p={4} bg="gray.700" m={0}>
+                            <Flex 
+                                justify="space-between" 
+                                align="center" 
+                                p={4} 
+                                bg="gray.700" 
+                                m={0}
+                                position="relative"
+                                zIndex="100"
+                            >
                                 <Text fontSize="xl" fontWeight="bold" color="white">LOGO</Text>
-                                <HeaderAuthLinks />
+                                <Box zIndex="100" position="relative">
+                                    <HeaderAuthLinks />
+                                </Box>
                             </Flex>
 
-                            <Container maxW="container.xl" p={0}>
+                            <Container maxW="container.xl" p={0} zIndex="1">
                                 <AspectRatio ratio={16 / 9} bg="blue.100" m={0}>
                                     <Box id="webgl-root" data-space-id={spaceID} w="100%" m={0}>
                                         <WebGLErrorBoundary>

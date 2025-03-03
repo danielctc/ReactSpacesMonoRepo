@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import { Box, Image, PortalManager } from "@chakra-ui/react";
 import { Unity } from "react-unity-webgl";
 import { useUnity } from "./providers/UnityProvider";
-import { useSendUnityEvent, useUnityOnFirstSceneLoaded, useUnityOnRequestUser } from "./hooks/unityEvents";
+import { useSendUnityEvent, useUnityOnFirstSceneLoaded, useUnityOnRequestUser, useUnityOnNameplateClick } from "./hooks/unityEvents";
 import { useFadeStyles } from "./hooks/useFadeStyles";
 import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
@@ -19,6 +19,10 @@ import SendThumbnailUrlToUnity from "./components/EventTests/SendThumbnailUrlToU
 // import EditMode from "./components/EditMode"; // Import the EditMode component
 import VideoPlayer from "./components/VideoPlayer"; // Import VideoPlayer to play videos
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
+import NameplateModal from "./components/NameplateModal";
+import UnityPlayerList from "./components/UnityPlayerList";
+import { CanvasMainMenu } from "./components/CanvasMainMenu";
+import { useUnityPlayerList } from "./hooks/unityEvents/useUnityPlayerList";
 
 const WebGLRenderer = forwardRef(({ settings }, ref) => {
   const { unityProvider, isLoaded } = useUnity();
@@ -29,13 +33,13 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   const { user } = useContext(UserContext);
   const [isUnityReady, setIsUnityReady] = useState(false);
   const [devicePixelRatio, setDevicePixelRatio] = useState(window.devicePixelRatio);
+  const [nameplateData, resetNameplateData] = useUnityOnNameplateClick();
+  const players = useUnityPlayerList();
+  const localPlayer = players.find(player => player.isLocalPlayer);
+  const [isPlayerListVisible, setIsPlayerListVisible] = useState(true);
 
   // State to track if Edit Mode is active
 //  const [isEditMode, setIsEditMode] = useState(false);
-
-  const profileImageUrl = user?.rpmURL
-    ? user.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75")
-    : null;
 
   // Ensure the Unity environment is ready before attempting interactions
   useEffect(() => {
@@ -75,6 +79,59 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     sendUnityEvent('ToggleEditMode', { editMode });
   };
 
+  // Add this effect to expose test functions
+  useEffect(() => {
+    console.log('🎮 Setting up test functions...');
+    
+    window.testNameplateClick = () => {
+      console.log('🎮 Testing nameplate click...');
+      const testData = {
+        playerName: "Test Player",
+        playerId: "test-123"
+      };
+      
+      console.log('🎮 Dispatching test data:', testData);
+      
+      const event = new CustomEvent("unityMessage", {
+        detail: {
+          eventName: "OpenNameplateModal",
+          data: testData
+        }
+      });
+      window.dispatchEvent(event);
+    };
+    
+    console.log('🎮 Test function available:', typeof window.testNameplateClick === 'function');
+    
+    return () => {
+      delete window.testNameplateClick;
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log('🎮 WebGLRenderer mounted');
+  }, []);
+
+  // Add this effect to monitor nameplateData changes
+  useEffect(() => {
+    console.log("🎮 NameplateData changed:", nameplateData);
+  }, [nameplateData]);
+
+  // Add debug logging for nameplate data
+  useEffect(() => {
+    if (nameplateData) {
+      console.log('🎮 Received nameplate data:', {
+        clickedPlayerName: nameplateData.playerName,
+        clickedPlayerId: nameplateData.playerId
+      });
+    }
+  }, [nameplateData]);
+
+  const handlePlayerListToggle = () => {
+    console.log('Toggling player list:', !isPlayerListVisible); // Add logging
+    setIsPlayerListVisible(!isPlayerListVisible);
+  };
+
   return (
     <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
       <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "16/9" }}>
@@ -105,9 +162,34 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
         </Box>
 
         {/* Profile and authentication buttons */}
-        <Box {...fadeStyles} position="absolute" zIndex="2" top={4} right={4} display="flex" alignItems="flex-start" gap={3}>
+        <Box 
+          {...fadeStyles} 
+          position="absolute" 
+          zIndex="2" 
+          top={4} 
+          right={4} 
+          display="flex" 
+          alignItems="flex-start" 
+          gap={3}
+          sx={{
+            '& > *': {  // This targets all direct children
+              height: '40px',  // Set consistent height
+              width: '40px',   // Set consistent width
+              minWidth: '40px' // Ensure minimum width
+            },
+            '& .chakra-button, & .chakra-avatar': {  // Target both buttons and avatars
+              height: '40px !important',
+              width: '40px !important'
+            }
+          }}
+        >
           {settings.showAuthButton && <AuthenticationButton />}
-          <ProfileButton profileImageUrl={profileImageUrl} />
+          <ProfileButton />
+          <Box position="relative" zIndex="4">
+            <CanvasMainMenu 
+              onTogglePlayerList={handlePlayerListToggle}
+            />
+          </Box>
         </Box>
 
         {/* Bottom right controls */}
@@ -134,6 +216,21 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     {/* <TestModalTrigger gameObjectName="TV2" isEditMode={isEditMode} /> */} {/* Add the test trigger */}
   {/* </> */}
 {/* )} */}
+
+        <NameplateModal
+          isOpen={nameplateData !== null}
+          onClose={() => {
+            console.log("🎮 Closing nameplate modal");
+            resetNameplateData();
+          }}
+          playerName={nameplateData?.playerName || "Unknown Player"}
+          playerId={nameplateData?.playerId || "Unknown ID"}
+        />
+
+        <UnityPlayerList 
+          isVisible={isPlayerListVisible}
+          onToggleVisibility={setIsPlayerListVisible} 
+        />
       </div>
     </PortalManager>
   );

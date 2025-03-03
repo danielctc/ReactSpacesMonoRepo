@@ -11,3 +11,5 @@ export { useUnityOnHelloFromUnity } from './useUnityOnHelloFromUnity';
 export { useUnityOnPlayerInstantiated } from './useUnityOnPlayerInstantiated';
 export { useUnityOnRequestForMedia } from './useUnityOnRequestForMedia';
 export { useUnityThumbnails } from './useUnityThumbnails';
+export { useUnityOnNameplateClick } from './useUnityOnNameplateClick';
+export { useUnityPlayerList } from './useUnityPlayerList';

@@ -106,9 +106,9 @@ export const UserProvider = ({ children }) => {
     };
 
     const sendUserToUnity = () => {
-        const currentUser = currentUserRef.current; // Correct reference to the current user
+        const currentUser = currentUserRef.current;
         if (currentUser) {
-            const filteredUser = filterUserPropertiesForUnity(currentUser); // Correctly filters user properties
+            const filteredUser = filterUserPropertiesForUnity(currentUser);
             Logger.log("UserProvider: sendUserToUnity() using the eventBus", filteredUser);
             eventBus.publish(EventNames.sendUserToUnity, filteredUser);
         } else {
@@ -118,7 +118,10 @@ export const UserProvider = ({ children }) => {
 
     const filterUserPropertiesForUnity = (userObject) => {
         const filteredUser = {};
-        userProperties.forEach(field => {
+        // Add uid to the list of properties to send
+        const propertiesForUnity = [...userProperties, 'uid'];
+        
+        propertiesForUnity.forEach(field => {
             if (userObject.hasOwnProperty(field)) {
                 filteredUser[field] = userObject[field];
             }
