@@ -1,10 +1,11 @@
 import { useContext, useEffect, useState } from "react";
-import { Box, Avatar, Flex, Menu, MenuButton, MenuList, MenuItem, Text, Divider, Button } from "@chakra-ui/react";
+import { Box, Avatar, Flex, Menu, MenuButton, MenuList, MenuItem, Text, Divider, Button, useDisclosure, Portal } from "@chakra-ui/react";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import SignIn from "@disruptive-spaces/shared/components/auth/SignIn";
 import SignOut from "@disruptive-spaces/shared/components/auth/SignOut";
 import Register from "@disruptive-spaces/shared/components/auth/Register";
+import ProfileModal from "./ProfileModal";
 
 const buttonStyles = {
     bg: "white",
@@ -22,8 +23,9 @@ const buttonStyles = {
 };
 
 const HeaderAuthLinks = () => {
-    const { user } = useContext(UserContext);
+    const { user, updateUser } = useContext(UserContext);
     const [isLoading, setIsLoading] = useState(true);
+    const { isOpen, onOpen, onClose } = useDisclosure();
 
     useEffect(() => {
         // Short timeout to allow user context to be loaded
@@ -33,6 +35,12 @@ const HeaderAuthLinks = () => {
 
         return () => clearTimeout(timer);
     }, []);
+
+    const handleProfileClose = () => {
+        onClose();
+        // Force a refresh of the user data
+        updateUser();
+    };
 
     const profileImageUrl = user?.rpmURL
         ? user.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75")
@@ -46,99 +54,112 @@ const HeaderAuthLinks = () => {
     return (
         <Flex align="center" gap="4">
             {user ? (
-                <Menu>
-                    <MenuButton
-                        as={Box}
-                        cursor="pointer"
-                    >
-                        <Flex
-                            align="center"
-                            height="40px"
-                            px={4}
-                            borderRadius="full"
-                            border="1px solid rgba(255, 255, 255, 0.3)"
-                            transition="all 0.2s"
-                            sx={{
-                                '&:hover': {
-                                    border: '2px solid white'
-                                }
-                            }}
+                <>
+                    <ProfileModal 
+                        isOpen={isOpen} 
+                        onClose={handleProfileClose} 
+                        user={user}
+                        profileImageUrl={profileImageUrl}
+                    />
+                    <Menu>
+                        <MenuButton
+                            as={Box}
+                            cursor="pointer"
                         >
-                            <Flex align="center" gap="3">
-                                <Box
-                                    width="28px"
-                                    height="28px"
-                                    borderRadius="full"
-                                    overflow="hidden"
-                                    bg="white"
-                                    display="flex"
-                                    alignItems="center"
-                                    justifyContent="center"
-                                >
-                                    <Avatar
+                            <Flex
+                                align="center"
+                                height="40px"
+                                px={4}
+                                borderRadius="full"
+                                border="1px solid rgba(255, 255, 255, 0.3)"
+                                transition="all 0.2s"
+                                sx={{
+                                    '&:hover': {
+                                        border: '2px solid white'
+                                    }
+                                }}
+                            >
+                                <Flex align="center" gap="3">
+                                    <Box
+                                        width="28px"
+                                        height="28px"
+                                        borderRadius="full"
+                                        overflow="hidden"
+                                        bg="white"
+                                        display="flex"
+                                        alignItems="center"
+                                        justifyContent="center"
+                                    >
+                                        <Avatar
+                                            src={profileImageUrl}
+                                            width="100%"
+                                            height="100%"
+                                            borderRadius="full"
+                                        />
+                                    </Box>
+                                    <Text color="white" fontWeight="medium">
+                                        {user.Nickname}
+                                    </Text>
+                                    <Box 
+                                        display="flex" 
+                                        alignItems="center"
+                                        height="28px"
+                                    >
+                                        <ChevronDownIcon color="white" w={4} h={4} />
+                                    </Box>
+                                </Flex>
+                            </Flex>
+                        </MenuButton>
+                        <Portal>
+                            <MenuList 
+                                bg="gray.800" 
+                                borderColor="gray.700"
+                                zIndex={9999}
+                            >
+                                <Box p={4} display="flex" alignItems="center" gap={3}>
+                                    <Avatar 
                                         src={profileImageUrl}
-                                        width="100%"
-                                        height="100%"
+                                        size="md"
                                         borderRadius="full"
                                     />
+                                    <Text fontSize="xl" fontWeight="bold" color="white">
+                                        {user.Nickname}
+                                    </Text>
                                 </Box>
-                                <Text color="white" fontWeight="medium">
-                                    {user.Nickname}
-                                </Text>
-                                <Box 
-                                    display="flex" 
-                                    alignItems="center"
-                                    height="28px"
+                                <Divider borderColor="gray.700" />
+                                <MenuItem _hover={{ bg: "gray.700" }} color="white" bg="gray.800">
+                                    My Spaces
+                                </MenuItem>
+                                <MenuItem 
+                                    onClick={onOpen}
+                                    _hover={{ bg: "gray.700" }} 
+                                    color="white" 
+                                    bg="gray.800"
                                 >
-                                    <ChevronDownIcon color="white" w={4} h={4} />
-                                </Box>
-                            </Flex>
-                        </Flex>
-                    </MenuButton>
-                    <MenuList bg="gray.800" borderColor="gray.700">
-                        <Box p={4} display="flex" alignItems="center" gap={3}>
-                            <Avatar 
-                                src={profileImageUrl}
-                                size="md"
-                                borderRadius="full"
-                            />
-                            <Text fontSize="xl" fontWeight="bold" color="white">
-                                {user.Nickname}
-                            </Text>
-                        </Box>
-                        <Divider borderColor="gray.700" />
-                        <MenuItem _hover={{ bg: "gray.700" }} color="white" bg="gray.800">
-                            Placer 1
-                        </MenuItem>
-                        <MenuItem _hover={{ bg: "gray.700" }} color="white" bg="gray.800">
-                            Placer 2
-                        </MenuItem>
-                        <MenuItem _hover={{ bg: "gray.700" }} color="white" bg="gray.800">
-                            Placer 3
-                        </MenuItem>
-                        <MenuItem _hover={{ bg: "gray.700" }} color="white" bg="gray.800">
-                            Placer 4
-                        </MenuItem>
-                        <Divider borderColor="gray.700" />
-                        <MenuItem _hover={{ bg: "gray.700" }} color="white" bg="gray.800">
-                            Support
-                        </MenuItem>
-                        <MenuItem 
-                            _hover={{ bg: "gray.700" }} 
-                            color="white" 
-                            bg="gray.800"
-                        >
-                            <SignOut 
-                                mode="link" 
-                                label="Log out" 
-                                linkProps={{
-                                    color: "white",
-                                    _hover: { textDecoration: "none" }
-                                }}
-                            />
-                        </MenuItem>
-                    </MenuList>
-                </Menu>
+                                    View Profile
+                                </MenuItem>
+                                <Divider borderColor="gray.700" />
+                                <MenuItem _hover={{ bg: "gray.700" }} color="white" bg="gray.800">
+                                    Support
+                                </MenuItem>
+                                <MenuItem 
+                                    _hover={{ bg: "gray.700" }} 
+                                    color="white" 
+                                    bg="gray.800"
+                                >
+                                    <SignOut 
+                                        mode="link" 
+                                        label="Log out" 
+                                        linkProps={{
+                                            color: "white",
+                                            _hover: { textDecoration: "none" }
+                                        }}
+                                    />
+                                </MenuItem>
+                            </MenuList>
+                        </Portal>
+                    </Menu>
+                </>
             ) : (
                 <>
                     <Register 

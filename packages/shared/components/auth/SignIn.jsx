@@ -3,9 +3,9 @@ import PropTypes from "prop-types";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
-
 import { useForm } from "react-hook-form";
-
+import Register from "./Register";
+import { useUnityInputManager } from '@disruptive-spaces/webgl/src/hooks/useUnityInputManager';
 
 import {
     IconButton,
@@ -22,28 +22,45 @@ import {
     FormControl,
     FormErrorMessage,
     Input,
-    Tooltip,
+    InputGroup,
+    InputLeftElement,
+    VStack,
+    Box,
+    Heading,
     useToast,
 } from "@chakra-ui/react";
-import { LockIcon } from "@chakra-ui/icons";
+import { EmailIcon, LockIcon } from "@chakra-ui/icons";
 
 function SignIn({ mode, label, buttonProps = {} }) {
     const { signIn } = useContext(UserContext);
     const { fullscreenRef } = useFullscreenContext();
     const toast = useToast();
-    const { register, handleSubmit, formState: { errors } } = useForm({
+    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
         defaultValues: {
             email: 'neil@pursey.net',
             password: '123456',
         }
     });
     const [isOpen, setIsOpen] = useState(false);
+    const [showRegister, setShowRegister] = useState(false);
+
+    useUnityInputManager(isOpen);
 
     const handleSignIn = async (data) => {
         try {
             await signIn(data.email, data.password);
             Logger.log('User: Sign-in process complete.');
-            setIsOpen(false); // Close modal on successful login
+            setIsOpen(false);
+
+            // Refresh the page after successful sign-in
+            // This is needed to reload the Unity canvas with the new user context
+            // TODO: In the future, consider implementing a more elegant solution
+            // that doesn't require a full page refresh, such as:
+            // 1. Using Unity's reload API
+            // 2. Implementing a context update system
+            // 3. Using a pub/sub system to notify Unity of user changes
+            window.location.reload();
+            
         } catch (error) {
             Logger.error("User: SignIn Error:", error);
             toast({
@@ -58,13 +75,11 @@ function SignIn({ mode, label, buttonProps = {} }) {
         }
     };
 
-    const toggleModal = () => {
-        console.log("clicked sign in");
-        setIsOpen(prev => {
-            const newState = !prev;
-            console.log("Modal open state:", newState);
-            return newState;
-        });
+    const toggleModal = () => setIsOpen(prev => !prev);
+
+    const handleShowRegister = () => {
+        setIsOpen(false);
+        setShowRegister(true);
     };
 
     const signInTrigger = mode === 'link' ? (
@@ -83,47 +98,131 @@ function SignIn({ mode, label, buttonProps = {} }) {
     return (
         <>
             {signInTrigger}
-            <Modal isOpen={isOpen} onClose={toggleModal} size="md" portalProps={{ containerRef: fullscreenRef }} >
-
-                <ModalOverlay />
+            <Modal 
+                isOpen={isOpen} 
+                onClose={toggleModal} 
+                size="md" 
+                portalProps={{ containerRef: fullscreenRef }}
+                isCentered
+                motionPreset="slideInBottom"
+                blockScrollOnMount={false}
+            >
+                <ModalOverlay 
+                    bg="blackAlpha.800"
+                    backdropFilter="blur(5px)"
+                />
                 <form onSubmit={handleSubmit(handleSignIn)}>
-                    <ModalContent textAlign="left">
-                        <ModalHeader>Sign In</ModalHeader>
-                        <ModalCloseButton />
-                        <ModalBody>
-                            <Text variant="formIntro">Please enter your email and password to access your account.</Text>
-                            <FormControl isInvalid={errors.email} mt={4}>
-                                <Input
-                                    type="email"
-                                    placeholder="Email"
-                                    {...register("email", { required: "Email is required." })}
-                                />
-                                <FormErrorMessage>
-                                    {errors.email && errors.email.message}
-                                </FormErrorMessage>
-                            </FormControl>
-                            <FormControl isInvalid={errors.password} mt={4}>
-                                <Input
-                                    type="password"
-                                    placeholder="Password"
-                                    {...register("password", { required: "Password is required." })}
-                                />
-                                <FormErrorMessage>
-                                    {errors.password && errors.password.message}
-                                </FormErrorMessage>
-                            </FormControl>
+                    <ModalContent 
+                        bg="gray.800"
+                        borderRadius="xl"
+                        boxShadow="xl"
+                        color="white"
+                        maxW="md"
+                        mx={4}
+                        position="relative"
+                        zIndex={9999}
+                        sx={{
+                            isolation: 'isolate',
+                            '& input': {
+                                position: 'relative',
+                                zIndex: 10000,
+                                isolation: 'isolate'
+                            },
+                            '& *': {
+                                pointerEvents: 'auto !important'
+                            }
+                        }}
+                        onKeyDown={(e) => {
+                            e.stopPropagation();
+                        }}
+                    >
+                        <ModalHeader p={8} textAlign="center">
+                            <Heading size="lg" mb={2}>Welcome Back</Heading>
+                            <Text fontSize="sm" color="gray.400">
+                                Enter your credentials to access your account
+                            </Text>
+                        </ModalHeader>
+                        <ModalCloseButton color="gray.400" />
+                        <ModalBody px={8} pb={8}>
+                            <VStack spacing={4}>
+                                <FormControl isInvalid={errors.email}>
+                                    <InputGroup>
+                                        <InputLeftElement pointerEvents="none">
+                                            <EmailIcon color="gray.500" />
+                                        </InputLeftElement>
+                                        <Input
+                                            type="email"
+                                            placeholder="Email"
+                                            bg="gray.700"
+                                            border="none"
+                                            color="white"
+                                            _placeholder={{ color: 'gray.500' }}
+                                            _hover={{ bg: 'gray.600' }}
+                                            _focus={{
+                                                bg: 'gray.600',
+                                                boxShadow: '0 0 0 1px var(--chakra-colors-blue-400)'
+                                            }}
+                                            {...register("email", { required: "Email is required." })}
+                                        />
+                                    </InputGroup>
+                                    <FormErrorMessage>
+                                        {errors.email && errors.email.message}
+                                    </FormErrorMessage>
+                                </FormControl>
+
+                                <FormControl isInvalid={errors.password}>
+                                    <InputGroup>
+                                        <InputLeftElement pointerEvents="none">
+                                            <LockIcon color="gray.500" />
+                                        </InputLeftElement>
+                                        <Input
+                                            type="password"
+                                            placeholder="Password"
+                                            bg="gray.700"
+                                            border="none"
+                                            color="white"
+                                            _placeholder={{ color: 'gray.500' }}
+                                            _hover={{ bg: 'gray.600' }}
+                                            _focus={{
+                                                bg: 'gray.600',
+                                                boxShadow: '0 0 0 1px var(--chakra-colors-blue-400)'
+                                            }}
+                                            {...register("password", { required: "Password is required." })}
+                                        />
+                                    </InputGroup>
+                                    <FormErrorMessage>
+                                        {errors.password && errors.password.message}
+                                    </FormErrorMessage>
+                                </FormControl>
+                            </VStack>
                         </ModalBody>
-                        <ModalFooter>
-                            <Button variant="secondary" onClick={toggleModal}>
-                                Go Back
-                            </Button>
-                            <Button type="submit" variant="primary" ml={3}>
+
+                        <ModalFooter px={8} pb={8} flexDirection="column" gap={4}>
+                            <Button
+                                type="submit"
+                                colorScheme="blue"
+                                size="lg"
+                                width="100%"
+                                isLoading={isSubmitting}
+                                loadingText="Signing In"
+                            >
                                 Sign In
                             </Button>
+                            <Text fontSize="sm" color="gray.400" textAlign="center">
+                                Don't have an account?{" "}
+                                <Link color="blue.400" onClick={handleShowRegister}>
+                                    Sign Up
+                                </Link>
+                            </Text>
                         </ModalFooter>
                     </ModalContent>
                 </form>
             </Modal>
+            <Register 
+                mode="link" 
+                isOpen={showRegister} 
+                onClose={() => setShowRegister(false)} 
+            />
         </>
     );
 }

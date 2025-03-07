@@ -3,7 +3,7 @@ import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullSc
 import { Box, Avatar, Text, Tooltip } from "@chakra-ui/react";
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
-import ReadyPlayerMeModal from './ReadyPlayerMeModal';
+import AvatarModal from './AvatarModal';
 
 function ProfileButton() {
   const { fullscreenRef } = useFullscreenContext();
@@ -13,18 +13,29 @@ function ProfileButton() {
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const { user } = useContext(UserContext);
   const [profileData, setProfileData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const getInitials = (firstName, lastName) => {
+    if (!firstName || !lastName) return "?";
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
 
   const fetchProfileData = async () => {
     if (user?.uid) {
+      setIsLoading(true);
       try {
         const userProfile = await getUserProfileData(user.uid);
         setProfileData({
           rpmURL: userProfile.rpmURL ? 
             userProfile.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75") 
-            : null
+            : null,
+          firstName: userProfile.firstName,
+          lastName: userProfile.lastName
         });
       } catch (error) {
         console.error('Error fetching profile data:', error);
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -80,11 +91,11 @@ function ProfileButton() {
           onClick={handleModalToggle}
         >
           <Avatar 
-            src={profileData?.rpmURL}
+            src={!isLoading ? profileData?.rpmURL : undefined}
             size="md"
             borderRadius="full"
             bg="white"
-            name=" "
+            name={isLoading ? getInitials(profileData?.firstName, profileData?.lastName) : " "}
             borderWidth="1px"
             borderColor="whiteAlpha.300"
           />
@@ -107,7 +118,7 @@ function ProfileButton() {
         </Box>
       </Tooltip>
 
-      {openModal && <ReadyPlayerMeModal open={openModal} onClose={handleModalClose} />}
+      <AvatarModal isOpen={openModal} onClose={handleModalClose} />
     </>
   );
 }

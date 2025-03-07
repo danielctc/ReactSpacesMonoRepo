@@ -60,13 +60,18 @@ export const UserProvider = ({ children }) => {
 
     const register = async (email, password, additionalData) => {
         try {
-            // Generate nickname from first name and last name initials, ensuring they are capitalized
-            const { firstName, lastName } = additionalData; // Assuming additionalData contains firstName and lastName
-            const nickname = `${firstName.charAt(0).toUpperCase()}${lastName.charAt(0).toUpperCase()}`; // Create nickname from initials
+            // Generate nickname from first name and first letter of last name
+            const { firstName, lastName } = additionalData;
+            const Nickname = `${firstName}${lastName.charAt(0).toUpperCase()}`;
 
-            // Include nickname in the user registration data
-            const user = await registerUser(email, password, { ...additionalData, nickname });
-            console.log(additionalData);
+            // Add default RPM URL to the registration data
+            const registrationData = {
+                ...additionalData,
+                Nickname,
+                rpmURL: "https://models.readyplayer.me/67c8408d38f7924e15a8bd0a.glb"
+            };
+
+            const user = await registerUser(email, password, registrationData);
             setUser(user);
             currentUserRef.current = user;
         } catch (error) {

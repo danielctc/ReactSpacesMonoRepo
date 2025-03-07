@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useContext } from 'react';
-import { Box } from "@chakra-ui/react";
+import { Box, Portal } from "@chakra-ui/react";
 import { useSendUnityEvent } from "../hooks/unityEvents/core/useSendUnityEvent";
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider"; // Import UserContext to get user ID
 import { updateRpmUrlInFirestore } from '../../../../packages/shared/firebase/userFirestore'; // Import the Firestore update function
@@ -82,31 +82,34 @@ function ReadyPlayerMeModal({ open, onClose }) {
 
   return (
     open && (
-      <Box 
-        position="fixed" 
-        top="0" 
-        left="0" 
-        width="100%" 
-        height="100%" 
-        bg="rgba(0, 0, 0, 0.8)" 
-        zIndex="modal"
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-      >
-        {/* Wrapper for centered content */}
-        <Box position="relative" maxWidth="1080px" maxHeight="800px" width="90%" height="90%">
-          <iframe
-            ref={iframeRef}
-            src="https://spacesmetaverse.readyplayer.me/avatar?frameApi"
-            title="Ready Player Me"
-            width="100%"
-            height="100%"
-            style={{ border: "none", borderRadius: "8px" }}
-            allow="camera *; microphone *; clipboard-write"
-          />
+      <Portal>
+        <Box 
+          position="fixed" 
+          top="0" 
+          left="0" 
+          width="100%" 
+          height="100%" 
+          bg="rgba(0, 0, 0, 0.8)" 
+          zIndex={10000}
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Wrapper for centered content */}
+          <Box position="relative" maxWidth="1080px" maxHeight="800px" width="90%" height="90%">
+            <iframe
+              ref={iframeRef}
+              src="https://spacesmetaverse.readyplayer.me/avatar?frameApi"
+              title="Ready Player Me"
+              width="100%"
+              height="100%"
+              style={{ border: "none", borderRadius: "8px" }}
+              allow="camera *; microphone *; clipboard-write"
+            />
+          </Box>
         </Box>
-      </Box>
+      </Portal>
     )
   );
 }

@@ -133,106 +133,92 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   };
 
   return (
-    <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
-      <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "16/9" }}>
-        {/* Background for Unity */}
-        <Box position="relative" overflow="hidden" width="100%" height="100%"
-          bgRepeat="no-repeat" bgSize="cover" bgPosition="center" bgColor="#666666"
-          bgImage={settings.urlLoadingBackground ? `url('${settings.urlLoadingBackground}')` : ""}>
-          
-          {/* Loader for initial loading state */}
-          <LoaderProgress />
+    <>
+      {/* Auth UI - Outside PortalManager */}
+      <Box 
+        position="absolute" 
+        zIndex="9999" 
+        top={4} 
+        right={4} 
+        display="flex" 
+        alignItems="flex-start" 
+        gap={3}
+        sx={{
+          '& > *': {
+            height: '40px',
+            width: '40px',
+            minWidth: '40px'
+          },
+          '& .chakra-button, & .chakra-avatar': {
+            height: '40px !important',
+            width: '40px !important'
+          }
+        }}
+      >
+        {settings.showAuthButton && <AuthenticationButton />}
+        <ProfileButton />
+        <Box position="relative" zIndex="9999">
+          <CanvasMainMenu 
+            onTogglePlayerList={handlePlayerListToggle}
+          />
+        </Box>
+      </Box>
 
-          {/* Unity display */}
-          <Box {...fadeStyles} width="100%" height="100%" position="absolute" zIndex="1">
-            <Unity
-              unityProvider={unityProvider}
-              style={{ width: "100%", height: "100%" }}
-              devicePixelRatio={devicePixelRatio}
-            />
+      <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
+        <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "16/9" }}>
+          {/* Background for Unity */}
+          <Box position="relative" overflow="hidden" width="100%" height="100%"
+            bgRepeat="no-repeat" bgSize="cover" bgPosition="center" bgColor="#666666"
+            bgImage={settings.urlLoadingBackground ? `url('${settings.urlLoadingBackground}')` : ""}>
+            
+            {/* Loader for initial loading state */}
+            <LoaderProgress />
+
+            {/* Unity display */}
+            <Box {...fadeStyles} width="100%" height="100%" position="absolute" zIndex="1">
+              <Unity
+                unityProvider={unityProvider}
+                style={{ width: "100%", height: "100%" }}
+                devicePixelRatio={devicePixelRatio}
+              />
+            </Box>
+
+            {/* Event to send thumbnails */}
+            <SendThumbnailUrlToUnity />
           </Box>
 
-          {/* Event to send thumbnails */}
-          <SendThumbnailUrlToUnity />
-        </Box>
-
-        {/* UI elements */}
-        <Box {...fadeStyles} position="absolute" zIndex="2" top={4} left={4} display="flex" alignItems="flex-start" gap={3} height="50px">
-          {settings.showDisruptiveLogo && <Image src={settings.urlDisruptiveLogo} width="100px" alt="Disruptive Logo" />}
-        </Box>
-
-        {/* Profile and authentication buttons */}
-        <Box 
-          {...fadeStyles} 
-          position="absolute" 
-          zIndex="2" 
-          top={4} 
-          right={4} 
-          display="flex" 
-          alignItems="flex-start" 
-          gap={3}
-          sx={{
-            '& > *': {  // This targets all direct children
-              height: '40px',  // Set consistent height
-              width: '40px',   // Set consistent width
-              minWidth: '40px' // Ensure minimum width
-            },
-            '& .chakra-button, & .chakra-avatar': {  // Target both buttons and avatars
-              height: '40px !important',
-              width: '40px !important'
-            }
-          }}
-        >
-          {settings.showAuthButton && <AuthenticationButton />}
-          <ProfileButton />
-          <Box position="relative" zIndex="4">
-            <CanvasMainMenu 
-              onTogglePlayerList={handlePlayerListToggle}
-            />
+          {/* UI elements */}
+          <Box {...fadeStyles} position="absolute" zIndex="2" top={4} left={4} display="flex" alignItems="flex-start" gap={3} height="50px">
+            {settings.showDisruptiveLogo && <Image src={settings.urlDisruptiveLogo} width="100px" alt="Disruptive Logo" />}
           </Box>
-        </Box>
 
-        {/* Bottom right controls */}
-        <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} left={4} display="flex" alignItems="flex-start" gap={3} />
-        <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} right={4} display="flex" alignItems="flex-start" gap={3}>
-          {settings.showHelpButton && <HelpButton />}
-          <FullScreenButton />
-        </Box>
+          {/* Bottom right controls */}
+          <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} left={4} display="flex" alignItems="flex-start" gap={3} />
+          <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} right={4} display="flex" alignItems="flex-start" gap={3}>
+            {settings.showHelpButton && <HelpButton />}
+            <FullScreenButton />
+          </Box>
 
-        {/* Video Player for handling play video events */}
-        {/* Pass `isEditMode` to ensure it knows whether to play the video */}
-        <VideoPlayer/>
-{/* Experimental Movement System */}
-{/* <VideoPlayer isEditMode={isEditMode} /> */}
+          {/* Video Player for handling play video events */}
+          <VideoPlayer/>
 
-{/* Conditionally render EditMode and test modal when Unity is ready */}
-{/* {isUnityReady && ( */}
-  {/* <> */}
-    {/* <EditMode
-      gameObjectName="TV2"
-      isEditMode={isEditMode}
-      onToggleEditMode={handleEditModeToggle}
-    /> */}
-    {/* <TestModalTrigger gameObjectName="TV2" isEditMode={isEditMode} /> */} {/* Add the test trigger */}
-  {/* </> */}
-{/* )} */}
+          <NameplateModal
+            isOpen={nameplateData !== null}
+            onClose={() => {
+              console.log("🎮 Closing nameplate modal");
+              resetNameplateData();
+            }}
+            playerName={nameplateData?.playerName || "Unknown Player"}
+            playerId={nameplateData?.playerId || "Unknown ID"}
+          />
 
-        <NameplateModal
-          isOpen={nameplateData !== null}
-          onClose={() => {
-            console.log("🎮 Closing nameplate modal");
-            resetNameplateData();
-          }}
-          playerName={nameplateData?.playerName || "Unknown Player"}
-          playerId={nameplateData?.playerId || "Unknown ID"}
-        />
-
-        <UnityPlayerList 
-          isVisible={isPlayerListVisible}
-          onToggleVisibility={setIsPlayerListVisible} 
-        />
-      </div>
-    </PortalManager>
+          <UnityPlayerList 
+            isVisible={isPlayerListVisible}
+            onToggleVisibility={setIsPlayerListVisible} 
+          />
+        </div>
+      </PortalManager>
+    </>
   );
 });
 

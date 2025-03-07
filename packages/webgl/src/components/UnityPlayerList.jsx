@@ -54,7 +54,7 @@ export const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
                 ...player,
                 firstName: userProfile.firstName,
                 lastName: userProfile.lastName,
-                linkedinUrl: userProfile.linkedinUrl,
+                linkedInProfile: userProfile.linkedInProfile,
                 websiteUrl: userProfile.websiteUrl,
                 rpmURL: userProfile.rpmURL ? 
                   userProfile.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75") 
@@ -200,26 +200,30 @@ export const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
                         </Text>
                       )}
                       <HStack spacing={4} pt={2}>
-                        <Link href={player.linkedinUrl} isExternal>
-                          <IconButton
-                            icon={<FaLinkedin />}
-                            variant="ghost"
-                            colorScheme="whiteAlpha"
-                            size="sm"
-                            aria-label="LinkedIn profile"
-                            _hover={{ bg: 'whiteAlpha.200' }}
-                          />
-                        </Link>
-                        <Link href={player.websiteUrl} isExternal>
-                          <IconButton
-                            icon={<FaGlobe />}
-                            variant="ghost"
-                            colorScheme="whiteAlpha"
-                            size="sm"
-                            aria-label="Personal website"
-                            _hover={{ bg: 'whiteAlpha.200' }}
-                          />
-                        </Link>
+                        {player.linkedInProfile && (
+                          <Link href={player.linkedInProfile} isExternal>
+                            <IconButton
+                              icon={<FaLinkedin />}
+                              variant="ghost"
+                              colorScheme="whiteAlpha"
+                              size="sm"
+                              aria-label="LinkedIn profile"
+                              _hover={{ bg: 'whiteAlpha.200' }}
+                            />
+                          </Link>
+                        )}
+                        {player.websiteUrl && (
+                          <Link href={player.websiteUrl} isExternal>
+                            <IconButton
+                              icon={<FaGlobe />}
+                              variant="ghost"
+                              colorScheme="whiteAlpha"
+                              size="sm"
+                              aria-label="Personal website"
+                              _hover={{ bg: 'whiteAlpha.200' }}
+                            />
+                          </Link>
+                        )}
                       </HStack>
                     </VStack>
                   </PopoverBody>
