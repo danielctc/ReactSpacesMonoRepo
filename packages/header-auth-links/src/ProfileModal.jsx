@@ -114,6 +114,18 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
                 lastUpdated: new Date().toISOString()
             });
 
+            // Update the user context with the new data
+            await updateUser();
+
+            // Update local state with the new data
+            setFormData({
+                Nickname: formData.Nickname,
+                companyName: formData.companyName,
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                linkedInProfile: formData.linkedInProfile
+            });
+
             toast({
                 title: "Success",
                 description: "Profile updated successfully",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { 
   IconButton, 
   Menu,
@@ -10,21 +10,45 @@ import {
   HStack,
   Divider,
   Avatar,
-  Portal
+  Portal,
+  useToast,
+  useDisclosure,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerCloseButton,
+  DrawerHeader,
+  DrawerBody,
+  Button,
+  Flex,
+  Spacer,
+  MenuItem,
+  MenuDivider,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  Icon,
 } from "@chakra-ui/react";
 import { HamburgerIcon } from "@chakra-ui/icons";
-import { FaUsers } from 'react-icons/fa';
+import { FaUsers, FaDesktop } from 'react-icons/fa';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
+import { useVoiceChat, ScreenShareMenuOption } from '@disruptive-spaces/voice-chat';
+import AgoraRTC from 'agora-rtc-sdk-ng';
 import SpacesControlsModal from './SpacesControlsModal';
 import SpacesSettingsModal from './SpacesSettingsModal';
 import ReadyPlayerMeModal from './ReadyPlayerMeModal';
+import AuthenticationButton from './AuthenticationButton';
 
-export const CanvasMainMenu = ({ onTogglePlayerList }) => {
+export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
   const { fullscreenRef } = useFullscreenContext();
-  const [isPlayerInstantiated, setIsPlayerInstantiated] = useState(false);
+  const [isPlayerInstantiated, setIsPlayerInstantiated] = useState(true); // Default to true to enable screen sharing
   const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openControlsModal, setOpenControlsModal] = useState(false);
@@ -55,6 +79,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList }) => {
     fetchProfileData();
   }, [user?.uid]);
 
+  // Still listen for player instantiation, but don't block functionality
   useEffect(() => {
     const handlePlayerInstantiated = () => {
       setIsPlayerInstantiated(true);
@@ -85,8 +110,10 @@ export const CanvasMainMenu = ({ onTogglePlayerList }) => {
       // Don't close the menu
     }
   };
-
-  if (!isPlayerInstantiated) return null;
+  
+  const handleCloseMenu = () => {
+    setIsOpen(false);
+  };
 
   return (
     <>
@@ -143,14 +170,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList }) => {
                   _hover={{ bg: 'whiteAlpha.200' }}
                   onClick={handleTogglePlayerList}
                 />
-                <IconButton
-                  icon={<Box w="4" h="4" />}
-                  variant="ghost"
-                  colorScheme="whiteAlpha"
-                  size="sm"
-                  aria-label="Action 2"
-                  _hover={{ bg: 'whiteAlpha.200' }}
-                />
+                
                 <IconButton
                   icon={<Box w="4" h="4" />}
                   variant="ghost"
@@ -172,6 +192,13 @@ export const CanvasMainMenu = ({ onTogglePlayerList }) => {
               <Divider borderColor="whiteAlpha.300" />
 
               <VStack align="stretch" spacing={2}>
+                {/* Screen Share as text option */}
+                {user && spaceID && (
+                  <ScreenShareMenuOption 
+                    onClose={handleCloseMenu}
+                  />
+                )}
+                
                 <Text 
                   fontSize="md" 
                   cursor="pointer" 
@@ -210,4 +237,6 @@ export const CanvasMainMenu = ({ onTogglePlayerList }) => {
       {openAvatarModal && <ReadyPlayerMeModal open={openAvatarModal} onClose={handleModalClose} />}
     </>
   );
-}; 
+};
+
+// Use the imported ScreenShareMenuOption from voice-chat 

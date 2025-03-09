@@ -10,7 +10,7 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import WebGLRenderer from "./WebGLRenderer";
 
 
-const WebGLLoader = ({ spaceID }) => {
+const WebGLLoader = ({ spaceID, overrideSettings }) => {
 
     const fullscreenRef = useRef(null);
     const [isLoading, setIsLoading] = useState(true); // Initial loading state set to true
@@ -31,6 +31,8 @@ const WebGLLoader = ({ spaceID }) => {
         showDisruptiveLogo: null,
         showAuthButton: null,
         showHelpButton: null,
+        enableVoiceChat: true, // Enable voice chat by default
+        spaceID: spaceID, // Pass spaceID to WebGLRenderer
     })
 
 
@@ -69,7 +71,11 @@ const WebGLLoader = ({ spaceID }) => {
                         showAuthButton: itemData.showAuthButton !== undefined ? itemData.showAuthButton : true,
                         showDisruptiveLogo: itemData.showDisruptiveLogo !== undefined ? itemData.showDisruptiveLogo : true,
                         showHelpButton: itemData.showHelpButton !== undefined ? itemData.showHelpButton : true,
-                        urlDisruptiveLogo: logoHttpUrl
+                        enableVoiceChat: itemData.enableVoiceChat !== undefined ? itemData.enableVoiceChat : true, // Get from Firebase if available
+                        urlDisruptiveLogo: logoHttpUrl,
+                        spaceID: spaceID,
+                        // Apply any override settings
+                        ...(overrideSettings || {})
                     }));
 
                     setIsLoading(false);
@@ -91,7 +97,7 @@ const WebGLLoader = ({ spaceID }) => {
         };
 
         fetchData();
-    }, [spaceID, spaceSettings.urlDisruptiveLogo]);
+    }, [spaceID, spaceSettings.urlDisruptiveLogo, overrideSettings]);
 
 
     // Debug: Log the config state to console
@@ -127,6 +133,7 @@ const WebGLLoader = ({ spaceID }) => {
 
 WebGLLoader.propTypes = {
     spaceID: PropTypes.string.isRequired,
+    overrideSettings: PropTypes.object,
 };
 
 export default WebGLLoader;

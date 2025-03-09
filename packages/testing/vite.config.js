@@ -9,7 +9,8 @@ export default defineConfig({
   resolve: {
     alias: {
       // Define aliases here
-      '@disruptive-spaces/shared': path.resolve(__dirname, '../shared')
+      '@disruptive-spaces/shared': path.resolve(__dirname, '../shared'),
+      '@disruptive-spaces/voice-chat': path.resolve(__dirname, '../voice-chat/src')
     }
   },
   build: {

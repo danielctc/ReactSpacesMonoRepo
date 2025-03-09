@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
-import { ChakraProvider, Box, Flex, VStack, AspectRatio, Text, Container } from "@chakra-ui/react";
+import { ChakraProvider, Box, Flex, VStack, AspectRatio, Text, Container, Button } from "@chakra-ui/react";
 import { loadTheme } from "@disruptive-spaces/shared/themes/loadTheme";
 import { UserProvider } from "@disruptive-spaces/shared/providers/UserProvider";
 import { FullScreenProvider } from "@disruptive-spaces/shared/providers/FullScreenProvider";
@@ -45,6 +45,8 @@ if (rootElement) {
 
     const App = () => {
         const [theme, setTheme] = useState(null);
+        // Add this state for voice chat debug panel
+        const [showDebugPanel, setShowDebugPanel] = useState(false);
 
         // Combine useEffects and remove console.logs
         useEffect(() => {
@@ -97,6 +99,25 @@ if (rootElement) {
                                         </WebGLErrorBoundary>
                                     </Box>
                                 </AspectRatio>
+                            </Container>
+
+                            {/* Add Voice Chat Debug Panel Toggle */}
+                            <Container maxW="container.xl" p={2}>
+                                <Button 
+                                    size="sm" 
+                                    colorScheme="blue" 
+                                    onClick={() => setShowDebugPanel(!showDebugPanel)}
+                                >
+                                    {showDebugPanel ? "Hide Voice Chat Debug" : "Show Voice Chat Debug"}
+                                </Button>
+                                
+                                {showDebugPanel && (
+                                    <Box mt={2} p={3} borderWidth="1px" borderRadius="md" bg="gray.50">
+                                        <AgoraProvider appId="130dccf9b3554bda87f8cf577f91c8c4" channel={spaceID || "default-channel"}>
+                                            <VoiceChatDebugPanel />
+                                        </AgoraProvider>
+                                    </Box>
+                                )}
                             </Container>
 
                             <Container maxW="container.xl" p={0}>

@@ -1,6 +1,6 @@
-import React, { forwardRef, useEffect, useState, useContext } from 'react';
+import React, { forwardRef, useEffect, useState, useContext, useMemo, useRef, useCallback, createContext } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Image, PortalManager } from "@chakra-ui/react";
+import { Box, Image, PortalManager, Text, Heading } from "@chakra-ui/react";
 import { Unity } from "react-unity-webgl";
 import { useUnity } from "./providers/UnityProvider";
 import { useSendUnityEvent, useUnityOnFirstSceneLoaded, useUnityOnRequestUser, useUnityOnNameplateClick } from "./hooks/unityEvents";
@@ -8,21 +8,21 @@ import { useFadeStyles } from "./hooks/useFadeStyles";
 import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
+import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
 import TestModalTrigger from "./components/TestModalTrigger";
-
 import LoaderProgress from "./components/Loader/LoaderProgress";
 import AuthenticationButton from "./components/AuthenticationButton";
 import HelpButton from "./components/HelpButton";
 import ProfileButton from "./components/ProfileButton";
 import FullScreenButton from "./components/FullScreenButton";
 import SendThumbnailUrlToUnity from "./components/EventTests/SendThumbnailUrlToUnity";
-// import EditMode from "./components/EditMode"; // Import the EditMode component
-import VideoPlayer from "./components/VideoPlayer"; // Import VideoPlayer to play videos
+import VideoPlayer from "./components/VideoPlayer";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import NameplateModal from "./components/NameplateModal";
 import UnityPlayerList from "./components/UnityPlayerList";
 import { CanvasMainMenu } from "./components/CanvasMainMenu";
 import { useUnityPlayerList } from "./hooks/unityEvents/useUnityPlayerList";
+import { AgoraProvider, VoiceButton, ScreenShareDisplay, useVoiceChat, VoiceChatDebugPanel } from '@disruptive-spaces/voice-chat';
 
 const WebGLRenderer = forwardRef(({ settings }, ref) => {
   const { unityProvider, isLoaded } = useUnity();
@@ -37,10 +37,76 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   const players = useUnityPlayerList();
   const localPlayer = players.find(player => player.isLocalPlayer);
   const [isPlayerListVisible, setIsPlayerListVisible] = useState(true);
-
+  const [isPlayerInstantiated, setIsPlayerInstantiated] = useState(true); // Default to true to ensure voice chat works
+  
   // State to track if Edit Mode is active
-//  const [isEditMode, setIsEditMode] = useState(false);
-
+  const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Get spaceID from settings or default
+  const spaceID = settings.spaceID || 'default';
+  
+  // Get sessionId from URL or default to spaceID
+  const sessionId = useMemo(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionIdFromUrl = urlParams.get('sessionId');
+    const result = sessionIdFromUrl || spaceID;
+    console.log("WebGLRenderer: Using session ID:", result);
+    return result;
+  }, [spaceID]);
+  
+  // Fetch user profile data
+  const [userProfile, setUserProfile] = useState(null);
+  
+  useEffect(() => {
+    if (user?.uid) {
+      getUserProfileData(user.uid).then(profile => {
+        setUserProfile(profile);
+        console.log("WebGLRenderer: User profile loaded:", profile?.Nickname || "Unknown");
+      }).catch(err => {
+        console.error("Error fetching user profile:", err);
+      });
+    }
+  }, [user?.uid]);
+  
+  // Handle player instantiation
+  useEffect(() => {
+    console.log("WebGLRenderer: Setting up player instantiation listener");
+    
+    const handlePlayerInstantiated = () => {
+      console.log("WebGLRenderer: Player instantiated event received");
+      setIsPlayerInstantiated(true);
+      
+      // Dispatch event for other components
+      window.dispatchEvent(new CustomEvent("PlayerInstantiated"));
+      
+      // Set window flag for other components
+      window.isPlayerInstantiated = true;
+    };
+    
+    // Check if we already have a player instantiated flag from a previous mount
+    if (window.isPlayerInstantiated) {
+      console.log("WebGLRenderer: Player was already instantiated from previous mount");
+      setIsPlayerInstantiated(true);
+    }
+    
+    eventBus.subscribe(EventNames.playerInstantiated, handlePlayerInstantiated);
+    
+    // Force player instantiation after a timeout if it hasn't happened yet
+    const timeoutId = setTimeout(() => {
+      if (!isPlayerInstantiated) {
+        console.log("WebGLRenderer: Forcing player instantiation after timeout");
+        setIsPlayerInstantiated(true);
+        window.isPlayerInstantiated = true;
+        window.dispatchEvent(new CustomEvent("PlayerInstantiated"));
+      }
+    }, 5000);
+    
+    return () => {
+      eventBus.unsubscribe(EventNames.playerInstantiated, handlePlayerInstantiated);
+      clearTimeout(timeoutId);
+    }
+  }, [isPlayerInstantiated]);
+  
   // Ensure the Unity environment is ready before attempting interactions
   useEffect(() => {
     if (isLoaded || isFirstSceneLoaded) {
@@ -53,117 +119,84 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       Logger.warn("WebGLRenderer: Unity is NOT ready yet.");
     }
   }, [isLoaded, isFirstSceneLoaded]);
-
+  
   // Handle user data sending to Unity
   useEffect(() => {
     const handleSendUserToUnity = (userData) => {
       Logger.log("WebGLRenderer: Received 'sendUserToUnity' event");
       sendUnityEvent('FirebaseUserFromReact', userData);
     };
-
+    
     eventBus.subscribe(EventNames.sendUserToUnity, handleSendUserToUnity);
     return () => eventBus.unsubscribe(EventNames.sendUserToUnity, handleSendUserToUnity);
   }, [sendUnityEvent]);
-
+  
   // Fullscreen context setup for Unity
   const { setFullscreenRef, fullscreenRef } = useFullscreenContext();
-
+  
   useEffect(() => {
     setFullscreenRef(ref.current);
   }, [ref, setFullscreenRef]);
-
-  // Function to handle edit mode toggle
+  
+  // Handle edit mode toggle
   const handleEditModeToggle = (editMode) => {
     setIsEditMode(editMode);
-    // Optionally send to Unity or other components if necessary
-    sendUnityEvent('ToggleEditMode', { editMode });
   };
-
-  // Add this effect to expose test functions
-  useEffect(() => {
-    console.log('🎮 Setting up test functions...');
-    
-    window.testNameplateClick = () => {
-      console.log('🎮 Testing nameplate click...');
-      const testData = {
-        playerName: "Test Player",
-        playerId: "test-123"
-      };
-      
-      console.log('🎮 Dispatching test data:', testData);
-      
-      const event = new CustomEvent("unityMessage", {
-        detail: {
-          eventName: "OpenNameplateModal",
-          data: testData
-        }
-      });
-      window.dispatchEvent(event);
-    };
-    
-    console.log('🎮 Test function available:', typeof window.testNameplateClick === 'function');
-    
-    return () => {
-      delete window.testNameplateClick;
-    };
-  }, []);
-
-  useEffect(() => {
-    console.log('🎮 WebGLRenderer mounted');
-  }, []);
-
-  // Add this effect to monitor nameplateData changes
-  useEffect(() => {
-    console.log("🎮 NameplateData changed:", nameplateData);
-  }, [nameplateData]);
-
-  // Add debug logging for nameplate data
-  useEffect(() => {
-    if (nameplateData) {
-      console.log('🎮 Received nameplate data:', {
-        clickedPlayerName: nameplateData.playerName,
-        clickedPlayerId: nameplateData.playerId
-      });
-    }
-  }, [nameplateData]);
-
+  
+  // Handle player list toggle
   const handlePlayerListToggle = () => {
-    console.log('Toggling player list:', !isPlayerListVisible); // Add logging
     setIsPlayerListVisible(!isPlayerListVisible);
   };
-
+  
+  // Determine if voice chat should be enabled (only check for user)
+  const showVoiceChat = user && settings.enableVoiceChat;
+  
+  console.log("WebGLRenderer: Render with state:", {
+    user: !!user,
+    userId: user?.uid,
+    isPlayerInstantiated,
+    showVoiceChat,
+    sessionId
+  });
+  
   return (
-    <>
-      {/* Auth UI - Outside PortalManager */}
-      <Box 
-        position="absolute" 
-        zIndex="9999" 
-        top={4} 
-        right={4} 
-        display="flex" 
-        alignItems="flex-start" 
-        gap={3}
-        sx={{
-          '& > *': {
-            height: '40px',
-            width: '40px',
-            minWidth: '40px'
-          },
-          '& .chakra-button, & .chakra-avatar': {
-            height: '40px !important',
-            width: '40px !important'
-          }
-        }}
-      >
+    <Box className="webgl-renderer">
+      {/* Top right buttons */}
+      <Box position="absolute" zIndex="2" top={4} right={4} display="flex" alignItems="center" gap={2}>
         {settings.showAuthButton && <AuthenticationButton />}
+        
+        {/* Voice Button - Only show if voice chat is enabled */}
+        {showVoiceChat && (
+          <AgoraProvider
+            appId="130dccf9b3554bda87f8cf577f91c8c4"
+            channel={sessionId}
+            uid={user?.uid}
+            enabled={true}
+          >
+            <VoiceButton 
+              size="md" 
+              defaultMuted={true}
+              joinOnClick={true}
+            />
+            
+            {/* Screen Share Display */}
+            <ScreenShareDisplay userNickname={userProfile?.Nickname} />
+            
+            {/* Voice Chat Debug Panel */}
+            <VoiceChatDebugPanel />
+          </AgoraProvider>
+        )}
+        
         <ProfileButton />
+        
         <Box position="relative" zIndex="9999">
           <CanvasMainMenu 
             onTogglePlayerList={handlePlayerListToggle}
+            spaceID={spaceID}
           />
         </Box>
       </Box>
-
+      
       <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
         <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "16/9" }}>
           {/* Background for Unity */}
@@ -173,35 +206,35 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
             
             {/* Loader for initial loading state */}
             <LoaderProgress />
-
+            
             {/* Unity display */}
             <Box {...fadeStyles} width="100%" height="100%" position="absolute" zIndex="1">
-              <Unity
+              <Unity 
                 unityProvider={unityProvider}
                 style={{ width: "100%", height: "100%" }}
                 devicePixelRatio={devicePixelRatio}
               />
             </Box>
-
+            
             {/* Event to send thumbnails */}
             <SendThumbnailUrlToUnity />
           </Box>
-
+          
           {/* UI elements */}
           <Box {...fadeStyles} position="absolute" zIndex="2" top={4} left={4} display="flex" alignItems="flex-start" gap={3} height="50px">
             {settings.showDisruptiveLogo && <Image src={settings.urlDisruptiveLogo} width="100px" alt="Disruptive Logo" />}
           </Box>
-
+          
           {/* Bottom right controls */}
           <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} left={4} display="flex" alignItems="flex-start" gap={3} />
           <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} right={4} display="flex" alignItems="flex-start" gap={3}>
             {settings.showHelpButton && <HelpButton />}
             <FullScreenButton />
           </Box>
-
+          
           {/* Video Player for handling play video events */}
           <VideoPlayer/>
-
+          
           <NameplateModal
             isOpen={nameplateData !== null}
             onClose={() => {
@@ -211,14 +244,14 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
             playerName={nameplateData?.playerName || "Unknown Player"}
             playerId={nameplateData?.playerId || "Unknown ID"}
           />
-
+          
           <UnityPlayerList 
-            isVisible={isPlayerListVisible}
+            isVisible={isPlayerListVisible} 
             onToggleVisibility={setIsPlayerListVisible} 
           />
         </div>
       </PortalManager>
-    </>
+    </Box>
   );
 });
 
@@ -231,6 +264,8 @@ WebGLRenderer.propTypes = {
     showDisruptiveLogo: PropTypes.bool,
     urlDisruptiveLogo: PropTypes.string,
     showHelpButton: PropTypes.bool,
+    enableVoiceChat: PropTypes.bool,
+    spaceID: PropTypes.string,
   }),
 };
 

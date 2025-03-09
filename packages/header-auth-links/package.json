@@ -23,7 +23,7 @@
     "react-icons": "^4.11.0",
     "react-unity-webgl": "^9.5.0",
     "run": "^1.4.0",
-    "watch": "^1.0.2"
+    "watch": "^0.13.0"
   },
   "peerDependencies": {
     "react": "^18.2.0",
@@ -35,6 +35,6 @@
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
-    "vite": "^5.1.4"
+    "vite": "^6.2.1"
   }
 }

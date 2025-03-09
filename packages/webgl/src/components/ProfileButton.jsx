@@ -109,10 +109,10 @@ function ProfileButton() {
               display="flex"
               alignItems="center"
               justifyContent="center"
-              bg="rgba(0, 0, 0, 0.6)"
+              bg="rgba(0, 0, 0, 0.4)"
               borderRadius="full"
             >
-              <Text fontSize="sm" fontWeight="bold" color="white">Edit</Text>
+              <Text fontSize="xs" fontWeight="bold" color="white">Edit</Text>
             </Box>
           )}
         </Box>

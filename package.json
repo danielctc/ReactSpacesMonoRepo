@@ -6,6 +6,7 @@
   ],
   "scripts": {
     "build": "npm-run-all --serial build:* prep-deploy",
+    "build:voice-chat": "cross-env NODE_ENV=production npm --prefix packages/voice-chat run build",
     "build:webgl": "cross-env NODE_ENV=production npm --prefix packages/webgl run build",
     "build:header-auth-links": "cross-env NODE_ENV=production npm --prefix packages/header-auth-links run build",
     "build:chat": "cross-env NODE_ENV=production npm --prefix packages/chat run build",
@@ -19,5 +20,8 @@
     "npm-run-all": "^4.1.5",
     "rimraf": "^5.0.5",
     "shx": "^0.3.4"
+  },
+  "dependencies": {
+    "agora-rtc-react": "^2.3.0"
   }
 }
