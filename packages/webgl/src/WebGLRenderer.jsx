@@ -22,7 +22,7 @@ import NameplateModal from "./components/NameplateModal";
 import UnityPlayerList from "./components/UnityPlayerList";
 import { CanvasMainMenu } from "./components/CanvasMainMenu";
 import { useUnityPlayerList } from "./hooks/unityEvents/useUnityPlayerList";
-import { AgoraProvider, VoiceButton, ScreenShareDisplay, useVoiceChat, VoiceChatDebugPanel } from '@disruptive-spaces/voice-chat';
+import { AgoraProvider, VoiceButton, ScreenShareDisplay, useVoiceChat } from '@disruptive-spaces/voice-chat';
 
 const WebGLRenderer = forwardRef(({ settings }, ref) => {
   const { unityProvider, isLoaded } = useUnity();
@@ -161,44 +161,44 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   
   return (
     <Box className="webgl-renderer">
-      {/* Top right buttons */}
-      <Box position="absolute" zIndex="2" top={4} right={4} display="flex" alignItems="center" gap={2}>
-        {settings.showAuthButton && <AuthenticationButton />}
-        
-        {/* Voice Button - Only show if voice chat is enabled */}
-        {showVoiceChat && (
-          <AgoraProvider
-            appId="130dccf9b3554bda87f8cf577f91c8c4"
-            channel={sessionId}
-            uid={user?.uid}
-            enabled={true}
-          >
-            <VoiceButton 
-              size="md" 
-              defaultMuted={true}
-              joinOnClick={true}
-            />
-            
-            {/* Screen Share Display */}
-            <ScreenShareDisplay userNickname={userProfile?.Nickname} />
-            
-            {/* Voice Chat Debug Panel */}
-            <VoiceChatDebugPanel />
-          </AgoraProvider>
-        )}
-        
-        <ProfileButton />
-        
-        <Box position="relative" zIndex="9999">
-          <CanvasMainMenu 
-            onTogglePlayerList={handlePlayerListToggle}
-            spaceID={spaceID}
-          />
-        </Box>
-      </Box>
-      
       <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
-        <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "16/9" }}>
+        <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "16/9", position: "relative" }}>
+          {/* Top right buttons - Moved inside the fullscreen container */}
+          <Box position="absolute" zIndex="10" top={4} right={4} display="flex" alignItems="center" gap={2}>
+            {settings.showAuthButton && <AuthenticationButton />}
+            
+            {/* Voice Button - Only show if voice chat is enabled */}
+            {showVoiceChat && (
+              <AgoraProvider
+                appId="130dccf9b3554bda87f8cf577f91c8c4"
+                channel={sessionId}
+                uid={user?.uid}
+                enabled={true}
+              >
+                <VoiceButton 
+                  size="md" 
+                  defaultMuted={true}
+                  joinOnClick={true}
+                />
+                
+                {/* Screen Share Display */}
+                <ScreenShareDisplay userNickname={userProfile?.Nickname} />
+                
+                {/* Voice Chat Debug Panel - Disabled */}
+                {/* <VoiceChatDebugPanel /> */}
+              </AgoraProvider>
+            )}
+            
+            <ProfileButton />
+            
+            <Box position="relative" zIndex="9999">
+              <CanvasMainMenu 
+                onTogglePlayerList={handlePlayerListToggle}
+                spaceID={spaceID}
+              />
+            </Box>
+          </Box>
+          
           {/* Background for Unity */}
           <Box position="relative" overflow="hidden" width="100%" height="100%"
             bgRepeat="no-repeat" bgSize="cover" bgPosition="center" bgColor="#666666"
