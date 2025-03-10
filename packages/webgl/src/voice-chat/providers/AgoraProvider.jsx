@@ -179,10 +179,8 @@ export const AgoraProvider = ({
       initializingRef.current = true;
       
       try {
-        // Initialize microphone
-        console.log("AgoraProvider: Initializing microphone");
-        const mic = await initMicrophone();
-        console.log("AgoraProvider: Microphone initialized:", !!mic);
+        // Don't initialize microphone here - we'll do it when the user clicks the mic button
+        // Instead, just join the channel without microphone
         
         // Check if already connected to this channel
         if (isJoined && joinedChannelRef.current === channel) {
@@ -376,32 +374,7 @@ export const AgoraProvider = ({
       await clientRef.current.join(appId, channel, token, uidToUse);
       console.log("AgoraProvider: Joined channel successfully with UID:", clientRef.current.uid);
       
-      // Initialize microphone if needed
-      if (!microphoneTrack) {
-        const micTrack = await initMicrophone();
-        console.log("AgoraProvider: Microphone initialized in joinChannel:", !!micTrack);
-        
-        // Publish the microphone track if not muted
-        if (micTrack && !startMuted) {
-          await clientRef.current.publish(micTrack);
-          console.log("AgoraProvider: Published microphone track");
-        }
-      } else {
-        // If we already have a microphone track and it's not muted, publish it
-        if (!microphoneTrack.muted && isVoiceEnabled) {
-          try {
-            await clientRef.current.publish(microphoneTrack);
-            console.log("AgoraProvider: Published existing microphone track");
-          } catch (err) {
-            // Ignore "already published" errors
-            if (!err.message || !err.message.includes("already published")) {
-              console.error("AgoraProvider: Error publishing microphone track:", err);
-            } else {
-              console.log("AgoraProvider: Microphone track already published");
-            }
-          }
-        }
-      }
+      // Don't initialize microphone here - we'll do it when the user clicks the mic button
       
       // Update state
       setIsJoined(true);
@@ -409,31 +382,14 @@ export const AgoraProvider = ({
       setIsReady(true);
       joinedChannelRef.current = channel;
       staticClientChannel = channel;
-      
-      // Call the onClientReady callback
       onClientReady(clientRef.current);
-      return true;
-    } catch (error) {
-      console.error("AgoraProvider: Error joining channel:", error);
       
-      // If the error is because the client is already connected, consider it a success
-      if (error.message && (
-        error.message.includes("already in connecting/connected state") ||
-        error.message.includes("INVALID_OPERATION")
-      )) {
-        console.log("AgoraProvider: Client already connected, considering join successful");
-        setIsJoined(true);
-        setIsJoining(false);
-        setIsReady(true);
-        joinedChannelRef.current = channel;
-        staticClientChannel = channel;
-        onClientReady(clientRef.current);
-        return true;
-      } else {
-        setError(`Failed to join channel: ${error.message}`);
-        setIsJoining(false);
-        return false;
-      }
+      return true;
+    } catch (err) {
+      console.error("AgoraProvider: Error joining channel:", err);
+      setError(`Error joining channel: ${err.toString()}`);
+      setIsJoining(false);
+      return false;
     }
   };
   
@@ -471,9 +427,8 @@ export const AgoraProvider = ({
   // Join channel when enabled and channel changes
   useEffect(() => {
     if (enabled && channel && (!isJoined || joinedChannelRef.current !== channel)) {
-      initMicrophone().then(() => {
-        joinChannel();
-      });
+      // Don't initialize microphone here - we'll do it when the user clicks the mic button
+      joinChannel();
     }
   }, [enabled, channel, isJoined]);
   
@@ -545,6 +500,7 @@ export const AgoraProvider = ({
       });
       
       // If we don't have a microphone track, initialize it
+      // This is where the browser will prompt for microphone permissions
       if (!microphoneTrack) {
         console.log("AgoraProvider: No microphone track, initializing...");
         const track = await initMicrophone();
@@ -609,35 +565,11 @@ export const AgoraProvider = ({
         }
       }
       
-      // Update the state
-      console.log("AgoraProvider: Setting voice enabled state to:", newState);
+      // Update state
       setIsVoiceEnabled(newState);
-      
-      // Update window.agoraClient for other components
-      if (typeof window !== 'undefined') {
-        if (!window.agoraClient) {
-          window.agoraClient = {};
-        }
-        window.agoraClient.isVoiceEnabled = newState;
-        window.agoraClient.microphoneTrack = microphoneTrack;
-        window.agoraClient.client = clientRef.current;
-        console.log("AgoraProvider: Updated window.agoraClient with new state:", newState);
-      }
-      
-      // Dispatch an event to notify other components
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent("VoiceToggled", {
-          detail: { enabled: newState }
-        }));
-        console.log("AgoraProvider: Dispatched VoiceToggled event with enabled:", newState);
-      }
-      
-      // Add a small delay to ensure state is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       return newState;
-    } catch (error) {
-      console.error("Error toggling voice:", error);
+    } catch (err) {
+      console.error("AgoraProvider: Error toggling voice:", err);
       return isVoiceEnabled;
     }
   };

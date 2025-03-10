@@ -102,6 +102,7 @@ const WebGLVoiceTest = () => {
                   channel={`space-${spaceId}-voice`}
                   uid={userId}
                   enabled={true}
+                  startMuted={true}
                 >
                   <Flex gap={4} align="center" mb={4}>
                     <VoiceButton size="lg" />
