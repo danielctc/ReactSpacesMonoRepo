@@ -39,7 +39,7 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
-import { useVoiceChat, ScreenShareMenuOption } from '@disruptive-spaces/voice-chat';
+import { useVoiceChat, ScreenShareMenuOption } from '../voice-chat';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import SpacesControlsModal from './SpacesControlsModal';
 import SpacesSettingsModal from './SpacesSettingsModal';

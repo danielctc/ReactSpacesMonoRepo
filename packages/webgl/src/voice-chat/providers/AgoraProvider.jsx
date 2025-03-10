@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import AgoraRTC from "agora-rtc-sdk-ng";
 import PropTypes from 'prop-types';
 
+// Get Agora App ID from environment variable
+const DEFAULT_AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
+
 // Create a static client instance to be shared across all AgoraProvider instances
 const staticClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
 let staticClientInitialized = false;
@@ -15,7 +18,7 @@ export const AgoraContext = createContext(null);
  */
 export const AgoraProvider = ({ 
   children, 
-  appId = "130dccf9b3554bda87f8cf577f91c8c4",
+  appId = DEFAULT_AGORA_APP_ID,
   channel = null,
   token = null,
   uid = null,

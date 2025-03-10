@@ -22,7 +22,10 @@ import NameplateModal from "./components/NameplateModal";
 import UnityPlayerList from "./components/UnityPlayerList";
 import { CanvasMainMenu } from "./components/CanvasMainMenu";
 import { useUnityPlayerList } from "./hooks/unityEvents/useUnityPlayerList";
-import { AgoraProvider, VoiceButton, ScreenShareDisplay, useVoiceChat } from '@disruptive-spaces/voice-chat';
+import { AgoraProvider, VoiceButton, ScreenShareDisplay, useVoiceChat } from './voice-chat';
+
+// Get Agora App ID from environment variable
+const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
 
 const WebGLRenderer = forwardRef(({ settings }, ref) => {
   const { unityProvider, isLoaded } = useUnity();
@@ -170,7 +173,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
             {/* Voice Button - Only show if voice chat is enabled */}
             {showVoiceChat && (
               <AgoraProvider
-                appId="130dccf9b3554bda87f8cf577f91c8c4"
+                appId={AGORA_APP_ID}
                 channel={sessionId}
                 uid={user?.uid}
                 enabled={true}
