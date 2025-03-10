@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "firebase": "^10.8.0"
+    "firebase": "^11.4.0"
   },
   "exports": {
     "./*": "./*"

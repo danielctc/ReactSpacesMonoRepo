@@ -113,7 +113,7 @@ if (rootElement) {
                                 
                                 {showDebugPanel && (
                                     <Box mt={2} p={3} borderWidth="1px" borderRadius="md" bg="gray.50">
-                                        <AgoraProvider appId="130dccf9b3554bda87f8cf577f91c8c4" channel={spaceID || "default-channel"}>
+                                        <AgoraProvider appId="a2a7f4eb05284449b1063eb71d8301dc" channel={spaceID || "default-channel"}>
                                             <VoiceChatDebugPanel />
                                         </AgoraProvider>
                                     </Box>

@@ -21,6 +21,8 @@
     "shx": "^0.3.4"
   },
   "dependencies": {
-    "agora-rtc-react": "^2.3.0"
+    "agora-rtc-react": "^2.3.0",
+    "agora-rtc-sdk-ng": "^4.23.2",
+    "firebase": "^11.4.0"
   }
 }

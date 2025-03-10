@@ -15,7 +15,6 @@
     "@disruptive-spaces/chat": "file:../chat",
     "@disruptive-spaces/header-auth-links": "file:../header-auth-links",
     "@disruptive-spaces/shared": "file:../shared",
-    "@disruptive-spaces/voice-chat": "file:../voice-chat",
     "@disruptive-spaces/webgl": "file:../webgl",
     "@emotion/react": "^11.11.3",
     "@emotion/styled": "^11.11.0",

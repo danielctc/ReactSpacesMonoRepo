@@ -4,6 +4,8 @@ import PropTypes from 'prop-types';
 
 // Get Agora App ID from environment variable
 const DEFAULT_AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
+console.log("AgoraProvider: DEFAULT_AGORA_APP_ID:", DEFAULT_AGORA_APP_ID);
+console.log("AgoraProvider: import.meta.env:", import.meta.env);
 
 // Create a static client instance to be shared across all AgoraProvider instances
 const staticClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
@@ -26,6 +28,7 @@ export const AgoraProvider = ({
   startMuted = true,
   onClientReady = () => {}
 }) => {
+  console.log("AgoraProvider: appId prop:", appId);
   // State
   const [isJoined, setIsJoined] = useState(false);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
@@ -355,6 +358,17 @@ export const AgoraProvider = ({
     
     try {
       console.log("AgoraProvider: Joining channel:", channel, "with UID:", uid || "random");
+      console.log("AgoraProvider: Using appId:", appId, "Type:", typeof appId, "Length:", appId.length);
+      
+      // Validate appId
+      if (!appId || appId.trim() === "") {
+        const errorMsg = "AgoraProvider: App ID is empty or invalid";
+        console.error(errorMsg);
+        setError(errorMsg);
+        setIsJoining(false);
+        return false;
+      }
+      
       setIsJoining(true);
       
       // Join the channel

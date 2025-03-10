@@ -12,7 +12,8 @@ import {
   Divider,
   useColorModeValue
 } from '@chakra-ui/react';
-import { AgoraProvider, VoiceButton } from '@disruptive-spaces/voice-chat';
+import { AgoraProvider } from '@disruptive-spaces/webgl/src/voice-chat/providers/AgoraProvider';
+import { VoiceButton } from '@disruptive-spaces/webgl/src/voice-chat/components/VoiceButton';
 import VoiceChatDebugPanel from '../components/VoiceChatDebugPanel';
 import { UserProvider } from '@disruptive-spaces/shared/providers/UserProvider';
 
@@ -97,7 +98,7 @@ const WebGLVoiceTest = () => {
                 </Flex>
                 
                 <AgoraProvider
-                  appId="130dccf9b3554bda87f8cf577f91c8c4"
+                  appId="a2a7f4eb05284449b1063eb71d8301dc"
                   channel={`space-${spaceId}-voice`}
                   uid={userId}
                   enabled={true}

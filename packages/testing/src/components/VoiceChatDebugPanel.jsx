@@ -12,7 +12,7 @@ import {
   ListItem,
   Avatar
 } from '@chakra-ui/react';
-import { useVoiceChat } from '@disruptive-spaces/voice-chat';
+import { useAgoraContext } from '@disruptive-spaces/webgl/src/voice-chat/providers/AgoraProvider';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
 
 /**
@@ -27,7 +27,7 @@ const VoiceChatDebugPanel = () => {
     isLoading,
     channel,
     getVolumeLevel
-  } = useVoiceChat();
+  } = useAgoraContext();
   
   const [volumeLevel, setVolumeLevel] = useState(0);
   const [speakerProfiles, setSpeakerProfiles] = useState({});
