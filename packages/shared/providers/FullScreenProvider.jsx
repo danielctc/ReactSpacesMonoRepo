@@ -29,52 +29,138 @@ export const FullScreenProvider = ({ children }) => {
         const element = fullscreenRef.current;
         if (!element) return;
 
-        // Handle iOS devices
+        // Check if we're already in fullscreen
+        const isCurrentlyFullscreen = 
+            document.fullscreenElement || 
+            document.webkitFullscreenElement || 
+            document.mozFullScreenElement || 
+            document.msFullscreenElement;
+
+        // Handle mobile devices
         if (isMobile) {
-            if (element.webkitEnterFullscreen) {
-                if (!document.webkitFullscreenElement) {
-                    element.webkitEnterFullscreen();
+            console.log("Attempting mobile fullscreen...");
+            
+            // Try to use the video element for iOS (if it exists)
+            const videoElement = element.querySelector('video') || element;
+            
+            // iOS Safari specific handling
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                if (videoElement.webkitEnterFullscreen) {
+                    try {
+                        videoElement.webkitEnterFullscreen();
+                        setIsFullscreen(true);
+                        return;
+                    } catch (err) {
+                        console.error("iOS fullscreen error:", err);
+                    }
+                }
+                
+                // Fallback for iOS
+                try {
+                    if (videoElement.webkitRequestFullscreen) {
+                        videoElement.webkitRequestFullscreen();
+                        setIsFullscreen(true);
+                        return;
+                    }
+                } catch (err) {
+                    console.error("iOS fallback fullscreen error:", err);
+                }
+            }
+            
+            // Android handling
+            if (/Android/i.test(navigator.userAgent)) {
+                try {
+                    if (!isCurrentlyFullscreen) {
+                        // Try all possible methods
+                        if (element.requestFullscreen) {
+                            element.requestFullscreen();
+                        } else if (element.webkitRequestFullscreen) {
+                            element.webkitRequestFullscreen();
+                        } else if (element.mozRequestFullScreen) {
+                            element.mozRequestFullScreen();
+                        } else if (element.msRequestFullscreen) {
+                            element.msRequestFullscreen();
+                        }
+                        setIsFullscreen(true);
+                    } else {
+                        // Exit fullscreen
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen();
+                        } else if (document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        } else if (document.mozCancelFullScreen) {
+                            document.mozCancelFullScreen();
+                        } else if (document.msExitFullscreen) {
+                            document.msExitFullscreen();
+                        }
+                        setIsFullscreen(false);
+                    }
+                    return;
+                } catch (err) {
+                    console.error("Android fullscreen error:", err);
+                }
+            }
+        }
+
+        // Handle standard Fullscreen API for desktop
+        try {
+            if (!isCurrentlyFullscreen) {
+                if (element.requestFullscreen) {
+                    element.requestFullscreen().then(() => {
+                        setIsFullscreen(true);
+                    }).catch(err => console.error("Error entering fullscreen:", err));
+                } else if (element.webkitRequestFullscreen) {
+                    element.webkitRequestFullscreen();
                     setIsFullscreen(true);
-                } else {
+                } else if (element.mozRequestFullScreen) {
+                    element.mozRequestFullScreen();
+                    setIsFullscreen(true);
+                } else if (element.msRequestFullscreen) {
+                    element.msRequestFullscreen();
+                    setIsFullscreen(true);
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().then(() => {
+                        setIsFullscreen(false);
+                    }).catch(err => console.error("Error exiting fullscreen:", err));
+                } else if (document.webkitExitFullscreen) {
                     document.webkitExitFullscreen();
+                    setIsFullscreen(false);
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                    setIsFullscreen(false);
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
                     setIsFullscreen(false);
                 }
             }
-            return;
-        }
-
-        // Handle standard Fullscreen API
-        if (!document.fullscreenElement) {
-            if (element.requestFullscreen) {
-                element.requestFullscreen().then(() => {
-                    setIsFullscreen(true);
-                }).catch(err => console.error("Error entering fullscreen:", err));
-            }
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen().then(() => {
-                    setIsFullscreen(false);
-                }).catch(err => console.error("Error exiting fullscreen:", err));
-            }
+        } catch (err) {
+            console.error("Fullscreen error:", err);
         }
     }, [isMobile]);
 
     // Handle fullscreen change events
     useEffect(() => {
         const handleFullscreenChange = () => {
-            setIsFullscreen(!!document.fullscreenElement);
-        };
-
-        const handleWebkitFullscreenChange = () => {
-            setIsFullscreen(!!document.webkitFullscreenElement);
+            const isCurrentlyFullscreen = 
+                document.fullscreenElement || 
+                document.webkitFullscreenElement || 
+                document.mozFullScreenElement || 
+                document.msFullscreenElement;
+            setIsFullscreen(!!isCurrentlyFullscreen);
         };
 
         document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleWebkitFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
         return () => {
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
-            document.removeEventListener('webkitfullscreenchange', handleWebkitFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
         };
     }, []);
 

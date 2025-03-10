@@ -129,7 +129,8 @@ function logScriptTags() {
     console.log(`Latest script tags for WebFlow:`);
     console.log(`--------------------------------------------------------------------------------------------------------------${COLORS.RESET}`);
     fs.readdirSync(distDir).forEach(package => {
-        if (package === 'testing') {  // Skip the 'testing' package
+        // Skip the 'testing' and 'voice-chat' packages
+        if (package === 'testing' || package === 'voice-chat') {
             return;
         }
         const assetsPath = path.join(distDir, package, 'assets');

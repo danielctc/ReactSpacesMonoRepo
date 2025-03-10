@@ -6,7 +6,6 @@
   ],
   "scripts": {
     "build": "npm-run-all --serial build:* prep-deploy",
-    "build:voice-chat": "cross-env NODE_ENV=production npm --prefix packages/voice-chat run build",
     "build:webgl": "cross-env NODE_ENV=production npm --prefix packages/webgl run build",
     "build:header-auth-links": "cross-env NODE_ENV=production npm --prefix packages/header-auth-links run build",
     "build:chat": "cross-env NODE_ENV=production npm --prefix packages/chat run build",
