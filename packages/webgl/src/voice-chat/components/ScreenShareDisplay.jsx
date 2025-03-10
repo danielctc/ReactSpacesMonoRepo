@@ -1,5 +1,18 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
-import { Box, Text, CloseButton, Button, Spinner } from "@chakra-ui/react";
+import { 
+  Box, 
+  Text, 
+  CloseButton, 
+  Button, 
+  Spinner, 
+  Modal, 
+  ModalOverlay, 
+  ModalContent, 
+  ModalHeader, 
+  ModalBody, 
+  ModalCloseButton,
+  useDisclosure
+} from "@chakra-ui/react";
 import AgoraRTC from "agora-rtc-sdk-ng";
 import { useAgoraContext } from '../providers/AgoraProvider';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
@@ -14,9 +27,15 @@ const ScreenShareDisplay = ({ userNickname }) => {
   const [isLoading, setIsLoading] = useState(true);
   const videoRefs = useRef({});
   const localScreenRef = useRef(null);
+  const modalScreenRef = useRef(null);
   const { user } = useContext(UserContext) || { user: null };
   const [userNicknames, setUserNicknames] = useState({});
   const localScreenTrackRef = useRef(screenTrack);
+  const [activeScreen, setActiveScreen] = useState(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [modalReady, setModalReady] = useState(false);
+  const smallContainerRef = useRef(null);
+  const modalVideoRef = useRef(null);
   
   // Update the ref when screenTrack changes
   useEffect(() => {
@@ -391,6 +410,75 @@ const ScreenShareDisplay = ({ userNickname }) => {
     return "User";
   };
   
+  // Handle opening the modal for a screen
+  const handleOpenModal = (screen) => {
+    console.log("Opening modal for remote screen", screen);
+    setActiveScreen(screen);
+    onOpen();
+  };
+
+  // Handle opening the modal for local screen
+  const handleOpenLocalModal = () => {
+    console.log("Opening modal for local screen");
+    setActiveScreen({ isLocal: true });
+    onOpen();
+  };
+
+  // Effect to handle modal opening and closing
+  useEffect(() => {
+    if (isOpen && activeScreen) {
+      console.log("Modal opened, activeScreen:", activeScreen);
+      
+      // Wait for the modal to be fully rendered
+      setTimeout(() => {
+        if (activeScreen.isLocal && localScreenTrackRef.current) {
+          try {
+            console.log("Playing local screen in modal");
+            // Play the local screen in the modal
+            localScreenTrackRef.current.play('modal-screen-container');
+            setModalReady(true);
+          } catch (error) {
+            console.error('Error playing local screen in modal:', error);
+          }
+        } else if (activeScreen.videoTrack) {
+          try {
+            console.log("Playing remote screen in modal");
+            // Play the remote screen in the modal
+            activeScreen.videoTrack.play('modal-screen-container');
+            setModalReady(true);
+          } catch (error) {
+            console.error('Error playing remote screen in modal:', error);
+          }
+        }
+      }, 500);
+    } else if (!isOpen) {
+      // Modal is closed, reset state
+      setModalReady(false);
+      setActiveScreen(null);
+      
+      // Ensure small previews are playing
+      setTimeout(() => {
+        if (isScreenSharing && localScreenTrackRef.current) {
+          try {
+            localScreenTrackRef.current.play('local-screen-container');
+          } catch (error) {
+            console.error('Error playing local screen in small container:', error);
+          }
+        }
+        
+        remoteScreens.forEach(screen => {
+          if (screen.videoTrack) {
+            try {
+              screen.videoTrack.play(`video-container-${screen.uid}`);
+            } catch (error) {
+              console.error(`Error playing remote screen ${screen.uid} in small container:`, error);
+            }
+          }
+        });
+      }, 500);
+    }
+  }, [isOpen, activeScreen, isScreenSharing, remoteScreens]);
+  
   // If not connected, don't render anything
   if (!isConnected) {
     return null;
@@ -407,118 +495,203 @@ const ScreenShareDisplay = ({ userNickname }) => {
   }
   
   return (
-    <Box 
-      position="fixed" 
-      top="70px"
-      right="20px" 
-      zIndex={10000}
-      maxWidth="80vw"
-      maxHeight="80vh"
-      overflow="auto"
-    >
-      {/* Local screen share */}
-      {isScreenSharing && screenTrack && (
+    <>
+      {/* Small preview container - hidden when modal is open */}
+      {!isOpen && (
         <Box 
-          position="relative" 
-          mb={4} 
-          borderRadius="md" 
-          overflow="hidden"
-          boxShadow="xl"
-          bg="black"
-          width="640px"
-          height="360px"
+          position="fixed" 
+          top="20px"
+          left="20px" 
+          zIndex={10000}
+          overflow="visible"
+          ref={smallContainerRef}
         >
-          <Box 
-            position="absolute" 
-            top={2} 
-            right={2} 
-            zIndex={10}
-          >
-            <CloseButton 
-              size="sm" 
-              bg="rgba(0,0,0,0.5)" 
-              color="white" 
-              onClick={handleStopLocalScreenShare} 
-            />
-          </Box>
-          <Box 
-            ref={localScreenRef}
-            width="100%" 
-            height="100%"
-            position="relative"
-            id="local-screen-container"
-          />
-          <Box
-            position="absolute"
-            bottom={2}
-            left={2}
-            color="white"
-            fontSize="sm"
-            bg="rgba(0,0,0,0.5)"
-            px={2}
-            py={1}
-            borderRadius="md"
-            zIndex={5}
-          >
-            {userNickname ? `${userNickname}'s Screen` : "Your Screen"}
-          </Box>
+          {/* Local screen share - small version */}
+          {isScreenSharing && screenTrack && (
+            <Box 
+              position="relative" 
+              mb={4} 
+              borderRadius="md" 
+              overflow="hidden"
+              boxShadow="xl"
+              bg="black"
+              width="200px"
+              height="120px"
+              cursor="pointer"
+              transition="all 0.2s"
+              _hover={{
+                filter: "brightness(0.8)",
+                transform: "scale(1.05)"
+              }}
+              onClick={handleOpenLocalModal}
+            >
+              <Box 
+                id="local-screen-container"
+                width="100%" 
+                height="100%"
+                position="relative"
+              />
+              <Box
+                position="absolute"
+                bottom={2}
+                left={2}
+                color="white"
+                fontSize="xs"
+                bg="rgba(0,0,0,0.5)"
+                px={2}
+                py={1}
+                borderRadius="md"
+                zIndex={5}
+              >
+                {userNickname ? `${userNickname}'s Screen` : "Your Screen"}
+              </Box>
+            </Box>
+          )}
+          
+          {/* Remote screen shares - small versions */}
+          {remoteScreens.map(screen => {
+            // Get display name
+            const displayName = userNicknames[screen.uid] || getDisplayName(screen.uid);
+            
+            return (
+              <Box 
+                key={screen.uid} 
+                position="relative" 
+                mb={4} 
+                borderRadius="md" 
+                overflow="hidden"
+                boxShadow="xl"
+                bg="black"
+                width="200px"
+                height="120px"
+                cursor="pointer"
+                transition="all 0.2s"
+                _hover={{
+                  filter: "brightness(0.8)",
+                  transform: "scale(1.05)"
+                }}
+                onClick={() => handleOpenModal(screen)}
+              >
+                <Box 
+                  id={`video-container-${screen.uid}`}
+                  width="100%" 
+                  height="100%"
+                  position="relative"
+                />
+                <Box
+                  position="absolute"
+                  bottom={2}
+                  left={2}
+                  color="white"
+                  fontSize="xs"
+                  bg="rgba(0,0,0,0.5)"
+                  px={2}
+                  py={1}
+                  borderRadius="md"
+                  zIndex={5}
+                >
+                  {`${displayName}'s Screen`}
+                </Box>
+              </Box>
+            );
+          })}
         </Box>
       )}
-      
-      {/* Remote screen shares */}
-      {remoteScreens.map(screen => {
-        // Get display name
-        const displayName = userNicknames[screen.uid] || getDisplayName(screen.uid);
-        
-        return (
-          <Box 
-            key={screen.uid} 
-            position="relative" 
-            mb={4} 
-            borderRadius="md" 
-            overflow="hidden"
-            boxShadow="xl"
+
+      {/* Simple Modal for expanded view */}
+      {isOpen && (
+        <Box
+          position="fixed"
+          top="0"
+          left="0"
+          width="100vw"
+          height="100vh"
+          bg="rgba(0,0,0,0.8)"
+          zIndex={10000}
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          onClick={onClose}
+        >
+          <Box
+            width="80vw"
+            height="80vh"
             bg="black"
-            width="640px"
-            height="360px"
+            borderRadius="md"
+            overflow="hidden"
+            position="relative"
+            onClick={(e) => e.stopPropagation()}
           >
+            {!modalReady && (
+              <Box 
+                position="absolute" 
+                top="50%" 
+                left="50%" 
+                transform="translate(-50%, -50%)"
+                color="white"
+                textAlign="center"
+              >
+                <Spinner size="xl" />
+                <Text mt={4}>Loading screen share...</Text>
+              </Box>
+            )}
+            
             <Box 
-              position="absolute" 
-              top={2} 
-              right={2} 
-              zIndex={10}
-            >
-              <CloseButton 
-                size="sm" 
-                bg="rgba(0,0,0,0.5)" 
-                color="white" 
-                onClick={() => handleClose(screen.uid)} 
-              />
-            </Box>
-            <Box 
-              id={`video-container-${screen.uid}`}
+              id="modal-screen-container"
               width="100%" 
               height="100%"
               position="relative"
+              ref={modalVideoRef}
             />
+            
+            {/* Close button */}
+            <Box 
+              position="absolute" 
+              top={2} 
+              right={2}
+              color="white"
+              bg="rgba(0,0,0,0.5)"
+              borderRadius="full"
+              width="30px"
+              height="30px"
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              cursor="pointer"
+              onClick={onClose}
+            >
+              ✕
+            </Box>
+            
+            {/* Name label at bottom left */}
             <Box
               position="absolute"
-              bottom={2}
-              left={2}
+              bottom={4}
+              left={4}
               color="white"
               fontSize="sm"
               bg="rgba(0,0,0,0.5)"
-              px={2}
-              py={1}
+              px={3}
+              py={2}
               borderRadius="md"
-              zIndex={5}
             >
-              {`${displayName}'s Screen`}
+              {activeScreen?.isLocal 
+                ? (userNickname ? `${userNickname}'s Screen` : "Your Screen") 
+                : `${userNicknames[activeScreen?.uid] || getDisplayName(activeScreen?.uid)}'s Screen`}
             </Box>
+            
+            {/* Stop sharing button */}
+            {activeScreen?.isLocal && (
+              <Box position="absolute" bottom={4} right={4}>
+                <Button colorScheme="red" size="sm" onClick={handleStopLocalScreenShare}>
+                  Stop Sharing
+                </Button>
+              </Box>
+            )}
           </Box>
-        );
-      })}
-    </Box>
+        </Box>
+      )}
+    </>
   );
 };
 
