@@ -31,7 +31,7 @@ import {
 } from "@chakra-ui/react";
 import { EmailIcon, LockIcon } from "@chakra-ui/icons";
 
-function SignIn({ mode, label, buttonProps = {} }) {
+function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {} }) {
     const { signIn } = useContext(UserContext);
     const { fullscreenRef } = useFullscreenContext();
     const toast = useToast();
@@ -231,11 +231,6 @@ SignIn.propTypes = {
     mode: PropTypes.oneOf(['button', 'link']),
     label: PropTypes.string,
     buttonProps: PropTypes.object
-};
-
-SignIn.defaultProps = {
-    mode: 'button',
-    label: 'Sign In',
 };
 
 export default SignIn;

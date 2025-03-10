@@ -90,7 +90,7 @@ function LoaderProgress() {
             color="white"
             zIndex="1"
           >
-            <Text fontWeight="bold">Entering The Disruptive Spaces</Text>
+            <Text fontWeight="bold">Entering The Spaces Metaverse</Text>
             <Text fontSize="sm">
               {!isLoaded ? "World loading" : "World Initialising"}.
             </Text>

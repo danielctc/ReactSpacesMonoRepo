@@ -207,6 +207,18 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
             bgRepeat="no-repeat" bgSize="cover" bgPosition="center" bgColor="#666666"
             bgImage={settings.urlLoadingBackground ? `url('${settings.urlLoadingBackground}')` : ""}>
             
+            {/* Add a frosted glass overlay */}
+            <Box 
+              position="absolute"
+              top="0"
+              left="0"
+              width="100%"
+              height="100%"
+              backdropFilter="blur(8px)"
+              backgroundColor="rgba(255, 255, 255, 0.1)"
+              zIndex="0"
+            />
+            
             {/* Loader for initial loading state */}
             <LoaderProgress />
             

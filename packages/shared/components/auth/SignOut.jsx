@@ -12,7 +12,7 @@ import {
 } from "@chakra-ui/react";
 import { UnlockIcon } from "@chakra-ui/icons";
 
-function SignOut({ mode, label }) {
+function SignOut({ mode = 'button', label = 'Sign Out' }) {
     const toast = useToast();
     const { signOut } = useContext(UserContext);
     const { fullscreenRef } = useFullscreenContext();
@@ -72,11 +72,6 @@ function SignOut({ mode, label }) {
 SignOut.propTypes = {
     mode: PropTypes.oneOf(['button', 'link']),
     label: PropTypes.string,
-};
-
-SignOut.defaultProps = {
-    mode: 'button',
-    label: 'Sign Out',
 };
 
 export default SignOut;
