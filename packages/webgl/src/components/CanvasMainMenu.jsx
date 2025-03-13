@@ -32,9 +32,12 @@ import {
   ModalBody,
   ModalCloseButton,
   Icon,
+  Switch,
+  FormControl,
+  FormLabel,
 } from "@chakra-ui/react";
 import { HamburgerIcon } from "@chakra-ui/icons";
-import { FaUsers, FaDesktop } from 'react-icons/fa';
+import { FaUsers, FaDesktop, FaEdit } from 'react-icons/fa';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
@@ -54,6 +57,8 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
   const [openControlsModal, setOpenControlsModal] = useState(false);
   const [openAvatarModal, setOpenAvatarModal] = useState(false);
   const [profileData, setProfileData] = useState(null);
+  const [editModeEnabled, setEditModeEnabled] = useState(false);
+  const toast = useToast();
   
   const { user } = useContext(UserContext);
   const userNickname = user?.Nickname || "Unknown";
@@ -115,6 +120,35 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
     setIsOpen(false);
   };
 
+  const handleToggleEditMode = (e) => {
+    // Stop event propagation to prevent menu from closing
+    e.stopPropagation();
+    
+    const newEditModeState = !editModeEnabled;
+    setEditModeEnabled(newEditModeState);
+    
+    // Dispatch a custom event that other components can listen for
+    const editModeEvent = new CustomEvent('editModeChanged', { 
+      detail: { enabled: newEditModeState } 
+    });
+    window.dispatchEvent(editModeEvent);
+    
+    // Show toast notification
+    toast({
+      title: newEditModeState ? "Edit Mode Enabled" : "Edit Mode Disabled",
+      description: newEditModeState 
+        ? "You can now make changes to the scene." 
+        : "Scene editing is now disabled.",
+      status: newEditModeState ? "info" : "success",
+      duration: 3000,
+      isClosable: true,
+      position: "top",
+    });
+    
+    // Log the change
+    console.log(`Edit Mode ${newEditModeState ? 'enabled' : 'disabled'}`);
+  };
+
   return (
     <>
       <Menu isOpen={isOpen} onClose={() => setIsOpen(false)}>
@@ -172,6 +206,16 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                 />
                 
                 <IconButton
+                  icon={<FaEdit />}
+                  variant="ghost"
+                  colorScheme={editModeEnabled ? "green" : "whiteAlpha"}
+                  size="sm"
+                  aria-label="Edit Mode"
+                  _hover={{ bg: 'whiteAlpha.200' }}
+                  onClick={handleToggleEditMode}
+                />
+                
+                <IconButton
                   icon={<Box w="4" h="4" />}
                   variant="ghost"
                   colorScheme="whiteAlpha"
@@ -192,6 +236,28 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
               <Divider borderColor="whiteAlpha.300" />
 
               <VStack align="stretch" spacing={2}>
+                {/* Edit Mode Toggle */}
+                <HStack 
+                  p={2} 
+                  borderRadius="md" 
+                  _hover={{ bg: "whiteAlpha.200" }}
+                  onClick={(e) => e.stopPropagation()}
+                  justify="space-between"
+                >
+                  <Text fontSize="md">Edit Mode</Text>
+                  <Switch 
+                    id="edit-mode-toggle" 
+                    isChecked={editModeEnabled}
+                    onChange={handleToggleEditMode}
+                    colorScheme="green"
+                    sx={{
+                      '& .chakra-switch__track': {
+                        bg: editModeEnabled ? 'green.500' : 'black'
+                      }
+                    }}
+                  />
+                </HStack>
+                
                 {/* Screen Share as text option */}
                 {user && spaceID && (
                   <ScreenShareMenuOption 

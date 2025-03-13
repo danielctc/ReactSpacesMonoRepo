@@ -4,6 +4,8 @@ import { Box, Image, PortalManager, Text, Heading } from "@chakra-ui/react";
 import { Unity } from "react-unity-webgl";
 import { useUnity } from "./providers/UnityProvider";
 import { useSendUnityEvent, useUnityOnFirstSceneLoaded, useUnityOnRequestUser, useUnityOnNameplateClick } from "./hooks/unityEvents";
+import { useUnityMediaScreenImages } from "./hooks/unityEvents/useUnityMediaScreenImages";
+import { useUnityThumbnails } from "./hooks/unityEvents/useUnityThumbnails";
 import { useFadeStyles } from "./hooks/useFadeStyles";
 import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
@@ -15,7 +17,6 @@ import AuthenticationButton from "./components/AuthenticationButton";
 import HelpButton from "./components/HelpButton";
 import ProfileButton from "./components/ProfileButton";
 import FullScreenButton from "./components/FullScreenButton";
-import SendThumbnailUrlToUnity from "./components/EventTests/SendThumbnailUrlToUnity";
 import VideoPlayer from "./components/VideoPlayer";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import NameplateModal from "./components/NameplateModal";
@@ -23,6 +24,7 @@ import UnityPlayerList from "./components/UnityPlayerList";
 import { CanvasMainMenu } from "./components/CanvasMainMenu";
 import { useUnityPlayerList } from "./hooks/unityEvents/useUnityPlayerList";
 import { AgoraProvider, VoiceButton, ScreenShareDisplay, useVoiceChat } from './voice-chat';
+import MediaScreenController from "./components/MediaScreenController";
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -162,6 +164,22 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     sessionId
   });
   
+  // Listen for Edit Mode changes
+  useEffect(() => {
+    const handleEditModeChange = (event) => {
+      setIsEditMode(event.detail.enabled);
+    };
+
+    window.addEventListener('editModeChanged', handleEditModeChange);
+    return () => {
+      window.removeEventListener('editModeChanged', handleEditModeChange);
+    };
+  }, []);
+  
+  // Use the hook to load media screen images
+  useUnityMediaScreenImages();
+  useUnityThumbnails();
+  
   return (
     <Box className="webgl-renderer">
       <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
@@ -230,9 +248,6 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
                 devicePixelRatio={devicePixelRatio}
               />
             </Box>
-            
-            {/* Event to send thumbnails */}
-            <SendThumbnailUrlToUnity />
           </Box>
           
           {/* UI elements */}
@@ -264,6 +279,9 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
             isVisible={isPlayerListVisible} 
             onToggleVisibility={setIsPlayerListVisible} 
           />
+
+          {/* Media Screen Controller */}
+          <MediaScreenController />
         </div>
       </PortalManager>
     </Box>
