@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getMediaScreenImagesFromFirestore } from "@disruptive-spaces/shared/firebase/mediaScreenFirestore";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { useUnity } from "../../providers/UnityProvider";
@@ -39,8 +39,42 @@ const cleanFirebaseUrl = (url) => {
 export const useUnityMediaScreenImages = () => {
   const { spaceID } = useUnity();
   const queueMessage = useSendUnityEvent();
+  const [unityReady, setUnityReady] = useState(false);
 
+  // First, set up a listener for Unity readiness
   useEffect(() => {
+    // Check if Unity is already ready via window flag
+    if (window.isPlayerInstantiated) {
+      Logger.log("useUnityMediaScreenImages: Unity already ready (via window flag)");
+      setUnityReady(true);
+      return;
+    }
+
+    // Otherwise, listen for the PlayerInstantiated event
+    const handlePlayerInstantiated = () => {
+      Logger.log("useUnityMediaScreenImages: Unity is now ready (PlayerInstantiated event)");
+      setUnityReady(true);
+    };
+
+    // Add event listener
+    window.addEventListener("PlayerInstantiated", handlePlayerInstantiated);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("PlayerInstantiated", handlePlayerInstantiated);
+    };
+  }, []);
+
+  // Then, fetch and send media screen images only when Unity is ready
+  useEffect(() => {
+    // Only proceed if Unity is ready
+    if (!unityReady) {
+      Logger.log("useUnityMediaScreenImages: Waiting for Unity to be ready before loading media screens");
+      return;
+    }
+
+    Logger.log("useUnityMediaScreenImages: Unity is ready, now loading media screens");
+    
     const fetchMediaScreenImages = async () => {
       try {
         // Ensure spaceID is defined before making the Firestore call
@@ -94,5 +128,5 @@ export const useUnityMediaScreenImages = () => {
     };
 
     fetchMediaScreenImages();
-  }, [queueMessage, spaceID]);
+  }, [queueMessage, spaceID, unityReady]);
 }; 

@@ -1,3 +1,25 @@
+/**
+ * MediaScreenController.jsx
+ * 
+ * This component manages media screens in the Unity application, handling interactions
+ * between React and Unity for displaying images and videos on media screens.
+ * 
+ * NOTE: This component has extensive debug logging that is disabled by default.
+ * If you're experiencing issues with media screens or seeing excessive console logs,
+ * you can enable debug logging by setting DEBUG_MEDIA_SCREEN to true below.
+ * 
+ * When debug logging is enabled, this component will output detailed information about:
+ * - Media screen registrations
+ * - Click events
+ * - Image/video loading
+ * - State changes
+ * 
+ * This can help diagnose issues with media screens not displaying correctly.
+ */
+
+// Debug flag - set to true to enable detailed logging for this component
+const DEBUG_MEDIA_SCREEN = false; // Set to true to enable debug logging
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Box, 
@@ -36,19 +58,76 @@ import MediaScreenVideoPlayer from './MediaScreenVideoPlayer';
 import { useUnityInputManager } from '../hooks/useUnityInputManager';
 import { useListenForUnityEvent } from '../hooks/unityEvents/core/useListenForUnityEvent';
 
+// Helper function for conditional logging
+const debugLog = (...args) => {
+  if (DEBUG_MEDIA_SCREEN) {
+    console.log(...args);
+  }
+};
+
 // Add a custom hook to manage the image viewer modal
 const useImageViewerModal = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [currentImageUrl, setCurrentImageUrl] = useState(null);
   const [currentMediaType, setCurrentMediaType] = useState('image');
+  const modalContentRef = useRef(null);
   
   // Use the Unity input manager hook to disable Unity input when modal is open
   useUnityInputManager(isOpen, 'image-viewer-modal');
   
+  // Prevent mouse events from reaching the Unity canvas
+  const preventPropagation = useCallback((e) => {
+    e.stopPropagation();
+  }, []);
+  
+  // Add event listeners to capture mouse events at the modal level
+  useEffect(() => {
+    if (isOpen && modalContentRef.current) {
+      const modalElement = modalContentRef.current;
+      
+      // Add event listeners to prevent mouse events from reaching Unity
+      modalElement.addEventListener('mousemove', preventPropagation);
+      modalElement.addEventListener('mousedown', preventPropagation);
+      modalElement.addEventListener('mouseup', preventPropagation);
+      modalElement.addEventListener('wheel', preventPropagation);
+      
+      // Find the Unity canvas element and disable pointer events
+      const unityCanvas = document.getElementById('unity-canvas');
+      if (unityCanvas) {
+        unityCanvas.style.pointerEvents = 'none';
+      }
+      
+      // Clean up event listeners
+      return () => {
+        modalElement.removeEventListener('mousemove', preventPropagation);
+        modalElement.removeEventListener('mousedown', preventPropagation);
+        modalElement.removeEventListener('mouseup', preventPropagation);
+        modalElement.removeEventListener('wheel', preventPropagation);
+        
+        // Re-enable pointer events on the Unity canvas
+        if (unityCanvas) {
+          unityCanvas.style.pointerEvents = 'auto';
+        }
+      };
+    }
+  }, [isOpen, preventPropagation]);
+  
   const openImageViewer = (imageUrl, mediaType = 'image') => {
-    console.log(`Opening image viewer with URL: ${imageUrl} and media type: ${mediaType}`);
+    debugLog(`Opening image viewer with URL: ${imageUrl} and media type: ${mediaType}`);
+    console.log(`[DEBUG] Opening image viewer with URL: ${imageUrl} and original media type: ${mediaType}`);
+    
+    // Determine if this is actually an image URL by checking the extension or content
+    const isActuallyImage = typeof imageUrl === 'string' && (
+      imageUrl.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i) || 
+      imageUrl.includes('firebasestorage') && !imageUrl.includes('video')
+    );
+    
+    // Always use 'image' type if it's clearly an image URL, regardless of what was passed
+    const effectiveMediaType = isActuallyImage ? 'image' : mediaType;
+    console.log(`[DEBUG] Detected URL as ${isActuallyImage ? 'image' : 'non-image'}, using media type: ${effectiveMediaType}`);
+    
     setCurrentImageUrl(imageUrl);
-    setCurrentMediaType(mediaType);
+    setCurrentMediaType(effectiveMediaType);
     onOpen();
   };
   
@@ -66,9 +145,33 @@ const useImageViewerModal = () => {
     currentImageUrl,
     currentMediaType,
     openImageViewer,
-    closeImageViewer
+    closeImageViewer,
+    modalContentRef,
+    preventPropagation
   };
 };
+
+// Add a style tag to prevent pointer events when the image modal is open
+const ImageViewerStyles = () => (
+  <style
+    dangerouslySetInnerHTML={{
+      __html: `
+        body.unity-input-disabled #unity-container,
+        body.unity-input-disabled #unity-canvas {
+          pointer-events: none !important;
+        }
+        
+        .image-viewer-modal-content {
+          pointer-events: auto !important;
+        }
+        
+        .chakra-modal__overlay {
+          pointer-events: auto !important;
+        }
+      `
+    }}
+  />
+);
 
 // Helper function to clean Firebase Storage URLs to avoid CORS issues
 const cleanFirebaseUrl = (url) => {
@@ -91,7 +194,7 @@ const cleanFirebaseUrl = (url) => {
       if (alt) urlObj.searchParams.set('alt', alt);
       if (token) urlObj.searchParams.set('token', token);
       
-      console.log(`Cleaned Firebase URL from ${url} to ${urlObj.toString()}`);
+      debugLog(`Cleaned Firebase URL from ${url} to ${urlObj.toString()}`);
       return urlObj.toString();
     }
     return url;
@@ -113,6 +216,7 @@ const MediaScreenController = () => {
   const queueMessage = useSendUnityEvent();
   const { fullscreenRef } = useFullscreenContext();
   const listenToUnityMessage = useListenForUnityEvent();
+  const [unityReady, setUnityReady] = useState(false);
 
   // Use the custom hook for image viewer modal
   const {
@@ -120,7 +224,9 @@ const MediaScreenController = () => {
     currentImageUrl,
     currentMediaType,
     openImageViewer,
-    closeImageViewer: onViewerClose
+    closeImageViewer: onViewerClose,
+    modalContentRef,
+    preventPropagation
   } = useImageViewerModal();
   
   // Add video player hook
@@ -135,9 +241,33 @@ const MediaScreenController = () => {
   // Initialize media screen images
   useUnityMediaScreenImages();
 
+  // Add Unity ready state listener
+  useEffect(() => {
+    // Check if Unity is already ready via window flag
+    if (window.isPlayerInstantiated) {
+      debugLog("MediaScreenController: Unity already ready (via window flag)");
+      setUnityReady(true);
+      return;
+    }
+
+    // Otherwise, listen for the PlayerInstantiated event
+    const handlePlayerInstantiated = () => {
+      debugLog("MediaScreenController: Unity is now ready (PlayerInstantiated event)");
+      setUnityReady(true);
+    };
+
+    // Add event listener
+    window.addEventListener("PlayerInstantiated", handlePlayerInstantiated);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("PlayerInstantiated", handlePlayerInstantiated);
+    };
+  }, []);
+
   // Helper function to get the latest screen data
   const getLatestScreenData = useCallback((screenId) => {
-    console.log("Getting latest screen data for:", screenId, "mediaScreens:", mediaScreens);
+    debugLog("Getting latest screen data for:", screenId, "mediaScreens:", mediaScreens);
     
     // Ensure mediaScreens is an array before using find
     if (Array.isArray(mediaScreens) && mediaScreens.length > 0) {
@@ -147,7 +277,7 @@ const MediaScreenController = () => {
         const imageUrl = screen.imageUrl;
         const videoUrl = screen.videoUrl;
         
-        console.log("Found screen in mediaScreens:", screen);
+        debugLog("Found screen in mediaScreens:", screen);
         
         return { 
           screen, 
@@ -163,7 +293,7 @@ const MediaScreenController = () => {
     
     // If not found in mediaScreens, check currentImageUrl
     if (currentImageUrl) {
-      console.log("Using currentImageUrl as fallback:", currentImageUrl);
+      debugLog("Using currentImageUrl as fallback:", currentImageUrl);
       
       // Try to find additional metadata in the mediaScreens array if it exists
       let screenMetadata = null;
@@ -182,13 +312,13 @@ const MediaScreenController = () => {
     
     // Last resort: Try to fetch the media screen data directly from Firestore
     if (spaceID && screenId) {
-      console.log(`Attempting to fetch media screen data for ${screenId} from Firestore`);
+      debugLog(`Attempting to fetch media screen data for ${screenId} from Firestore`);
       
       // Return a placeholder and trigger an async fetch
       getMediaScreenImage(spaceID, screenId)
         .then(mediaScreen => {
           if (mediaScreen) {
-            console.log(`Retrieved media screen data for ${screenId} from Firestore:`, mediaScreen);
+            debugLog(`Retrieved media screen data for ${screenId} from Firestore:`, mediaScreen);
             
             // Update the mediaScreens state with this data
             setMediaScreens(prevScreens => {
@@ -236,22 +366,25 @@ const MediaScreenController = () => {
   
   // Function to handle media screen clicks - defined outside of useEffect
   const processMediaScreenClick = useCallback((screenId) => {
-    console.log(`Processing click on screen: ${screenId}`);
+    console.log(`[DEBUG] Processing click on screen: ${screenId}, isEditMode: ${isEditMode}`);
+    debugLog(`Processing click on screen: ${screenId}`);
     
     // Set this as the selected screen
     setSelectedScreen(screenId);
     
     // Open the appropriate modal based on edit mode
     if (isEditMode) {
-      console.log("Opening upload modal (edit mode)");
+      console.log(`[DEBUG] Opening upload modal for screen: ${screenId} in edit mode`);
+      debugLog("Opening upload modal (edit mode)");
       onOpen(); // Open upload modal in edit mode
     } else {
       // Get the latest screen data
       const screenData = getLatestScreenData(screenId);
-      console.log("Screen data for click:", screenData);
+      debugLog("Screen data for click:", screenData);
       
       if (screenData) {
-        console.log("Screen data details:", {
+        console.log(`[DEBUG] Screen data for ${screenId}:`, screenData);
+        debugLog("Screen data details:", {
           mediaScreenId: screenId,
           imageUrl: screenData.imageUrl,
           videoUrl: screenData.videoUrl,
@@ -262,13 +395,13 @@ const MediaScreenController = () => {
         // Check if we're trying to open the same video that's already playing
         const isSameVideoScreen = isVideoModalOpen && currentVideoMediaScreenId === screenId;
         if (isSameVideoScreen) {
-          console.log("This video is already playing, ignoring click");
+          debugLog("This video is already playing, ignoring click");
           return;
         }
         
         // Check if this media screen should be displayed as a video
         if (screenData.displayAsVideo && screenData.videoUrl) {
-          console.log(`Opening video player for: ${screenData.videoUrl}`);
+          debugLog(`Opening video player for: ${screenData.videoUrl}`);
           
           // Send the event to Unity to trigger the hook
           // The hook will handle setting currentVideoMediaScreenId
@@ -278,34 +411,34 @@ const MediaScreenController = () => {
             videoUrl: screenData.videoUrl
           });
         } else if (screenData.imageUrl) {
-          console.log(`Opening viewer modal with ${screenData.mediaType}: ${screenData.imageUrl}`);
+          debugLog(`Opening viewer modal with ${screenData.mediaType}: ${screenData.imageUrl}`);
           // Clean the URL to avoid CORS issues
           const cleanedImageUrl = cleanFirebaseUrl(screenData.imageUrl);
           openImageViewer(cleanedImageUrl, screenData.mediaType || 'image');
         } else {
           // If we don't have image data, try to fetch it directly from Firestore
-          console.log("No media found in state, attempting to fetch from Firestore");
+          debugLog("No media found in state, attempting to fetch from Firestore");
           
           if (spaceID) {
             getMediaScreenImage(spaceID, screenId)
               .then(mediaScreen => {
                 if (mediaScreen) {
-                  console.log(`Retrieved media screen data for ${screenId} from Firestore:`, mediaScreen);
+                  debugLog(`Retrieved media screen data for ${screenId} from Firestore:`, mediaScreen);
                   
                   // Now that we have the data, determine what to display
                   if (mediaScreen.displayAsVideo && mediaScreen.videoUrl) {
-                    console.log(`Opening video player for: ${mediaScreen.videoUrl}`);
+                    debugLog(`Opening video player for: ${mediaScreen.videoUrl}`);
                     queueMessage("PlayMediaScreenVideo", { 
                       mediaScreenId: screenId,
                       videoUrl: mediaScreen.videoUrl
                     });
                   } else if (mediaScreen.imageUrl) {
-                    console.log(`Opening viewer modal with image: ${mediaScreen.imageUrl}`);
+                    debugLog(`Opening viewer modal with image: ${mediaScreen.imageUrl}`);
                     // Clean the URL to avoid CORS issues
                     const cleanedImageUrl = cleanFirebaseUrl(mediaScreen.imageUrl);
                     openImageViewer(cleanedImageUrl, mediaScreen.mediaType || 'image');
                   } else {
-                    console.log("No media found for screen in Firestore:", screenId);
+                    debugLog("No media found for screen in Firestore:", screenId);
                   }
                   
                   // Update our state with this data for future use
@@ -334,7 +467,7 @@ const MediaScreenController = () => {
                     }
                   });
                 } else {
-                  console.log("No media found for screen in Firestore:", screenId);
+                  debugLog("No media found for screen in Firestore:", screenId);
                 }
               })
               .catch(error => {
@@ -343,29 +476,29 @@ const MediaScreenController = () => {
           }
         }
       } else {
-        console.log("No media found for screen in state, attempting to fetch from Firestore");
+        debugLog("No media found for screen in state, attempting to fetch from Firestore");
         
         // Try to fetch the data directly from Firestore
         if (spaceID) {
           getMediaScreenImage(spaceID, screenId)
             .then(mediaScreen => {
               if (mediaScreen) {
-                console.log(`Retrieved media screen data for ${screenId} from Firestore:`, mediaScreen);
+                debugLog(`Retrieved media screen data for ${screenId} from Firestore:`, mediaScreen);
                 
                 // Now that we have the data, determine what to display
                 if (mediaScreen.displayAsVideo && mediaScreen.videoUrl) {
-                  console.log(`Opening video player for: ${mediaScreen.videoUrl}`);
+                  debugLog(`Opening video player for: ${mediaScreen.videoUrl}`);
                   queueMessage("PlayMediaScreenVideo", { 
                     mediaScreenId: screenId,
                     videoUrl: mediaScreen.videoUrl
                   });
                 } else if (mediaScreen.imageUrl) {
-                  console.log(`Opening viewer modal with image: ${mediaScreen.imageUrl}`);
+                  debugLog(`Opening viewer modal with image: ${mediaScreen.imageUrl}`);
                   // Clean the URL to avoid CORS issues
                   const cleanedImageUrl = cleanFirebaseUrl(mediaScreen.imageUrl);
                   openImageViewer(cleanedImageUrl, mediaScreen.mediaType || 'image');
                 } else {
-                  console.log("No media found for screen in Firestore:", screenId);
+                  debugLog("No media found for screen in Firestore:", screenId);
                 }
                 
                 // Update our state with this data for future use
@@ -394,7 +527,7 @@ const MediaScreenController = () => {
                   }
                 });
               } else {
-                console.log("No media found for screen in Firestore:", screenId);
+                debugLog("No media found for screen in Firestore:", screenId);
               }
             })
             .catch(error => {
@@ -407,6 +540,14 @@ const MediaScreenController = () => {
 
   // Fetch media screen images from Firestore
   useEffect(() => {
+    // Only proceed if Unity is ready
+    if (!unityReady) {
+      debugLog("MediaScreenController: Waiting for Unity to be ready before fetching media screen images");
+      return;
+    }
+
+    debugLog("MediaScreenController: Unity is ready, now fetching media screen images");
+    
     const fetchMediaScreenImages = async () => {
       if (!spaceID) return;
       
@@ -441,7 +582,19 @@ const MediaScreenController = () => {
     
     // Always fetch images regardless of edit mode
     fetchMediaScreenImages();
-  }, [spaceID]);
+    
+    // Set up a refresh interval if in edit mode
+    let intervalId = null;
+    if (isEditMode) {
+      intervalId = setInterval(fetchMediaScreenImages, 5000); // Refresh every 5 seconds in edit mode
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [spaceID, isEditMode, refreshTrigger, unityReady]);
 
   // Handle image changes from the upload modal
   const handleImageChange = (changeData) => {
@@ -529,13 +682,13 @@ const MediaScreenController = () => {
       
       // When edit mode is enabled, log some debug info
       if (isEnabled) {
-        console.log("MediaScreenController: Edit mode enabled, checking for Unity integration");
+        debugLog("MediaScreenController: Edit mode enabled, checking for Unity integration");
         
         // Check if Unity functions exist
         if (window.dispatchReactUnityEvent) {
-          console.log("MediaScreenController: dispatchReactUnityEvent is available");
+          debugLog("MediaScreenController: dispatchReactUnityEvent is available");
         } else {
-          console.log("MediaScreenController: dispatchReactUnityEvent is NOT available");
+          debugLog("MediaScreenController: dispatchReactUnityEvent is NOT available");
         }
         
         // Tell Unity to show upload icons on media screens
@@ -593,65 +746,14 @@ const MediaScreenController = () => {
 
   // Listen for MediaScreen registrations from Unity
   useEffect(() => {
-    // Add a console.log interceptor to catch Unity logs
-    const originalConsoleLog = console.log;
-    console.log = function() {
-      // Check if this is a MediaScreen registration log
-      if (arguments[0] && typeof arguments[0] === 'string') {
-        const logMessage = Array.from(arguments).join(' ');
-        
-        // Check for MediaScreen registration logs
-        if (logMessage.includes('Registering MediaScreen with ID') || 
-            logMessage.includes('RegisterMediaScreen')) {
-          
-          // Try to extract the screen ID from the log
-          const idMatch = logMessage.match(/MediaScreen with ID:?\s*([^\s,]+)/i);
-          if (idMatch && idMatch[1]) {
-            const screenId = idMatch[1];
-            console.log(`MediaScreenController: Detected screen ID from console: ${screenId}`);
-            
-            // Add this screen to our state
-            setMediaScreens(prevScreens => {
-              const exists = prevScreens.some(screen => screen.mediaScreenId === screenId);
-              if (exists) return prevScreens;
-              
-              return [...prevScreens, {
-                mediaScreenId: screenId,
-                source: 'console-log',
-                firstDetected: new Date().toISOString(),
-                lastUpdated: new Date().toISOString()
-              }];
-            });
-          }
-        }
-        
-        // Check for MediaScreen click logs
-        if (logMessage.includes('MediaScreen clicked:') || 
-            logMessage.includes('Sending MediaScreen click with ID')) {
-          
-          // Try to extract the screen ID from the log
-          const idMatch = logMessage.match(/MediaScreen clicked:?\s*([^\s,]+)/i) || 
-                          logMessage.match(/click with ID:?\s*([^\s,]+)/i);
-          
-          if (idMatch && idMatch[1]) {
-            const screenId = idMatch[1];
-            console.log(`MediaScreenController: Detected click from console for screen ID: ${screenId}`);
-            
-            // Process the click
-            processMediaScreenClick(screenId);
-          }
-        }
-      }
-      
-      // Call the original console.log
-      return originalConsoleLog.apply(console, arguments);
-    };
+    // REMOVE the console.log interceptor that was causing all logs to be processed
+    // Instead, use direct event listeners for the specific events we care about
 
     const handleRegisterMediaScreen = (event) => {
       try {
         const data = JSON.parse(event.detail);
         Logger.log(`MediaScreen registered: ${data.mediaScreenId}`);
-        console.log(`MediaScreen registered from Unity:`, data);
+        debugLog(`MediaScreen registered from Unity:`, data);
         
         setMediaScreens(prevScreens => {
           // Check if screen already exists
@@ -691,12 +793,12 @@ const MediaScreenController = () => {
           // Get the media screen data from Firestore to check its display mode
           getMediaScreenImage(spaceID, mediaScreenId).then(mediaScreen => {
             if (mediaScreen) {
-              console.log(`Media screen data for ${mediaScreenId}:`, mediaScreen);
+              debugLog(`Media screen data for ${mediaScreenId}:`, mediaScreen);
               
               // If this screen should display as video, send a null imageUrl to Unity
               // This prevents the image from briefly showing before switching to video mode
               if (mediaScreen.displayAsVideo && mediaScreen.videoUrl) {
-                console.log(`Media screen ${mediaScreenId} should display as video, sending null imageUrl`);
+                debugLog(`Media screen ${mediaScreenId} should display as video, sending null imageUrl`);
                 queueMessage("SetMediaScreenImage", { 
                   mediaScreenId: mediaScreenId, 
                   imageUrl: null,
@@ -716,29 +818,29 @@ const MediaScreenController = () => {
     // Handle screen click events from Unity
     const handleMediaScreenClick = (event) => {
       try {
-        console.log("MediaScreenClick event received:", event);
+        debugLog("MediaScreenClick event received:", event);
         
         let mediaScreenId;
         
         if (typeof event === 'string') {
           // Direct call with screenId
           mediaScreenId = event;
-          console.log("MediaScreenClick: Direct call with ID:", mediaScreenId);
+          debugLog("MediaScreenClick: Direct call with ID:", mediaScreenId);
         } else {
           // Event from Unity
-          console.log("MediaScreenClick: Event from Unity:", event);
-          console.log("MediaScreenClick: Event detail:", event.detail);
+          debugLog("MediaScreenClick: Event from Unity:", event);
+          debugLog("MediaScreenClick: Event detail:", event.detail);
           
           try {
             const data = JSON.parse(event.detail);
             mediaScreenId = data.mediaScreenId;
-            console.log("MediaScreenClick: Parsed mediaScreenId:", mediaScreenId);
+            debugLog("MediaScreenClick: Parsed mediaScreenId:", mediaScreenId);
           } catch (parseError) {
             console.error("MediaScreenClick: Error parsing event detail:", parseError);
             // Try to handle the case where detail might not be a JSON string
             if (event.detail && event.detail.mediaScreenId) {
               mediaScreenId = event.detail.mediaScreenId;
-              console.log("MediaScreenClick: Using direct mediaScreenId from detail:", mediaScreenId);
+              debugLog("MediaScreenClick: Using direct mediaScreenId from detail:", mediaScreenId);
             } else {
               throw new Error("Could not extract mediaScreenId from event");
             }
@@ -746,7 +848,7 @@ const MediaScreenController = () => {
         }
         
         Logger.log(`MediaScreen clicked: ${mediaScreenId}`);
-        console.log(`MediaScreen clicked:`, mediaScreenId);
+        debugLog(`MediaScreen clicked:`, mediaScreenId);
         
         // Process the click
         processMediaScreenClick(mediaScreenId);
@@ -765,7 +867,7 @@ const MediaScreenController = () => {
         try {
           const data = JSON.parse(event.detail.eventData);
           if (data.mediaScreenId) {
-            console.log("SetMediaScreenImage event received:", data);
+            debugLog("SetMediaScreenImage event received:", data);
             
             // Update mediaScreens state properly as an array
             setMediaScreens(prevScreens => {
@@ -813,9 +915,6 @@ const MediaScreenController = () => {
     window.addEventListener('reactUnityEvent', handleReactUnityEvent);
     
     return () => {
-      // Restore original console.log
-      console.log = originalConsoleLog;
-      
       // Remove event listeners
       window.removeEventListener('RegisterMediaScreen', handleRegisterMediaScreen);
       window.removeEventListener('MediaScreenClick', handleMediaScreenClick);
@@ -828,7 +927,7 @@ const MediaScreenController = () => {
     // Define a direct handler for MediaScreenClick events
     const handleDirectMediaScreenClick = (event) => {
       try {
-        console.log("Direct MediaScreenClick event received:", event);
+        debugLog("Direct MediaScreenClick event received:", event);
         
         // Extract the mediaScreenId from the event
         let mediaScreenId;
@@ -847,7 +946,7 @@ const MediaScreenController = () => {
           return;
         }
         
-        console.log(`Direct handler: Processing click for media screen ${mediaScreenId}`);
+        debugLog(`Direct handler: Processing click for media screen ${mediaScreenId}`);
         processMediaScreenClick(mediaScreenId);
       } catch (error) {
         console.error("Error in direct MediaScreenClick handler:", error);
@@ -865,7 +964,7 @@ const MediaScreenController = () => {
 
   // Simulate a click for testing
   const simulateClick = (screenId) => {
-    console.log(`Simulating click on screen: ${screenId}`);
+    debugLog(`Simulating click on screen: ${screenId}`);
     if (window.handleMediaScreenClick) {
       window.handleMediaScreenClick(screenId);
     }
@@ -873,16 +972,16 @@ const MediaScreenController = () => {
 
   // Update the video modal when videoUrl changes
   useEffect(() => {
-    console.log("Video URL changed:", videoUrl);
+    debugLog("Video URL changed:", videoUrl);
     if (videoUrl) {
-      console.log("Opening video modal with URL:", videoUrl);
+      debugLog("Opening video modal with URL:", videoUrl);
       onVideoModalOpen();
     }
   }, [videoUrl, onVideoModalOpen]);
   
   // Handle video modal close
   const handleVideoModalClose = () => {
-    console.log("Closing video modal and resetting URL");
+    debugLog("Closing video modal and resetting URL");
     resetVideoUrl();
     onVideoModalClose();
   };
@@ -974,6 +1073,22 @@ const MediaScreenController = () => {
     };
   }, [listenToUnityMessage, processMediaScreenClick]);
 
+  // Add a useEffect to watch for changes to currentVideoMediaScreenId in edit mode
+  useEffect(() => {
+    // Only run this effect when in edit mode
+    if (isEditMode && currentVideoMediaScreenId) {
+      console.log(`[DEBUG] Detected currentVideoMediaScreenId change in edit mode: ${currentVideoMediaScreenId}`);
+      
+      // Set the selected screen and open the upload modal
+      setSelectedScreen(currentVideoMediaScreenId);
+      onOpen();
+      
+      // Reset the currentVideoMediaScreenId to prevent reopening the modal
+      // when toggling edit mode off and on again
+      resetVideoUrl();
+    }
+  }, [isEditMode, currentVideoMediaScreenId, onOpen, resetVideoUrl]);
+
   return (
     <>
       {/* Upload Modal (for edit mode) */}
@@ -985,6 +1100,7 @@ const MediaScreenController = () => {
       />
       
       {/* Media Viewer Modal (for view mode) */}
+      <ImageViewerStyles />
       <Portal containerRef={fullscreenRef}>
         <Modal 
           isOpen={isViewerOpen} 
@@ -993,9 +1109,18 @@ const MediaScreenController = () => {
           isCentered
           portalProps={{ containerRef: fullscreenRef }}
           id="image-viewer-modal"
+          blockScrollOnMount={true}
         >
-          <ModalOverlay bg="rgba(0, 0, 0, 0.8)" />
+          <ModalOverlay 
+            bg="rgba(0, 0, 0, 0.8)" 
+            onClick={preventPropagation}
+            onMouseMove={preventPropagation}
+            onMouseDown={preventPropagation}
+            onMouseUp={preventPropagation}
+            onWheel={preventPropagation}
+          />
           <ModalContent
+            ref={modalContentRef}
             bg="gray.900"
             color="white"
             borderRadius="lg"
@@ -1008,6 +1133,11 @@ const MediaScreenController = () => {
             position="relative"
             zIndex="10000"
             className="image-viewer-modal-content"
+            onClick={preventPropagation}
+            onMouseMove={preventPropagation}
+            onMouseDown={preventPropagation}
+            onMouseUp={preventPropagation}
+            onWheel={preventPropagation}
           >
             <ModalCloseButton
               size="lg"
@@ -1021,7 +1151,15 @@ const MediaScreenController = () => {
               top="10px"
               right="10px"
             />
-            <ModalBody p={0} width="100%">
+            <ModalBody 
+              p={0} 
+              width="100%"
+              onClick={preventPropagation}
+              onMouseMove={preventPropagation}
+              onMouseDown={preventPropagation}
+              onMouseUp={preventPropagation}
+              onWheel={preventPropagation}
+            >
               {currentImageUrl ? (
                 <Box 
                   position="relative"
@@ -1030,6 +1168,11 @@ const MediaScreenController = () => {
                   display="flex"
                   justifyContent="center"
                   alignItems="center"
+                  onClick={preventPropagation}
+                  onMouseMove={preventPropagation}
+                  onMouseDown={preventPropagation}
+                  onMouseUp={preventPropagation}
+                  onWheel={preventPropagation}
                 >
                   {currentMediaType === 'image' ? (
                     <Image
@@ -1040,9 +1183,18 @@ const MediaScreenController = () => {
                       alt="Media Screen Image"
                       onLoad={() => console.log("Image loaded successfully:", currentImageUrl)}
                       onError={(e) => console.error("Error loading image:", e, currentImageUrl)}
+                      onClick={preventPropagation}
                     />
                   ) : (
-                    <Box width="100%" textAlign="center">
+                    <Box 
+                      width="100%" 
+                      textAlign="center"
+                      onClick={preventPropagation}
+                      onMouseMove={preventPropagation}
+                      onMouseDown={preventPropagation}
+                      onMouseUp={preventPropagation}
+                      onWheel={preventPropagation}
+                    >
                       <Text mb={4} fontSize="lg">Video URL:</Text>
                       <Text 
                         p={3} 
@@ -1061,7 +1213,17 @@ const MediaScreenController = () => {
                   )}
                 </Box>
               ) : (
-                <Flex direction="column" align="center" justify="center" h="400px">
+                <Flex 
+                  direction="column" 
+                  align="center" 
+                  justify="center" 
+                  h="400px"
+                  onClick={preventPropagation}
+                  onMouseMove={preventPropagation}
+                  onMouseDown={preventPropagation}
+                  onMouseUp={preventPropagation}
+                  onWheel={preventPropagation}
+                >
                   <Text>No image available</Text>
                 </Flex>
               )}

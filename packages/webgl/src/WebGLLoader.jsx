@@ -64,10 +64,30 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
                     // Get Disruptive Logo URL
                     const logoHttpUrl = await fetchHttpUrlFromGsUrl(spaceSettings.urlDisruptiveLogo);
 
+                    // Determine background URL - prefer the new backgroundUrl field, fall back to gsUrlLoadingBackground
+                    let backgroundUrl = '';
+                    if (itemData.backgroundUrl) {
+                        backgroundUrl = itemData.backgroundUrl; // Use direct HTTP URL if available
+                    } else if (itemData.backgroundGsUrl) {
+                        // Convert GS URL to HTTP URL
+                        try {
+                            backgroundUrl = await fetchHttpUrlFromGsUrl(itemData.backgroundGsUrl);
+                        } catch (error) {
+                            Logger.warn("WebGLLoader: Error fetching background from GS URL:", error);
+                        }
+                    } else if (itemData.gsUrlLoadingBackground) {
+                        // Legacy: Convert GS URL to HTTP URL
+                        try {
+                            backgroundUrl = await fetchHttpUrlFromGsUrl(itemData.gsUrlLoadingBackground);
+                        } catch (error) {
+                            Logger.warn("WebGLLoader: Error fetching background from legacy GS URL:", error);
+                        }
+                    }
+
                     // Update settings with relevant fetched data
                     setSpaceSettings(prevSettings => ({
                         ...prevSettings,
-                        urlLoadingBackground: itemData.gsUrlLoadingBackground || '',
+                        urlLoadingBackground: backgroundUrl,
                         showAuthButton: itemData.showAuthButton !== undefined ? itemData.showAuthButton : true,
                         showDisruptiveLogo: itemData.showDisruptiveLogo !== undefined ? itemData.showDisruptiveLogo : true,
                         showHelpButton: itemData.showHelpButton !== undefined ? itemData.showHelpButton : true,

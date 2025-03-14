@@ -73,14 +73,30 @@ export const useMediaScreenVideoPlayer = (isEditMode) => {
 
     const handlePlayMediaScreenVideo = async (eventDataJson) => {
       try {
+        console.log("[DEBUG] PlayMediaScreenVideo event received:", eventDataJson, "isEditMode:", isEditMode);
         console.log("PlayMediaScreenVideo event received:", eventDataJson);
         
-        // Only handle video play when not in edit mode
-        if (isEditMode) {
-          Logger.log("Edit mode is active, preventing media screen video play.");
+        // IMPORTANT: We no longer return early in edit mode
+        // Instead, we'll just skip the video playing logic but still set the currentMediaScreenId
+        // This allows the MediaScreenController to handle the click in edit mode
+        
+        const { mediaScreenId, videoUrl: directVideoUrl } = eventDataJson || {};
+        if (!mediaScreenId) {
+          Logger.error("Media screen ID is missing in Unity event data.");
+          safelyResetProcessingState();
           return;
         }
         
+        // In edit mode, just set the current media screen ID and return
+        // This allows the click to be processed by the MediaScreenController for opening the upload modal
+        if (isEditMode) {
+          console.log(`[DEBUG] Edit mode is active for screen ${mediaScreenId}, setting ID but not playing video`);
+          Logger.log("Edit mode is active, setting media screen ID but not playing video");
+          setCurrentMediaScreenId(mediaScreenId);
+          return;
+        }
+        
+        // Only proceed with video playing logic if not in edit mode
         // Set processing flag to prevent duplicate modal opening
         setIsProcessingEvent(true);
         
@@ -92,13 +108,6 @@ export const useMediaScreenVideoPlayer = (isEditMode) => {
             setIsProcessingEvent(false);
           }
         }, 5000);
-
-        const { mediaScreenId, videoUrl: directVideoUrl } = eventDataJson || {};
-        if (!mediaScreenId) {
-          Logger.error("Media screen ID is missing in Unity event data.");
-          safelyResetProcessingState();
-          return;
-        }
 
         // If a direct video URL is provided in the event, use it instead of fetching from Firestore
         if (directVideoUrl) {

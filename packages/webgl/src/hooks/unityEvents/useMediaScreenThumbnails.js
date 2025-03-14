@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { getMediaScreenImagesFromFirestore, getMediaScreenImage } from "@disruptive-spaces/shared/firebase/mediaScreenFirestore";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { useUnity } from "../../providers/UnityProvider";
@@ -12,6 +12,31 @@ export const useMediaScreenThumbnails = () => {
   const { spaceID } = useUnity();
   const queueMessage = useSendUnityEvent();
   const listenToUnityMessage = useListenForUnityEvent();
+  const [unityReady, setUnityReady] = useState(false);
+
+  // First, set up a listener for Unity readiness
+  useEffect(() => {
+    // Check if Unity is already ready via window flag
+    if (window.isPlayerInstantiated) {
+      Logger.log("useMediaScreenThumbnails: Unity already ready (via window flag)");
+      setUnityReady(true);
+      return;
+    }
+
+    // Otherwise, listen for the PlayerInstantiated event
+    const handlePlayerInstantiated = () => {
+      Logger.log("useMediaScreenThumbnails: Unity is now ready (PlayerInstantiated event)");
+      setUnityReady(true);
+    };
+
+    // Add event listener
+    window.addEventListener("PlayerInstantiated", handlePlayerInstantiated);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("PlayerInstantiated", handlePlayerInstantiated);
+    };
+  }, []);
 
   // Function to fetch thumbnail for a video URL
   const fetchThumbnailUrl = useCallback(async (videoUrl) => {
@@ -115,8 +140,16 @@ export const useMediaScreenThumbnails = () => {
     }
   }, [spaceID, fetchThumbnailUrl, queueMessage]);
 
-  // Listen for SetMediaScreenThumbnail events
+  // Listen for SetMediaScreenThumbnail events from Unity
   useEffect(() => {
+    // Only proceed if Unity is ready
+    if (!unityReady) {
+      Logger.log("useMediaScreenThumbnails: Waiting for Unity to be ready before setting up thumbnail listeners");
+      return;
+    }
+
+    Logger.log("useMediaScreenThumbnails: Unity is ready, now setting up thumbnail listeners");
+    
     const handleSetMediaScreenThumbnail = async (eventData) => {
       try {
         const { mediaScreenId, thumbnailUrl } = eventData;
@@ -137,9 +170,18 @@ export const useMediaScreenThumbnails = () => {
     return () => {
       unsubscribe();
     };
-  }, [listenToUnityMessage, refreshMediaScreenThumbnail]);
+  }, [listenToUnityMessage, refreshMediaScreenThumbnail, unityReady]);
 
+  // Fetch thumbnails for all media screens set to display as videos
   useEffect(() => {
+    // Only proceed if Unity is ready
+    if (!unityReady) {
+      Logger.log("useMediaScreenThumbnails: Waiting for Unity to be ready before fetching thumbnails");
+      return;
+    }
+
+    Logger.log("useMediaScreenThumbnails: Unity is ready, now fetching thumbnails");
+    
     const fetchMediaScreenThumbnails = async () => {
       try {
         // Ensure spaceID is defined before making the Firestore call
@@ -200,5 +242,5 @@ export const useMediaScreenThumbnails = () => {
     return () => {
       clearInterval(intervalId);
     };
-  }, [queueMessage, spaceID, fetchThumbnailUrl]);
+  }, [queueMessage, spaceID, fetchThumbnailUrl, unityReady]);
 }; 

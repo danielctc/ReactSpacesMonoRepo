@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getSpaceVideosFromFirestore } from "@disruptive-spaces/shared/firebase/spacesFirestore";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { useUnity } from "../../providers/UnityProvider"; // Import useUnity for spaceID
@@ -8,8 +8,42 @@ import { useSendUnityEvent } from "../../hooks/unityEvents/core/useSendUnityEven
 export const useUnityThumbnails = () => {
   const { spaceID } = useUnity(); // Correctly access spaceID
   const queueMessage = useSendUnityEvent();
+  const [unityReady, setUnityReady] = useState(false);
 
+  // First, set up a listener for Unity readiness
   useEffect(() => {
+    // Check if Unity is already ready via window flag
+    if (window.isPlayerInstantiated) {
+      Logger.log("useUnityThumbnails: Unity already ready (via window flag)");
+      setUnityReady(true);
+      return;
+    }
+
+    // Otherwise, listen for the PlayerInstantiated event
+    const handlePlayerInstantiated = () => {
+      Logger.log("useUnityThumbnails: Unity is now ready (PlayerInstantiated event)");
+      setUnityReady(true);
+    };
+
+    // Add event listener
+    window.addEventListener("PlayerInstantiated", handlePlayerInstantiated);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("PlayerInstantiated", handlePlayerInstantiated);
+    };
+  }, []);
+
+  // Then, fetch and send thumbnails only when Unity is ready
+  useEffect(() => {
+    // Only proceed if Unity is ready
+    if (!unityReady) {
+      Logger.log("useUnityThumbnails: Waiting for Unity to be ready before loading thumbnails");
+      return;
+    }
+
+    Logger.log("useUnityThumbnails: Unity is ready, now loading thumbnails");
+    
     const fetchThumbnails = async () => {
       try {
         // Ensure spaceID is defined before making the Firestore call
@@ -78,5 +112,5 @@ export const useUnityThumbnails = () => {
     };
 
     fetchThumbnails();
-  }, [queueMessage, spaceID]);
+  }, [queueMessage, spaceID, unityReady]);
 };

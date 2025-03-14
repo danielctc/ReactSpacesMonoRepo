@@ -35,17 +35,19 @@ import {
   Switch,
   FormControl,
   FormLabel,
+  Tooltip,
 } from "@chakra-ui/react";
 import { HamburgerIcon } from "@chakra-ui/icons";
-import { FaUsers, FaDesktop, FaEdit } from 'react-icons/fa';
+import { FaUsers, FaDesktop, FaEdit, FaCog, FaStar, FaCrown } from 'react-icons/fa';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
-import { useVoiceChat, ScreenShareMenuOption } from '../voice-chat';
+import { ScreenShareMenuOption } from '../voice-chat';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import SpacesControlsModal from './SpacesControlsModal';
 import SpacesSettingsModal from './SpacesSettingsModal';
+import SpaceManageModal from './SpaceManageModal';
 import ReadyPlayerMeModal from './ReadyPlayerMeModal';
 import AuthenticationButton from './AuthenticationButton';
 
@@ -56,33 +58,78 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openControlsModal, setOpenControlsModal] = useState(false);
   const [openAvatarModal, setOpenAvatarModal] = useState(false);
+  const [openManageSpaceModal, setOpenManageSpaceModal] = useState(false); // New state for Manage Space modal
   const [profileData, setProfileData] = useState(null);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
+  const [canEditSpace, setCanEditSpace] = useState(false); // Permission check for Edit Mode
+  const [isSpaceHost, setIsSpaceHost] = useState(false); // Permission check for host status
   const toast = useToast();
   
   const { user } = useContext(UserContext);
   const userNickname = user?.Nickname || "Unknown";
+  const [voiceDisabled, setVoiceDisabled] = useState(false);
 
-  // Fetch Firebase profile data for the avatar
+  // Fetch Firebase profile data for the avatar and check permissions
   const fetchProfileData = async () => {
-    if (user?.uid) {
+    if (user?.uid && spaceID) {
       try {
         const userProfile = await getUserProfileData(user.uid);
+        
+        // Check if user is an owner or host based on their groups
+        let isOwner = false;
+        let isHost = false;
+        
+        if (userProfile.groups) {
+          const ownerGroupId = `space_${spaceID}_owners`;
+          const hostGroupId = `space_${spaceID}_hosts`;
+          
+          isOwner = userProfile.groups.includes(ownerGroupId);
+          isHost = userProfile.groups.includes(hostGroupId);
+        }
+        
+        // Update state with profile data and permissions
         setProfileData({
           rpmURL: userProfile.rpmURL ? 
             userProfile.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75") 
             : null
         });
+        
+        setCanEditSpace(isOwner);
+        setIsSpaceHost(isHost);
+        
+        // If user doesn't have permission but edit mode is enabled, disable it
+        if (!isOwner && editModeEnabled) {
+          setEditModeEnabled(false);
+          // Dispatch event to notify other components
+          const editModeEvent = new CustomEvent('editModeChanged', { 
+            detail: { enabled: false } 
+          });
+          window.dispatchEvent(editModeEvent);
+          
+          toast({
+            title: "Edit Mode Disabled",
+            description: "You don't have permission to edit this space.",
+            status: "warning",
+            duration: 5000,
+            isClosable: true,
+            position: "top",
+          });
+        }
       } catch (error) {
         console.error('Error fetching profile data:', error);
+        setCanEditSpace(false);
+        setIsSpaceHost(false);
       }
+    } else {
+      setCanEditSpace(false);
+      setIsSpaceHost(false);
     }
   };
 
-  // Initial fetch
+  // Initial fetch and refresh when user or spaceID changes
   useEffect(() => {
     fetchProfileData();
-  }, [user?.uid]);
+  }, [user?.uid, spaceID, editModeEnabled]);
 
   // Still listen for player instantiation, but don't block functionality
   useEffect(() => {
@@ -97,8 +144,42 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
     };
   }, []);
 
+  // Check if voice is disabled for the space
+  useEffect(() => {
+    const checkVoiceDisabled = async () => {
+      try {
+        // Try to get voice disabled state from window
+        if (window.agoraClient && typeof window.agoraClient.voiceDisabled === 'boolean') {
+          setVoiceDisabled(window.agoraClient.voiceDisabled);
+        }
+      } catch (error) {
+        console.error("Error checking if voice is disabled:", error);
+      }
+    };
+    
+    checkVoiceDisabled();
+    
+    // Listen for voice setting changes
+    const handleVoiceSettingChanged = (event) => {
+      if (event.detail && typeof event.detail.voiceDisabled === 'boolean') {
+        console.log("Voice setting changed:", event.detail.voiceDisabled);
+        setVoiceDisabled(event.detail.voiceDisabled);
+      }
+    };
+    
+    window.addEventListener("SpaceVoiceSettingChanged", handleVoiceSettingChanged);
+    
+    return () => {
+      window.removeEventListener("SpaceVoiceSettingChanged", handleVoiceSettingChanged);
+    };
+  }, []);
+
   const handleSettingsToggle = () => setIsSettingsOpen(!isSettingsOpen);
   const handleControlsModalToggle = () => setOpenControlsModal(!openControlsModal);
+  const handleManageSpaceToggle = () => {
+    setOpenManageSpaceModal(!openManageSpaceModal);
+    handleCloseMenu();
+  };
   const handleModalClose = () => {
     setOpenAvatarModal(false);
     // Fetch new profile data when modal closes
@@ -124,6 +205,19 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
     // Stop event propagation to prevent menu from closing
     e.stopPropagation();
     
+    // Check if user has permission to edit
+    if (!canEditSpace) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to edit this space. Only space owners can use Edit Mode.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top",
+      });
+      return;
+    }
+    
     const newEditModeState = !editModeEnabled;
     setEditModeEnabled(newEditModeState);
     
@@ -144,9 +238,6 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
       isClosable: true,
       position: "top",
     });
-    
-    // Log the change
-    console.log(`Edit Mode ${newEditModeState ? 'enabled' : 'disabled'}`);
   };
 
   return (
@@ -188,7 +279,39 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                   borderColor="whiteAlpha.300"
                 />
                 <VStack align="start" spacing={0}>
-                  <Text fontWeight="bold">{userNickname}</Text>
+                  <HStack>
+                    <Text fontWeight="bold">{userNickname}</Text>
+                    {canEditSpace && (
+                      <Tooltip 
+                        label="Owner" 
+                        placement="top" 
+                        hasArrow 
+                        zIndex={10000}
+                        openDelay={300}
+                        gutter={8}
+                        portalProps={{ containerRef: fullscreenRef }}
+                      >
+                        <Box display="inline-block">
+                          <Icon as={FaCrown} color="green.400" boxSize={3} />
+                        </Box>
+                      </Tooltip>
+                    )}
+                    {!canEditSpace && isSpaceHost && (
+                      <Tooltip 
+                        label="Host" 
+                        placement="top" 
+                        hasArrow 
+                        zIndex={10000}
+                        openDelay={300}
+                        gutter={8}
+                        portalProps={{ containerRef: fullscreenRef }}
+                      >
+                        <Box display="inline-block">
+                          <Icon as={FaStar} color="purple.400" boxSize={3} />
+                        </Box>
+                      </Tooltip>
+                    )}
+                  </HStack>
                   <Text fontSize="sm" color="whiteAlpha.800">Spaces Metaverse</Text>
                 </VStack>
               </HStack>
@@ -205,15 +328,17 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                   onClick={handleTogglePlayerList}
                 />
                 
-                <IconButton
-                  icon={<FaEdit />}
-                  variant="ghost"
-                  colorScheme={editModeEnabled ? "green" : "whiteAlpha"}
-                  size="sm"
-                  aria-label="Edit Mode"
-                  _hover={{ bg: 'whiteAlpha.200' }}
-                  onClick={handleToggleEditMode}
-                />
+                {canEditSpace && (
+                  <IconButton
+                    icon={<FaEdit />}
+                    variant="ghost"
+                    colorScheme={editModeEnabled ? "green" : "whiteAlpha"}
+                    size="sm"
+                    aria-label="Edit Mode"
+                    _hover={{ bg: 'whiteAlpha.200' }}
+                    onClick={handleToggleEditMode}
+                  />
+                )}
                 
                 <IconButton
                   icon={<Box w="4" h="4" />}
@@ -236,33 +361,47 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
               <Divider borderColor="whiteAlpha.300" />
 
               <VStack align="stretch" spacing={2}>
-                {/* Edit Mode Toggle */}
-                <HStack 
-                  p={2} 
-                  borderRadius="md" 
-                  _hover={{ bg: "whiteAlpha.200" }}
-                  onClick={(e) => e.stopPropagation()}
-                  justify="space-between"
-                >
-                  <Text fontSize="md">Edit Mode</Text>
-                  <Switch 
-                    id="edit-mode-toggle" 
-                    isChecked={editModeEnabled}
-                    onChange={handleToggleEditMode}
-                    colorScheme="green"
-                    sx={{
-                      '& .chakra-switch__track': {
-                        bg: editModeEnabled ? 'green.500' : 'black'
-                      }
-                    }}
-                  />
-                </HStack>
+                {/* Edit Mode Toggle - Only show for space owners */}
+                {canEditSpace && (
+                  <HStack 
+                    p={2} 
+                    borderRadius="md" 
+                    _hover={{ bg: "whiteAlpha.200" }}
+                    onClick={(e) => e.stopPropagation()}
+                    justify="space-between"
+                  >
+                    <Text fontSize="md">Edit Mode</Text>
+                    <Switch 
+                      id="edit-mode-toggle" 
+                      isChecked={editModeEnabled}
+                      onChange={handleToggleEditMode}
+                      colorScheme="green"
+                      sx={{
+                        '& .chakra-switch__track': {
+                          bg: editModeEnabled ? 'green.500' : 'black'
+                        }
+                      }}
+                    />
+                  </HStack>
+                )}
                 
-                {/* Screen Share as text option */}
-                {user && spaceID && (
-                  <ScreenShareMenuOption 
-                    onClose={handleCloseMenu}
-                  />
+                {/* Manage Space option - Only show for space owners */}
+                {canEditSpace && (
+                  <Text 
+                    fontSize="md" 
+                    cursor="pointer" 
+                    _hover={{ bg: "whiteAlpha.200" }} 
+                    p={2} 
+                    borderRadius="md"
+                    onClick={handleManageSpaceToggle}
+                  >
+                    Manage Space
+                  </Text>
+                )}
+                
+                {/* Screen Share option - Only show if voice is not disabled */}
+                {user && spaceID && !voiceDisabled && (
+                  <ScreenShareMenuOption onClose={handleCloseMenu} />
                 )}
                 
                 <Text 
@@ -301,8 +440,11 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
       {openControlsModal && <SpacesControlsModal open={openControlsModal} onClose={handleControlsModalToggle} />}
       {isSettingsOpen && <SpacesSettingsModal open={isSettingsOpen} onClose={handleSettingsToggle} />}
       {openAvatarModal && <ReadyPlayerMeModal open={openAvatarModal} onClose={handleModalClose} />}
+      
+      {/* Manage Space Modal */}
+      <SpaceManageModal isOpen={openManageSpaceModal} onClose={handleManageSpaceToggle} />
     </>
   );
 };
 
-// Use the imported ScreenShareMenuOption from voice-chat 
+export default CanvasMainMenu; 

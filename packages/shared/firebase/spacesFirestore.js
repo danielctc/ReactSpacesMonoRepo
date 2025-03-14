@@ -1,6 +1,6 @@
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 
-import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+import { getStorage, ref, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage';
 
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import { fetchHttpUrlFromGsUrl } from '@disruptive-spaces/shared/firebase/firebaseStorage';
@@ -212,4 +212,242 @@ export const userCanModerateSpace = async (spaceId, userID) => {
         console.error("Error fetching space from Firestore:", error);
         throw error;
     }
+};
+
+/**
+ * Uploads a logo image for a space to Firebase Storage and updates the space document in Firestore
+ * 
+ * @param {string} spaceId - The ID of the space
+ * @param {File} logoFile - The logo image file to upload
+ * @returns {Promise<string>} - The download URL of the uploaded logo
+ */
+export const uploadSpaceLogo = async (spaceId, logoFile) => {
+  try {
+    // Validate parameters
+    if (!spaceId || !logoFile) {
+      throw new Error('Missing required parameters: spaceId and logoFile');
+    }
+
+    // Validate file type
+    if (!logoFile.type.startsWith('image/')) {
+      throw new Error('File must be an image');
+    }
+
+    // Create a reference to Firebase Storage
+    const storage = getStorage();
+    const timestamp = Date.now();
+    const fileExtension = logoFile.name.split('.').pop();
+    const fileName = `logo_${timestamp}.${fileExtension}`;
+    const storageRef = ref(storage, `spaces/${spaceId}/logo/${fileName}`);
+
+    // Upload the file
+    Logger.log(`Uploading logo for space ${spaceId}`);
+    const snapshot = await uploadBytes(storageRef, logoFile);
+    
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    // Store the reference in Firestore
+    const spaceRef = doc(db, 'spaces', spaceId);
+    await updateDoc(spaceRef, {
+      logoUrl: downloadURL,
+      logoGsUrl: `gs://${snapshot.ref.bucket}/${snapshot.ref.fullPath}`,
+      logoFileName: fileName,
+      updatedAt: new Date().toISOString()
+    });
+    
+    Logger.log(`Successfully uploaded logo for space ${spaceId}`);
+    return downloadURL;
+  } catch (error) {
+    Logger.error('Error uploading space logo:', error);
+    throw error;
+  }
+};
+
+/**
+ * Deletes the logo for a space from Firebase Storage and removes its reference from Firestore
+ * 
+ * @param {string} spaceId - The ID of the space
+ * @returns {Promise<boolean>} - True if deletion was successful
+ */
+export const deleteSpaceLogo = async (spaceId) => {
+  try {
+    // Get the space document to find the storage reference
+    const spaceRef = doc(db, 'spaces', spaceId);
+    const spaceSnap = await getDoc(spaceRef);
+    
+    if (!spaceSnap.exists()) {
+      Logger.warn(`No space found with ID: ${spaceId}`);
+      return false;
+    }
+    
+    const spaceData = spaceSnap.data();
+    
+    // If there's a storage reference, delete the file
+    if (spaceData.logoGsUrl) {
+      const storage = getStorage();
+      const fileRef = ref(storage, spaceData.logoGsUrl);
+      
+      try {
+        await deleteObject(fileRef);
+        Logger.log(`Deleted logo file from storage: ${spaceData.logoGsUrl}`);
+      } catch (storageError) {
+        // If the file doesn't exist, just log a warning
+        Logger.warn(`Could not delete logo file from storage: ${storageError.message}`);
+      }
+    }
+    
+    // Update the Firestore document to remove logo references
+    await updateDoc(spaceRef, {
+      logoUrl: null,
+      logoGsUrl: null,
+      logoFileName: null,
+      updatedAt: new Date().toISOString()
+    });
+    
+    Logger.log(`Successfully removed logo for space ${spaceId}`);
+    return true;
+  } catch (error) {
+    Logger.error('Error deleting space logo:', error);
+    throw error;
+  }
+};
+
+/**
+ * Uploads a background image for a space to Firebase Storage and updates the space document in Firestore
+ * 
+ * @param {string} spaceId - The ID of the space
+ * @param {File} backgroundFile - The background image file to upload
+ * @returns {Promise<string>} - The download URL of the uploaded background
+ */
+export const uploadSpaceBackground = async (spaceId, backgroundFile) => {
+  try {
+    // Validate parameters
+    if (!spaceId || !backgroundFile) {
+      throw new Error('Missing required parameters: spaceId and backgroundFile');
+    }
+
+    // Validate file type
+    if (!backgroundFile.type.startsWith('image/')) {
+      throw new Error('File must be an image');
+    }
+
+    // Create a reference to Firebase Storage
+    const storage = getStorage();
+    const timestamp = Date.now();
+    const fileExtension = backgroundFile.name.split('.').pop();
+    const fileName = `background_${timestamp}.${fileExtension}`;
+    const storageRef = ref(storage, `spaces/${spaceId}/background/${fileName}`);
+
+    // Upload the file
+    Logger.log(`Uploading background for space ${spaceId}`);
+    const snapshot = await uploadBytes(storageRef, backgroundFile);
+    
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    // Store the reference in Firestore
+    const spaceRef = doc(db, 'spaces', spaceId);
+    await updateDoc(spaceRef, {
+      backgroundUrl: downloadURL,
+      backgroundGsUrl: `gs://${snapshot.ref.bucket}/${snapshot.ref.fullPath}`,
+      backgroundFileName: fileName,
+      gsUrlLoadingBackground: `gs://${snapshot.ref.bucket}/${snapshot.ref.fullPath}`, // For backward compatibility
+      updatedAt: new Date().toISOString()
+    });
+    
+    Logger.log(`Successfully uploaded background for space ${spaceId}`);
+    return downloadURL;
+  } catch (error) {
+    Logger.error('Error uploading space background:', error);
+    throw error;
+  }
+};
+
+/**
+ * Deletes the background for a space from Firebase Storage and removes its reference from Firestore
+ * 
+ * @param {string} spaceId - The ID of the space
+ * @returns {Promise<boolean>} - True if deletion was successful
+ */
+export const deleteSpaceBackground = async (spaceId) => {
+  try {
+    // Get the space document to find the storage reference
+    const spaceRef = doc(db, 'spaces', spaceId);
+    const spaceSnap = await getDoc(spaceRef);
+    
+    if (!spaceSnap.exists()) {
+      Logger.warn(`No space found with ID: ${spaceId}`);
+      return false;
+    }
+    
+    const spaceData = spaceSnap.data();
+    
+    // If there's a storage reference, delete the file
+    if (spaceData.backgroundGsUrl) {
+      const storage = getStorage();
+      const fileRef = ref(storage, spaceData.backgroundGsUrl);
+      
+      try {
+        await deleteObject(fileRef);
+        Logger.log(`Deleted background file from storage: ${spaceData.backgroundGsUrl}`);
+      } catch (storageError) {
+        // If the file doesn't exist, just log a warning
+        Logger.warn(`Could not delete background file from storage: ${storageError.message}`);
+      }
+    }
+    
+    // Update the Firestore document to remove background references
+    await updateDoc(spaceRef, {
+      backgroundUrl: null,
+      backgroundGsUrl: null,
+      backgroundFileName: null,
+      gsUrlLoadingBackground: null, // For backward compatibility
+      updatedAt: new Date().toISOString()
+    });
+    
+    Logger.log(`Successfully removed background references for space ${spaceId}`);
+    return true;
+  } catch (error) {
+    Logger.error('Error deleting space background:', error);
+    throw error;
+  }
+};
+
+/**
+ * Updates settings for a space in Firestore
+ * @param {string} spaceId - The ID of the space to update
+ * @param {Object} settings - The settings to update
+ * @param {boolean} [settings.voiceDisabled] - Whether voice chat is disabled for the space
+ * @returns {Promise<void>}
+ */
+export const updateSpaceSettings = async (spaceId, settings) => {
+  try {
+    Logger.log(`spacesFirestore: Updating settings for space: ${spaceId}`, settings);
+    
+    // Reference to the space document
+    const spaceRef = doc(db, 'spaces', spaceId);
+    
+    // Get the current space data
+    const spaceSnapshot = await getDoc(spaceRef);
+    if (!spaceSnapshot.exists()) {
+      throw new Error(`Space with ID ${spaceId} not found`);
+    }
+    
+    // Update the space document with the new settings
+    await updateDoc(spaceRef, {
+      ...settings,
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Clear the cache for this space
+    if (cachedSpaces[spaceId]) {
+      delete cachedSpaces[spaceId];
+    }
+    
+    Logger.log(`spacesFirestore: Successfully updated settings for space: ${spaceId}`);
+  } catch (error) {
+    Logger.error(`spacesFirestore: Error updating settings for space: ${spaceId}`, error);
+    throw error;
+  }
 };

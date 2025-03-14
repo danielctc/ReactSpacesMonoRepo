@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Button, Modal, ModalOverlay, ModalContent, ModalBody, useDisclosure } from "@chakra-ui/react";
 import { useUnityOnPlayVideo } from "../hooks/unityEvents";
-import SpacesVideoEditModal from "./SpacesVideoEditModal";
 import { useSendUnityEvent } from "../hooks/unityEvents/core/useSendUnityEvent"; // Send event to Unity
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 const TestModalTrigger = ({ gameObjectName }) => {
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [videoUrl, resetVideoUrl] = useUnityOnPlayVideo(isEditMode); // Fetch video URL based on mode
   const sendUnityEvent = useSendUnityEvent(); // Get the function to send events to Unity
   const { isOpen, onOpen, onClose } = useDisclosure(); // For quick test modal
@@ -20,7 +18,7 @@ const TestModalTrigger = ({ gameObjectName }) => {
   // Open the appropriate modal based on mode
   const handleOpenModal = () => {
     if (isEditMode) {
-      setIsEditModalOpen(true); // Open edit modal if in edit mode
+      Logger.log("TestModalTrigger: Edit mode is enabled, but edit modal has been removed");
     } else {
       Logger.log("TestModalTrigger: Sending PlayVideo event to Unity for", gameObjectName);
       sendUnityEvent("PlayVideo", { gameObjectName }); // Send the PlayVideo event
@@ -28,11 +26,6 @@ const TestModalTrigger = ({ gameObjectName }) => {
         onOpen(); // Open the test modal if video URL exists
       }
     }
-  };
-
-  // Close edit modal
-  const handleCloseEditModal = () => {
-    setIsEditModalOpen(false);
   };
 
   // Effect to open modal if videoUrl is received
@@ -52,11 +45,6 @@ const TestModalTrigger = ({ gameObjectName }) => {
       <Button onClick={handleOpenModal} colorScheme="purple">
         Open Modal for TV2
       </Button>
-
-      {/* Conditionally render SpacesVideoEditModal if in edit mode */}
-      {isEditModalOpen && (
-        <SpacesVideoEditModal gameObjectName={gameObjectName} onClose={handleCloseEditModal} />
-      )}
 
       {/* Quick test modal for displaying video */}
       <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>

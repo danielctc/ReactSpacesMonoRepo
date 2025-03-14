@@ -23,7 +23,8 @@ const useVoiceChat = () => {
     createMicrophoneTrack,
     isScreenSharing: contextIsScreenSharing,
     screenTrack: contextScreenTrack,
-    toggleScreenShare: contextToggleScreenShare
+    toggleScreenShare: contextToggleScreenShare,
+    voiceDisabled: contextVoiceDisabled
   } = useAgoraContext();
 
   // Use local state to track voice enabled status with fallback to window.agoraClient
@@ -36,6 +37,11 @@ const useVoiceChat = () => {
   const [localScreenSharing, setLocalScreenSharing] = useState(
     contextIsScreenSharing !== undefined ? contextIsScreenSharing : 
     (window.agoraClient?.isScreenSharing || false)
+  );
+  
+  // Use local state to track voice disabled status
+  const [voiceDisabled, setVoiceDisabled] = useState(
+    contextVoiceDisabled !== undefined ? contextVoiceDisabled : false
   );
   
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +65,13 @@ const useVoiceChat = () => {
       setLocalScreenSharing(window.agoraClient.isScreenSharing);
     }
   }, [contextIsScreenSharing]);
+  
+  // Update local voice disabled state when context state changes
+  useEffect(() => {
+    if (contextVoiceDisabled !== undefined) {
+      setVoiceDisabled(contextVoiceDisabled);
+    }
+  }, [contextVoiceDisabled]);
 
   // Use ref to avoid render loops
   const contextRef = useRef({ 
@@ -69,7 +82,8 @@ const useVoiceChat = () => {
     error, 
     isReady,
     channel,
-    appId
+    appId,
+    voiceDisabled
   });
   
   // Update ref values
@@ -82,9 +96,10 @@ const useVoiceChat = () => {
       error, 
       isReady,
       channel,
-      appId
+      appId,
+      voiceDisabled
     };
-  }, [localVoiceEnabled, localScreenSharing, isJoined, users, error, isReady, channel, appId]);
+  }, [localVoiceEnabled, localScreenSharing, isJoined, users, error, isReady, channel, appId, voiceDisabled]);
 
   // Set a timeout to stop showing loading state after 5 seconds
   useEffect(() => {
@@ -304,7 +319,8 @@ const useVoiceChat = () => {
     joinChannel,
     leaveChannel,
     client,
-    setMicrophoneDevice
+    setMicrophoneDevice,
+    voiceDisabled
   };
 };
 

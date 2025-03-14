@@ -11,7 +11,6 @@ import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus'
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
-import TestModalTrigger from "./components/TestModalTrigger";
 import LoaderProgress from "./components/Loader/LoaderProgress";
 import AuthenticationButton from "./components/AuthenticationButton";
 import HelpButton from "./components/HelpButton";
@@ -25,6 +24,8 @@ import { CanvasMainMenu } from "./components/CanvasMainMenu";
 import { useUnityPlayerList } from "./hooks/unityEvents/useUnityPlayerList";
 import { AgoraProvider, VoiceButton, ScreenShareDisplay, useVoiceChat } from './voice-chat';
 import MediaScreenController from "./components/MediaScreenController";
+import PersistentBackground from "./components/PersistentBackground";
+import PersistentLoader from "./components/PersistentLoader";
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -180,8 +181,22 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   useUnityMediaScreenImages();
   useUnityThumbnails();
   
+  // Create a ref for the Unity container
+  const unityContainerRef = useRef(null);
+  
   return (
     <Box className="webgl-renderer">
+      {/* Add the PersistentBackground component with container ref */}
+      {settings.urlLoadingBackground && (
+        <PersistentBackground 
+          backgroundUrl={settings.urlLoadingBackground} 
+          containerRef={unityContainerRef}
+        />
+      )}
+      
+      {/* Add the PersistentLoader component with container ref */}
+      <PersistentLoader containerRef={unityContainerRef} />
+      
       <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
         <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "16/9", position: "relative" }}>
           {/* Top right buttons - Moved inside the fullscreen container */}
@@ -221,9 +236,17 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
           </Box>
           
           {/* Background for Unity */}
-          <Box position="relative" overflow="hidden" width="100%" height="100%"
-            bgRepeat="no-repeat" bgSize="cover" bgPosition="center" bgColor="#666666"
-            bgImage={settings.urlLoadingBackground ? `url('${settings.urlLoadingBackground}')` : ""}>
+          <Box 
+            ref={unityContainerRef}
+            position="relative" 
+            overflow="hidden" 
+            width="100%" 
+            height="100%"
+            bgRepeat="no-repeat" 
+            bgSize="cover" 
+            bgPosition="center" 
+            bgColor="#666666"
+          >
             
             {/* Add a frosted glass overlay */}
             <Box 
@@ -237,16 +260,18 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
               zIndex="0"
             />
             
-            {/* Loader for initial loading state */}
-            <LoaderProgress />
-            
-            {/* Unity display */}
+            {/* Unity display - z-index 1 */}
             <Box {...fadeStyles} width="100%" height="100%" position="absolute" zIndex="1">
               <Unity 
                 unityProvider={unityProvider}
                 style={{ width: "100%", height: "100%" }}
                 devicePixelRatio={devicePixelRatio}
               />
+            </Box>
+            
+            {/* Hide the original LoaderProgress since we're using PersistentLoader now */}
+            <Box position="absolute" zIndex="6" width="100%" height="100%" style={{ display: 'none' }}>
+              <LoaderProgress />
             </Box>
           </Box>
           
@@ -278,6 +303,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
           <UnityPlayerList 
             isVisible={isPlayerListVisible} 
             onToggleVisibility={setIsPlayerListVisible} 
+            spaceID={spaceID}
           />
 
           {/* Media Screen Controller */}

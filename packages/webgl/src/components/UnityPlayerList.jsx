@@ -12,23 +12,110 @@ import {
   PopoverTrigger,
   PopoverContent,
   PopoverBody,
-  Link
+  Link,
+  Icon,
+  Tooltip,
+  Badge,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  MenuDivider,
+  useToast
 } from "@chakra-ui/react";
-import { CloseIcon } from "@chakra-ui/icons";
-import { FaLinkedin, FaGlobe, FaMicrophone, FaMicrophoneSlash } from 'react-icons/fa';
+import { CloseIcon, ChevronDownIcon, SettingsIcon } from "@chakra-ui/icons";
+import { FaLinkedin, FaGlobe, FaMicrophone, FaMicrophoneSlash, FaStar, FaCrown, FaEllipsisV, FaBan, FaUserPlus, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
+import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 
-const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
+// Accept spaceID as a prop
+const UnityPlayerList = ({ isVisible, onToggleVisibility, spaceID: propSpaceID }) => {
   const players = useUnityPlayerList();
   const [isReady, setIsReady] = useState(false);
   const [enrichedPlayers, setEnrichedPlayers] = useState([]);
   const [micEnabled, setMicEnabled] = useState(false);
   const [activeMics, setActiveMics] = useState({});
   const [playerUidMap, setPlayerUidMap] = useState({});
+  const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [voiceDisabled, setVoiceDisabled] = useState(false);
+  const toast = useToast();
   
   // Get the current user from the window object if available
   const currentUser = window.currentUser || {};
+  
+  // Get the current space ID from various sources
+  const getSpaceId = () => {
+    // First check if it was passed as a prop
+    if (propSpaceID) {
+      return propSpaceID;
+    }
+    
+    // Then try to get it from window.spaceID
+    if (window.spaceID) {
+      return window.spaceID;
+    }
+    
+    // Then try to get it from URL
+    const pathname = window.location.pathname || '';
+    const parts = pathname.split('/');
+    // The space ID is typically the last part of the URL
+    const spaceId = parts[parts.length - 1];
+    if (spaceId && spaceId.length > 5) {
+      return spaceId;
+    }
+    
+    // If all else fails, check if there's a data attribute on the body
+    const bodySpaceId = document.body.getAttribute('data-space-id');
+    if (bodySpaceId) {
+      return bodySpaceId;
+    }
+    
+    // Try to find it in localStorage
+    const localStorageSpaceId = localStorage.getItem('currentSpaceId');
+    if (localStorageSpaceId) {
+      return localStorageSpaceId;
+    }
+    
+    return 'fallback-space-id';
+  };
+  
+  const spaceID = getSpaceId();
+  
+  // Check if voice is disabled for the space
+  useEffect(() => {
+    const checkVoiceDisabled = async () => {
+      try {
+        // Get space data
+        const spaceData = await getSpaceItem(spaceID);
+        
+        if (spaceData && spaceData.voiceDisabled) {
+          console.log("UnityPlayerList: Voice is disabled for this space");
+          setVoiceDisabled(true);
+        } else {
+          setVoiceDisabled(false);
+        }
+      } catch (error) {
+        console.error("UnityPlayerList: Error checking if voice is disabled:", error);
+      }
+    };
+    
+    checkVoiceDisabled();
+    
+    // Listen for voice setting changes
+    const handleVoiceSettingChanged = (event) => {
+      if (event.detail && typeof event.detail.voiceDisabled === 'boolean') {
+        console.log("UnityPlayerList: Voice setting changed:", event.detail.voiceDisabled);
+        setVoiceDisabled(event.detail.voiceDisabled);
+      }
+    };
+    
+    window.addEventListener("SpaceVoiceSettingChanged", handleVoiceSettingChanged);
+    
+    return () => {
+      window.removeEventListener("SpaceVoiceSettingChanged", handleVoiceSettingChanged);
+    };
+  }, [spaceID]);
   
   // Create a mapping between player UIDs and Agora UIDs
   useEffect(() => {
@@ -74,7 +161,6 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
                 );
                 
                 if (nonScreenShareUsers.length === 1 && !player.isLocalPlayer) {
-                  console.log(`Special case: Mapping player ${player.playerName} (${player.uid}) to the only remote user: ${nonScreenShareUsers[0].uid}`);
                   newPlayerUidMap[player.uid] = nonScreenShareUsers[0].uid;
                 }
               }
@@ -93,7 +179,6 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
     if (window.agoraClient && typeof window.agoraClient.isVoiceEnabled === 'boolean') {
       const newMicState = window.agoraClient.isVoiceEnabled;
       if (newMicState !== micEnabled) {
-        console.log("UnityPlayerList: Updating mic state from window.agoraClient:", newMicState);
         setMicEnabled(newMicState);
       }
     }
@@ -115,7 +200,6 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
       
       // Only update if there are changes
       if (JSON.stringify(newActiveMics) !== JSON.stringify(activeMics)) {
-        console.log("UnityPlayerList: Updating active mics:", newActiveMics);
         setActiveMics(newActiveMics);
       }
     }
@@ -128,7 +212,6 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
     
     // Listen for voice toggle events
     const handleVoiceToggle = (event) => {
-      console.log("UnityPlayerList: Voice toggle event received:", event.detail);
       if (event.detail && typeof event.detail.enabled === 'boolean') {
         setMicEnabled(event.detail.enabled);
       }
@@ -171,6 +254,25 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
           if (player.uid) {
             try {
               const userProfile = await getUserProfileData(player.uid);
+              
+              // Check if user is an owner or host based on their groups
+              let role = null;
+              if (userProfile.groups) {
+                const ownerGroupId = `space_${spaceID}_owners`;
+                const hostGroupId = `space_${spaceID}_hosts`;
+                
+                if (userProfile.groups.includes(ownerGroupId)) {
+                  role = 'owner';
+                } else if (userProfile.groups.includes(hostGroupId)) {
+                  role = 'host';
+                }
+              }
+              
+              // If this is the current user, set their role
+              if (isLocalUser({ uid: player.uid })) {
+                setCurrentUserRole(role);
+              }
+              
               return {
                 ...player,
                 firstName: userProfile.firstName,
@@ -179,7 +281,8 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
                 websiteUrl: userProfile.websiteUrl,
                 rpmURL: userProfile.rpmURL ? 
                   userProfile.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75") 
-                  : null
+                  : null,
+                role: role
               };
             } catch (error) {
               Logger.error(`Error fetching data for player ${player.playerName}:`, error);
@@ -193,7 +296,7 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
     };
 
     enrichPlayerData();
-  }, [players]);
+  }, [players, spaceID]);
 
   // Sort players to put local player first
   const sortedPlayers = [...enrichedPlayers].sort((a, b) => {
@@ -265,6 +368,89 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
     }
   };
 
+  // Render role badge for the popout with a unique key
+  const RoleBadge = ({ player }) => {
+    const role = player.role;
+    
+    if (role === 'owner') {
+      return (
+        <HStack 
+          spacing={1} 
+          bg="green.900" 
+          p={2} 
+          borderRadius="md" 
+          px={3}
+          boxShadow="0 0 10px rgba(72, 187, 120, 0.5)"
+          border="1px solid"
+          borderColor="green.400"
+        >
+          <Icon as={FaCrown} color="green.400" boxSize={5} />
+          <Badge colorScheme="green" variant="solid" fontSize="md" px={2}>
+            Owner
+          </Badge>
+        </HStack>
+      );
+    } else if (role === 'host') {
+      return (
+        <HStack 
+          spacing={1} 
+          bg="purple.900" 
+          p={2} 
+          borderRadius="md" 
+          px={3}
+          boxShadow="0 0 10px rgba(159, 122, 234, 0.5)"
+          border="1px solid"
+          borderColor="purple.400"
+        >
+          <Icon as={FaStar} color="purple.400" boxSize={5} />
+          <Badge colorScheme="purple" variant="solid" fontSize="md" px={2}>
+            Host
+          </Badge>
+        </HStack>
+      );
+    }
+    
+    return null;
+  };
+
+  // Handle player action
+  const handlePlayerAction = (action, player) => {
+    console.log(`Action "${action}" performed on player: ${player.playerName}`);
+    
+    // Example actions
+    switch(action) {
+      case 'mute':
+        toast({
+          title: "Player Muted",
+          description: `${player.playerName} has been muted.`,
+          status: "info",
+          duration: 3000,
+          isClosable: true,
+        });
+        break;
+      case 'kick':
+        toast({
+          title: "Player Kicked",
+          description: `${player.playerName} has been kicked from the space.`,
+          status: "warning",
+          duration: 3000,
+          isClosable: true,
+        });
+        break;
+      case 'promote':
+        toast({
+          title: "Player Promoted",
+          description: `${player.playerName} has been promoted to host.`,
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <Box 
       position="absolute" 
@@ -318,7 +504,8 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
         <VStack align="stretch" spacing={1} width="100%">
           {sortedPlayers.map((player, index) => {
             const isLocal = isLocalUser(player);
-            const hasMic = hasActiveMic(player);
+            const hasMic = !voiceDisabled && hasActiveMic(player);
+            const isCurrentUserOwner = currentUserRole === 'owner';
             
             return (
               <Box key={index}>
@@ -341,17 +528,78 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
                         borderColor="whiteAlpha.300"
                       />
                       <Text fontSize="xs">{player.playerName}</Text>
+                      
+                      {/* Show role indicator in the main list */}
+                      {player.role === 'owner' && (
+                        <Icon as={FaCrown} color="green.400" boxSize={2.5} />
+                      )}
+                      {player.role === 'host' && (
+                        <Icon as={FaStar} color="purple.400" boxSize={2.5} />
+                      )}
+                      
                       <Spacer />
                       
-                      {/* Show microphone status for all players */}
-                      {hasMic ? (
-                        <Box color="green.400">
-                          <FaMicrophone />
-                        </Box>
-                      ) : (
-                        <Box color="red.400">
-                          <FaMicrophoneSlash />
-                        </Box>
+                      {/* Show ellipsis menu for all players when current user is an owner */}
+                      {currentUserRole === 'owner' && (
+                        <Menu closeOnSelect placement="bottom-end">
+                          <MenuButton
+                            as={IconButton}
+                            aria-label="Options"
+                            icon={<FaEllipsisV />}
+                            variant="ghost"
+                            size="xs"
+                            color="whiteAlpha.700"
+                            _hover={{ color: "white", bg: "whiteAlpha.300" }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <MenuList 
+                            bg="rgba(0,0,0,0.8)" 
+                            borderColor="whiteAlpha.300"
+                            minW="120px"
+                            zIndex={10001}
+                          >
+                            <MenuItem 
+                              icon={<FaVolumeUp />} 
+                              onClick={() => handlePlayerAction('mute', player)}
+                              _hover={{ bg: "whiteAlpha.200" }}
+                              fontSize="sm"
+                              isDisabled={voiceDisabled}
+                            >
+                              Mute Player
+                            </MenuItem>
+                            <MenuItem 
+                              icon={<FaUserPlus />} 
+                              onClick={() => handlePlayerAction('promote', player)}
+                              _hover={{ bg: "whiteAlpha.200" }}
+                              fontSize="sm"
+                            >
+                              Promote to Host
+                            </MenuItem>
+                            <MenuDivider borderColor="whiteAlpha.300" />
+                            <MenuItem 
+                              icon={<FaBan />} 
+                              onClick={() => handlePlayerAction('kick', player)}
+                              _hover={{ bg: "red.800" }}
+                              color="red.300"
+                              fontSize="sm"
+                            >
+                              Kick from Space
+                            </MenuItem>
+                          </MenuList>
+                        </Menu>
+                      )}
+                      
+                      {/* Show microphone status for all players if voice is not disabled */}
+                      {!voiceDisabled && (
+                        hasMic ? (
+                          <Box color="green.400">
+                            <FaMicrophone />
+                          </Box>
+                        ) : (
+                          <Box color="red.400">
+                            <FaMicrophoneSlash />
+                          </Box>
+                        )
                       )}
                       
                       {isLocal && (
@@ -360,32 +608,37 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
                     </HStack>
                   </PopoverTrigger>
                   <PopoverContent 
-                    bg="rgba(0,0,0,0.4)"
+                    bg="rgba(0,0,0,0.8)" 
                     border="none" 
-                    boxShadow="lg"
+                    boxShadow="dark-lg"
                     color="white"
-                    p={3}
+                    p={4}
                     width="auto"
-                    minWidth="200px"
+                    minWidth="250px"
                     ml="-20px"
                     position="absolute"
-                    left="-220px"
+                    left="-250px"
                     top="-100px"
                     transform="none !important"
+                    zIndex={10000}
                   >
                     <PopoverBody>
-                      <VStack align="center" spacing={2}>
+                      <VStack align="center" spacing={3}>
                         <Avatar 
-                          size="lg" 
+                          size="xl" 
                           src={player.rpmURL}
                           bg="whiteAlpha.400"
                           name=" "
                           borderWidth="2px"
                           borderColor="whiteAlpha.300"
                         />
-                        <Text fontSize="lg" fontWeight="bold">
+                        <Text fontSize="xl" fontWeight="bold">
                           {player.playerName}
                         </Text>
+                        
+                        {/* Display role badge */}
+                        <RoleBadge player={player} />
+                        
                         {player.firstName && (
                           <Text fontSize="sm" color="gray.300">
                             {player.firstName} {player.lastName}
@@ -398,7 +651,7 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
                                 icon={<FaLinkedin />}
                                 variant="ghost"
                                 colorScheme="whiteAlpha"
-                                size="sm"
+                                size="md"
                                 aria-label="LinkedIn profile"
                                 _hover={{ bg: 'whiteAlpha.200' }}
                               />
@@ -410,22 +663,37 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility }) => {
                                 icon={<FaGlobe />}
                                 variant="ghost"
                                 colorScheme="whiteAlpha"
-                                size="sm"
+                                size="md"
                                 aria-label="Personal website"
                                 _hover={{ bg: 'whiteAlpha.200' }}
                               />
                             </Link>
                           )}
                           
-                          {/* Show microphone status in popover */}
-                          <IconButton
-                            icon={hasMic ? <FaMicrophone /> : <FaMicrophoneSlash />}
-                            variant="ghost"
-                            colorScheme={hasMic ? "green" : "red"}
-                            size="sm"
-                            aria-label="Microphone status"
-                            isDisabled={true}
-                          />
+                          {/* Show microphone status in popover if voice is not disabled */}
+                          {!voiceDisabled && (
+                            <IconButton
+                              icon={hasMic ? <FaMicrophone /> : <FaMicrophoneSlash />}
+                              variant="ghost"
+                              colorScheme={hasMic ? "green" : "red"}
+                              size="md"
+                              aria-label="Microphone status"
+                              isDisabled={true}
+                            />
+                          )}
+                          
+                          {/* Show voice disabled icon if voice is disabled */}
+                          {voiceDisabled && (
+                            <IconButton
+                              icon={<FaVolumeMute />}
+                              variant="ghost"
+                              colorScheme="red"
+                              size="md"
+                              aria-label="Voice chat disabled"
+                              isDisabled={true}
+                              title="Voice chat is disabled for this space"
+                            />
+                          )}
                         </HStack>
                       </VStack>
                     </PopoverBody>

@@ -20,7 +20,8 @@ const VoiceButton = ({
     isJoined, 
     joinChannel,
     channel,
-    client
+    client,
+    voiceDisabled
   } = useVoiceChat();
   
   const [isLoading, setIsLoading] = useState(false);
@@ -54,13 +55,14 @@ const VoiceButton = ({
       hasClient: !!client,
       clientState: client?.connectionState,
       windowAgoraClient: window.agoraClient,
-      isPlayerReady
+      isPlayerReady,
+      voiceDisabled
     });
-  }, [isVoiceEnabled, isJoined, channel, client, isPlayerReady]);
+  }, [isVoiceEnabled, isJoined, channel, client, isPlayerReady, voiceDisabled]);
   
   // Handle button click
   const handleClick = async () => {
-    if (isLoading) return;
+    if (isLoading || voiceDisabled) return;
     
     setIsLoading(true);
     console.log("VoiceButton: Handling click, current state:", { 
@@ -99,6 +101,10 @@ const VoiceButton = ({
   
   // Get tooltip text
   const getTooltipText = () => {
+    if (voiceDisabled) {
+      return "Voice chat is disabled for this space";
+    }
+    
     if (!isPlayerReady) {
       return "Waiting for player to be ready...";
     }
@@ -114,8 +120,8 @@ const VoiceButton = ({
     return isVoiceEnabled ? "Turn microphone off" : "Turn microphone on";
   };
   
-  // If player is not ready, don't render the button
-  if (!isPlayerReady) {
+  // If player is not ready or voice is disabled, don't render the button
+  if (!isPlayerReady || voiceDisabled) {
     return null;
   }
   

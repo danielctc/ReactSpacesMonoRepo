@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import AgoraRTC from "agora-rtc-sdk-ng";
 import PropTypes from 'prop-types';
+import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
+import { useToast } from '@chakra-ui/react';
 
 // Get Agora App ID from environment variable
 const DEFAULT_AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -40,6 +42,9 @@ export const AgoraProvider = ({
   const [isJoining, setIsJoining] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [screenTrack, setScreenTrack] = useState(null);
+  const [voiceDisabled, setVoiceDisabled] = useState(false);
+  
+  const toast = useToast();
   
   // Refs
   const clientRef = useRef(staticClient);
@@ -266,6 +271,59 @@ export const AgoraProvider = ({
     }
   };
   
+  // Check if voice is disabled for the space
+  useEffect(() => {
+    const checkVoiceDisabled = async () => {
+      if (channel) {
+        try {
+          // Extract space ID from channel name (assuming channel name is the space ID)
+          const spaceID = channel;
+          
+          // Get space data
+          const spaceData = await getSpaceItem(spaceID);
+          
+          if (spaceData && spaceData.voiceDisabled) {
+            console.log("AgoraProvider: Voice is disabled for this space");
+            setVoiceDisabled(true);
+            
+            // If already joined, leave the channel
+            if (isJoined) {
+              await leaveChannel();
+            }
+          } else {
+            setVoiceDisabled(false);
+          }
+        } catch (error) {
+          console.error("AgoraProvider: Error checking if voice is disabled:", error);
+        }
+      }
+    };
+    
+    checkVoiceDisabled();
+    
+    // Listen for voice setting changes
+    const handleVoiceSettingChanged = (event) => {
+      if (event.detail && typeof event.detail.voiceDisabled === 'boolean') {
+        console.log("AgoraProvider: Voice setting changed:", event.detail.voiceDisabled);
+        setVoiceDisabled(event.detail.voiceDisabled);
+        
+        // If voice is now disabled and we're joined, leave the channel
+        if (event.detail.voiceDisabled && isJoined) {
+          leaveChannel();
+        } else if (!event.detail.voiceDisabled && !isJoined && enabled && channel) {
+          // If voice is now enabled and we're not joined, join the channel
+          joinChannel();
+        }
+      }
+    };
+    
+    window.addEventListener("SpaceVoiceSettingChanged", handleVoiceSettingChanged);
+    
+    return () => {
+      window.removeEventListener("SpaceVoiceSettingChanged", handleVoiceSettingChanged);
+    };
+  }, [channel, isJoined, enabled]);
+  
   /**
    * Join the channel
    * @returns {Promise<void>}
@@ -273,6 +331,12 @@ export const AgoraProvider = ({
   const joinChannel = async () => {
     if (!enabled) {
       console.log("AgoraProvider: Agora is disabled, not joining channel");
+      return false;
+    }
+    
+    if (voiceDisabled) {
+      console.log("AgoraProvider: Voice is disabled for this space, not joining channel");
+      setError("Voice chat is disabled for this space");
       return false;
     }
     
@@ -487,6 +551,18 @@ export const AgoraProvider = ({
    * @returns {Promise<boolean>} New voice state
    */
   const toggleVoice = async () => {
+    if (voiceDisabled) {
+      console.log("AgoraProvider: Voice is disabled for this space, cannot toggle");
+      toast({
+        title: "Voice Chat Disabled",
+        description: "Voice chat has been disabled for this space by the owner.",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+      return false;
+    }
+    
     try {
       // Get the current state - either from state or from the microphone track
       const currentState = isVoiceEnabled !== undefined ? isVoiceEnabled : 
@@ -818,7 +894,8 @@ export const AgoraProvider = ({
     createMicrophoneTrack,
     isScreenSharing,
     screenTrack,
-    toggleScreenShare
+    toggleScreenShare,
+    voiceDisabled
   };
   
   return (
