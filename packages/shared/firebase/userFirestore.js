@@ -26,14 +26,24 @@ const getUserProfileData = async (userID) => {
 // Function to register a new user and store additional profile data
 const registerUser = async (email, password, additionalData) => {
     try {
+        Logger.log('userFirestore: Registering new user with email:', email);
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        const userRef = doc(db, "users", user.uid);
-        await setDoc(userRef, { email: user.email, createdAt: new Date(), ...additionalData });
+        // Add default groups array with 'users' group
+        const userData = { 
+            email: user.email, 
+            createdAt: new Date(), 
+            groups: ['users'], // Add default 'users' group
+            ...additionalData 
+        };
 
-        Logger.log('userFirestore: User created successfully.');
-        return user; // Return the user object if needed
+        Logger.log('userFirestore: Creating user document with data:', userData);
+        const userRef = doc(db, "users", user.uid);
+        await setDoc(userRef, userData);
+
+        Logger.log('userFirestore: User created successfully with groups:', userData.groups);
+        return { ...user, ...userData }; // Return the user object with additional data
     } catch (error) {
         Logger.error("userFirestore: Error creating user:", error);
         throw error;
@@ -85,11 +95,57 @@ const updateRpmUrlInFirestore = async (userId, newRpmUrl) => {
     }
 };
 
+// Add a function to check if a user belongs to a specific group
+const userBelongsToGroup = async (userId, groupName) => {
+    try {
+        const userProfile = await getUserProfileData(userId);
+        if (userProfile && userProfile.groups) {
+            return userProfile.groups.includes(groupName);
+        }
+        return false;
+    } catch (error) {
+        Logger.error('userFirestore: Error checking group membership:', error);
+        return false;
+    }
+};
+
+// Add a function to add a user to a group
+const addUserToGroup = async (userId, groupName) => {
+    try {
+        const userRef = doc(db, "users", userId);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const groups = userData.groups || [];
+            
+            // Only add the group if the user isn't already in it
+            if (!groups.includes(groupName)) {
+                const updatedGroups = [...groups, groupName];
+                await updateDoc(userRef, { groups: updatedGroups });
+                Logger.log(`userFirestore: Added user ${userId} to group ${groupName}`);
+                return true;
+            }
+            
+            Logger.log(`userFirestore: User ${userId} is already in group ${groupName}`);
+            return false;
+        }
+        
+        Logger.error(`userFirestore: User ${userId} not found`);
+        return false;
+    } catch (error) {
+        Logger.error('userFirestore: Error adding user to group:', error);
+        throw error;
+    }
+};
+
 export { 
     getUserProfileData, 
     registerUser, 
     updateRpmUrlInFirestore,
-    onUserRpmUrlChange // Export the new function
+    onUserRpmUrlChange,
+    userBelongsToGroup,
+    addUserToGroup
 };
 
 

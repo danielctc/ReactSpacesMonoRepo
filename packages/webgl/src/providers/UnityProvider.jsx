@@ -19,6 +19,14 @@ export const UnityProvider = ({
   Logger.log(`${DEBUG_PREFIX} Initializing with spaceID:`, spaceID);
   Logger.log(`${DEBUG_PREFIX} Unity URLs:`, { loaderUrl, dataUrl, frameworkUrl, codeUrl });
 
+  // Add more detailed logging for debugging
+  useEffect(() => {
+    Logger.log(`${DEBUG_PREFIX} PERMISSION DEBUG: spaceID value:`, spaceID);
+    Logger.log(`${DEBUG_PREFIX} PERMISSION DEBUG: Component props:`, { 
+      spaceID, loaderUrl, dataUrl, frameworkUrl, codeUrl 
+    });
+  }, [spaceID, loaderUrl, dataUrl, frameworkUrl, codeUrl]);
+
   const {
     unityProvider,
     loadingProgression,
@@ -33,6 +41,28 @@ export const UnityProvider = ({
     frameworkUrl: frameworkUrl,
     codeUrl: codeUrl
   });
+
+  // Create a unified context value that includes both Unity context and spaceID
+  const unityInstance = {
+    unityProvider,
+    loadingProgression,
+    isLoaded,
+    sendMessage,
+    addEventListener,
+    removeEventListener,
+    error,
+    spaceID // Include spaceID in the context
+  };
+
+  // Add debug logging for the context value
+  useEffect(() => {
+    Logger.log(`${DEBUG_PREFIX} PERMISSION DEBUG: Unity context value:`, unityInstance);
+    if (unityInstance.spaceID) {
+      Logger.log(`${DEBUG_PREFIX} PERMISSION DEBUG: spaceID in context:`, unityInstance.spaceID);
+    } else {
+      Logger.error(`${DEBUG_PREFIX} PERMISSION DEBUG: spaceID is missing in context!`);
+    }
+  }, [unityInstance]);
 
   const keepAliveInterval = useRef(null);
   const lastActivityTime = useRef(Date.now());
@@ -128,23 +158,69 @@ export const UnityProvider = ({
     }
   }, [error]);
 
-  const unityInstance = {
-    spaceID,
-    unityProvider,
-    loadingProgression,
-    isLoaded,
-    sendMessage,
-    addEventListener,
-    removeEventListener,
-  };
-
   Logger.log(`${DEBUG_PREFIX} Rendering provider with instance:`, unityInstance);
 
-  return (
-    <UnityInstanceContext.Provider value={unityInstance}>
-      {children}
-    </UnityInstanceContext.Provider>
-  );
+  // Add debug logging for Unity build URLs
+  useEffect(() => {
+    Logger.log("UnityProvider: Unity build URLs:", {
+      loaderUrl,
+      dataUrl,
+      frameworkUrl,
+      codeUrl
+    });
+  }, [loaderUrl, dataUrl, frameworkUrl, codeUrl]);
+
+  // Check if any of the required URLs are missing
+  const missingUrls = [];
+  if (!loaderUrl) missingUrls.push('loaderUrl');
+  if (!dataUrl) missingUrls.push('dataUrl');
+  if (!frameworkUrl) missingUrls.push('frameworkUrl');
+  if (!codeUrl) missingUrls.push('codeUrl');
+
+  if (missingUrls.length > 0) {
+    Logger.error(`UnityProvider: Missing required Unity build URLs: ${missingUrls.join(', ')}`);
+    return (
+      <div style={{ padding: '20px', color: 'red', backgroundColor: '#ffeeee', border: '1px solid red', borderRadius: '5px' }}>
+        <h3>Unity Build Error</h3>
+        <p>Missing required Unity build URLs: {missingUrls.join(', ')}</p>
+        <p>Please check the space configuration in Firestore.</p>
+      </div>
+    );
+  }
+
+  try {
+    // Add debug logging for Unity context
+    useEffect(() => {
+      Logger.log("UnityProvider: Unity context created:", unityProvider);
+      
+      if (unityProvider) {
+        Logger.log("UnityProvider: Unity provider is available");
+      } else {
+        Logger.error("UnityProvider: Unity provider is not available");
+      }
+      
+      if (isLoaded) {
+        Logger.log("UnityProvider: Unity is loaded");
+      } else {
+        Logger.log("UnityProvider: Unity is not loaded yet");
+      }
+    }, [unityProvider, isLoaded]);
+
+    return (
+      <UnityInstanceContext.Provider value={unityInstance}>
+        {children}
+      </UnityInstanceContext.Provider>
+    );
+  } catch (error) {
+    Logger.error("UnityProvider: Error creating Unity context:", error);
+    return (
+      <div style={{ padding: '20px', color: 'red', backgroundColor: '#ffeeee', border: '1px solid red', borderRadius: '5px' }}>
+        <h3>Unity Error</h3>
+        <p>Error creating Unity context: {error.message}</p>
+        <p>Please check the console for more details.</p>
+      </div>
+    );
+  }
 };
 
 export const useUnity = () => useContext(UnityInstanceContext);

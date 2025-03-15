@@ -11,7 +11,8 @@
     "build:chat": "cross-env NODE_ENV=production npm --prefix packages/chat run build",
     "build:testing": "cross-env NODE_ENV=production npm --prefix packages/testing run build",
     "prep-deploy": "shx rm -rf dist/ && shx mkdir -p dist && shx cp index.html dist/  && node scripts/manage-builds.js",
-    "deploy": "npm run build && firebase deploy",
+    "deploy": "npm run build && firebase deploy --only hosting",
+    "deploy:full": "npm run build && firebase deploy",
     "reset": "rimraf './node_modules' './packages/*/node_modules' './**/package-lock.json' && npm install"
   },
   "devDependencies": {

@@ -1,4 +1,4 @@
-import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc } from 'firebase/firestore';
 
 import { getStorage, ref, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage';
 
@@ -146,19 +146,78 @@ export const getSpaceVideosFromFirestore = async (spaceId) => {
 
 export const userCanAccessSpace = async (spaceId, userID) => {
     try {
+        Logger.log(`spacesFirestore: Checking if user ${userID} can access space ${spaceId}`);
         const spaceRef = doc(db, "spaces", spaceId);
         const spaceSnap = await getDoc(spaceRef);
         if (spaceSnap.exists()) {
             const spaceData = spaceSnap.data();
+            Logger.log(`spacesFirestore: Space data:`, {
+                spaceId,
+                isPublic: spaceData.isPublic,
+                accessibleToAllUsers: spaceData.accessibleToAllUsers,
+                usersAllowed: spaceData.usersAllowed,
+                userAdmin: spaceData.userAdmin,
+                usersModerators: spaceData.usersModerators
+            });
+            
             // Check if user is in the usersAllowed array or in any other role with access
-            return spaceData.usersAllowed.includes(userID) || spaceData.userAdmin.includes(userID) || spaceData.usersModerators.includes(userID);
+            const hasDirectAccess = spaceData.usersAllowed.includes(userID) || 
+                                   spaceData.userAdmin.includes(userID) || 
+                                   spaceData.usersModerators.includes(userID);
+            
+            if (hasDirectAccess) {
+                Logger.log(`spacesFirestore: User ${userID} has direct access to space ${spaceId}`);
+                return true;
+            }
+            
+            // Get the user's profile to check their groups
+            const userRef = doc(db, "users", userID);
+            const userSnap = await getDoc(userRef);
+            
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
+                Logger.log(`spacesFirestore: User data:`, {
+                    userId: userID,
+                    groups: userData.groups
+                });
+                
+                // Check if user is in a space-specific group (owner or host)
+                if (userData.groups && Array.isArray(userData.groups)) {
+                    const ownerGroupId = `space_${spaceId}_owners`;
+                    const hostGroupId = `space_${spaceId}_hosts`;
+                    
+                    if (userData.groups.includes(ownerGroupId) || userData.groups.includes(hostGroupId)) {
+                        Logger.log(`spacesFirestore: User ${userID} has access to space ${spaceId} as owner/host`);
+                        return true;
+                    }
+                }
+                
+                // If the space is accessible to all users, check if the user is in the 'users' group
+                if (spaceData.accessibleToAllUsers === true) {
+                    Logger.log(`spacesFirestore: Space ${spaceId} is accessible to all users`);
+                    // Check if user is in the 'users' group
+                    if (userData.groups && userData.groups.includes('users')) {
+                        Logger.log(`spacesFirestore: User ${userID} has access to space ${spaceId} via 'users' group`);
+                        return true;
+                    } else {
+                        Logger.warn(`spacesFirestore: User ${userID} is not in the 'users' group`);
+                    }
+                } else {
+                    Logger.warn(`spacesFirestore: Space ${spaceId} is not accessible to all users`);
+                }
+            } else {
+                Logger.warn(`spacesFirestore: User ${userID} profile not found`);
+            }
+            
+            Logger.warn(`spacesFirestore: User ${userID} does not have access to space ${spaceId}`);
+            return false;
         } else {
-            Logger.warn("No such space!");
+            Logger.warn(`spacesFirestore: Space ${spaceId} not found`);
             return false;
         }
     } catch (error) {
-        Logger.error("Error fetching space from Firestore:", error);
-        throw error;
+        Logger.error("spacesFirestore: Error checking user access to space:", error);
+        return false;
     }
 };
 
@@ -419,6 +478,7 @@ export const deleteSpaceBackground = async (spaceId) => {
  * @param {string} spaceId - The ID of the space to update
  * @param {Object} settings - The settings to update
  * @param {boolean} [settings.voiceDisabled] - Whether voice chat is disabled for the space
+ * @param {boolean} [settings.accessibleToAllUsers] - Whether the space is accessible to all users (defaults to true if not specified)
  * @returns {Promise<void>}
  */
 export const updateSpaceSettings = async (spaceId, settings) => {
@@ -434,11 +494,19 @@ export const updateSpaceSettings = async (spaceId, settings) => {
       throw new Error(`Space with ID ${spaceId} not found`);
     }
     
-    // Update the space document with the new settings
-    await updateDoc(spaceRef, {
+    const currentData = spaceSnapshot.data();
+    
+    // Ensure accessibleToAllUsers defaults to true if not specified
+    const updatedSettings = {
       ...settings,
+      accessibleToAllUsers: settings.accessibleToAllUsers !== undefined 
+        ? settings.accessibleToAllUsers 
+        : (currentData.accessibleToAllUsers !== undefined ? currentData.accessibleToAllUsers : true),
       updatedAt: new Date().toISOString()
-    });
+    };
+    
+    // Update the space document with the new settings
+    await updateDoc(spaceRef, updatedSettings);
     
     // Clear the cache for this space
     if (cachedSpaces[spaceId]) {
@@ -448,6 +516,79 @@ export const updateSpaceSettings = async (spaceId, settings) => {
     Logger.log(`spacesFirestore: Successfully updated settings for space: ${spaceId}`);
   } catch (error) {
     Logger.error(`spacesFirestore: Error updating settings for space: ${spaceId}`, error);
+    throw error;
+  }
+};
+
+/**
+ * Sets whether a space is accessible to all users in the 'users' group
+ * @param {string} spaceId - The ID of the space to update
+ * @param {boolean} accessible - Whether the space should be accessible to all users
+ * @returns {Promise<void>}
+ */
+export const setSpaceAccessibleToAllUsers = async (spaceId, accessible) => {
+  try {
+    Logger.log(`spacesFirestore: Setting accessibleToAllUsers=${accessible} for space: ${spaceId}`);
+    
+    // Reference to the space document
+    const spaceRef = doc(db, 'spaces', spaceId);
+    
+    // Get the current space data
+    const spaceSnapshot = await getDoc(spaceRef);
+    if (!spaceSnapshot.exists()) {
+      throw new Error(`Space with ID ${spaceId} not found`);
+    }
+    
+    // Update the space document with the new setting
+    await updateDoc(spaceRef, {
+      accessibleToAllUsers: accessible,
+      updatedAt: new Date().toISOString()
+    });
+    
+    // Clear the cache for this space
+    if (cachedSpaces[spaceId]) {
+      delete cachedSpaces[spaceId];
+    }
+    
+    // Dispatch an event to notify components about the change
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('SpaceAccessibilityChanged', {
+        detail: { spaceId, accessibleToAllUsers: accessible }
+      }));
+    }
+    
+    Logger.log(`spacesFirestore: Successfully updated accessibleToAllUsers for space: ${spaceId}`);
+  } catch (error) {
+    Logger.error(`spacesFirestore: Error updating accessibleToAllUsers for space: ${spaceId}`, error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a new space with default settings
+ * @param {Object} spaceData - The space data
+ * @returns {Promise<string>} - The ID of the created space
+ */
+export const createSpace = async (spaceData) => {
+  try {
+    Logger.log('spacesFirestore: Creating new space');
+    
+    // Ensure accessibleToAllUsers is set to true by default
+    const spaceWithDefaults = {
+      ...spaceData,
+      accessibleToAllUsers: spaceData.accessibleToAllUsers !== undefined ? spaceData.accessibleToAllUsers : true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Create a new document with auto-generated ID
+    const spacesCollection = collection(db, 'spaces');
+    const docRef = await addDoc(spacesCollection, spaceWithDefaults);
+    
+    Logger.log(`spacesFirestore: Successfully created space with ID: ${docRef.id}`);
+    return docRef.id;
+  } catch (error) {
+    Logger.error('spacesFirestore: Error creating space:', error);
     throw error;
   }
 };

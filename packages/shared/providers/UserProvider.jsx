@@ -3,9 +3,11 @@ import { onAuthStateChanged, getAuth, signInWithEmailAndPassword, createUserWith
 import { doc, setDoc, onSnapshot } from 'firebase/firestore'; // Import onSnapshot for real-time updates
 import { auth, db } from '@disruptive-spaces/shared/firebase/firebase'; // Ensure db is your Firestore instance
 import { getUserProfileData, registerUser } from '@disruptive-spaces/shared/firebase/userFirestore';
+import { userBelongsToGroup } from '@disruptive-spaces/shared/firebase/userPermissions';
 import { userProperties } from '@disruptive-spaces/shared/firebase/userProperties';
 import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 
 export const UserContext = createContext(null);
 
@@ -64,16 +66,32 @@ export const UserProvider = ({ children }) => {
             const { firstName, lastName } = additionalData;
             const Nickname = `${firstName}${lastName.charAt(0).toUpperCase()}`;
 
-            // Add default RPM URL to the registration data
+            // Add default RPM URL and ensure groups field is included in the registration data
             const registrationData = {
                 ...additionalData,
                 Nickname,
-                rpmURL: "https://models.readyplayer.me/67c8408d38f7924e15a8bd0a.glb"
+                rpmURL: "https://models.readyplayer.me/67c8408d38f7924e15a8bd0a.glb",
+                groups: ['users'] // Ensure the user is added to the 'users' group
             };
 
-            const user = await registerUser(email, password, registrationData);
-            setUser(user);
-            currentUserRef.current = user;
+            // Register the user with the updated data
+            const userData = await registerUser(email, password, registrationData);
+            
+            // Create a full user object with display name
+            const displayName = getDisplayName(registrationData);
+            const fullUserDetails = {
+                uid: userData.uid,
+                email: userData.email,
+                ...registrationData,
+                displayName
+            };
+            
+            // Update the user state
+            setUser(fullUserDetails);
+            currentUserRef.current = fullUserDetails;
+            
+            Logger.log('UserProvider: User registered successfully with groups:', registrationData.groups);
+            return fullUserDetails;
         } catch (error) {
             Logger.error("UserProvider: Error creating user:", error);
             throw error;
@@ -113,6 +131,9 @@ export const UserProvider = ({ children }) => {
     const sendUserToUnity = () => {
         const currentUser = currentUserRef.current;
         if (currentUser) {
+            // Add debug logging
+            Logger.log("UserProvider: Current user before filtering:", currentUser);
+            
             const filteredUser = filterUserPropertiesForUnity(currentUser);
             Logger.log("UserProvider: sendUserToUnity() using the eventBus", filteredUser);
             eventBus.publish(EventNames.sendUserToUnity, filteredUser);
@@ -122,16 +143,31 @@ export const UserProvider = ({ children }) => {
     };
 
     const filterUserPropertiesForUnity = (userObject) => {
+        // Add debug logging
+        Logger.log("UserProvider: Filtering user properties for Unity. Original user object:", userObject);
+        
         const filteredUser = {};
         // Add uid to the list of properties to send
         const propertiesForUnity = [...userProperties, 'uid'];
+        
+        Logger.log("UserProvider: Properties to include:", propertiesForUnity);
         
         propertiesForUnity.forEach(field => {
             if (userObject.hasOwnProperty(field)) {
                 filteredUser[field] = userObject[field];
             }
         });
+        
+        // Add debug logging for the filtered user
+        Logger.log("UserProvider: Filtered user object for Unity:", filteredUser);
+        
         return filteredUser;
+    };
+
+    // Check if the current user belongs to a specific group
+    const isUserInGroup = async (groupName) => {
+        if (!user || !user.uid) return false;
+        return await userBelongsToGroup(user.uid, groupName);
     };
 
     // Checks if the current user has access to a specific space
@@ -140,10 +176,33 @@ export const UserProvider = ({ children }) => {
 
         try {
             const spaceData = await getSpaceItem(spaceId); // Fetch space data from Firestore
+            
             // Check if user is allowed in the space, is an admin, or is a moderator
-            return spaceData.usersAllowed.includes(user.uid) ||
+            const hasDirectAccess = spaceData.usersAllowed.includes(user.uid) ||
                 spaceData.userAdmin.includes(user.uid) ||
                 spaceData.usersModerators.includes(user.uid);
+                
+            if (hasDirectAccess) {
+                return true;
+            }
+            
+            // Check if user is in a space-specific group (owner or host)
+            if (user.groups && Array.isArray(user.groups)) {
+                const ownerGroupId = `space_${spaceId}_owners`;
+                const hostGroupId = `space_${spaceId}_hosts`;
+                
+                if (user.groups.includes(ownerGroupId) || user.groups.includes(hostGroupId)) {
+                    Logger.log(`UserProvider: User ${user.uid} has access to space ${spaceId} as owner/host`);
+                    return true;
+                }
+            }
+            
+            // Check if the space is accessible to all users and the user is in the 'users' group
+            if (spaceData.accessibleToAllUsers === true && user.groups) {
+                return user.groups.includes('users');
+            }
+            
+            return false;
         } catch (error) {
             Logger.error('UserProvider: Error verifying user access to space:', error);
             return false;
@@ -184,6 +243,7 @@ export const UserProvider = ({ children }) => {
             signIn,
             signOut,
             sendUserToUnity,
+            isUserInGroup,
             userHasAccessToSpace,
             userIsAdminOfSpace,
             userIsModeratorOfSpace,

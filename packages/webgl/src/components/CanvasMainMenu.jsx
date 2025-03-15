@@ -38,11 +38,12 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { HamburgerIcon } from "@chakra-ui/icons";
-import { FaUsers, FaDesktop, FaEdit, FaCog, FaStar, FaCrown } from 'react-icons/fa';
+import { FaUsers, FaDesktop, FaEdit, FaCog, FaStar, FaCrown, FaShieldAlt } from 'react-icons/fa';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
+import { userBelongsToGroup } from '@disruptive-spaces/shared/firebase/userPermissions';
 import { ScreenShareMenuOption } from '../voice-chat';
 import AgoraRTC from 'agora-rtc-sdk-ng';
 import SpacesControlsModal from './SpacesControlsModal';
@@ -63,6 +64,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
   const [editModeEnabled, setEditModeEnabled] = useState(false);
   const [canEditSpace, setCanEditSpace] = useState(false); // Permission check for Edit Mode
   const [isSpaceHost, setIsSpaceHost] = useState(false); // Permission check for host status
+  const [isDisruptiveAdmin, setIsDisruptiveAdmin] = useState(false); // New state for disruptiveAdmin check
   const toast = useToast();
   
   const { user } = useContext(UserContext);
@@ -87,6 +89,10 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
           isHost = userProfile.groups.includes(hostGroupId);
         }
         
+        // Check if user is a disruptiveAdmin
+        const isAdmin = await userBelongsToGroup(user.uid, 'disruptiveAdmin');
+        setIsDisruptiveAdmin(isAdmin);
+        
         // Update state with profile data and permissions
         setProfileData({
           rpmURL: userProfile.rpmURL ? 
@@ -94,11 +100,12 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
             : null
         });
         
-        setCanEditSpace(isOwner);
+        // If user is a disruptiveAdmin, they can edit regardless of other permissions
+        setCanEditSpace(isOwner || isAdmin);
         setIsSpaceHost(isHost);
         
         // If user doesn't have permission but edit mode is enabled, disable it
-        if (!isOwner && editModeEnabled) {
+        if (!isOwner && !isAdmin && editModeEnabled) {
           setEditModeEnabled(false);
           // Dispatch event to notify other components
           const editModeEvent = new CustomEvent('editModeChanged', { 
@@ -119,10 +126,12 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
         console.error('Error fetching profile data:', error);
         setCanEditSpace(false);
         setIsSpaceHost(false);
+        setIsDisruptiveAdmin(false);
       }
     } else {
       setCanEditSpace(false);
       setIsSpaceHost(false);
+      setIsDisruptiveAdmin(false);
     }
   };
 
@@ -205,7 +214,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
     // Stop event propagation to prevent menu from closing
     e.stopPropagation();
     
-    // Check if user has permission to edit
+    // Check if user has permission to edit (owner or disruptiveAdmin)
     if (!canEditSpace) {
       toast({
         title: "Permission Denied",
@@ -239,6 +248,9 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
       position: "top",
     });
   };
+
+  // Check if user has permission to share screen (owner, host, or admin)
+  const canShareScreen = canEditSpace || isSpaceHost || isDisruptiveAdmin;
 
   return (
     <>
@@ -281,7 +293,8 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                 <VStack align="start" spacing={0}>
                   <HStack>
                     <Text fontWeight="bold">{userNickname}</Text>
-                    {canEditSpace && (
+                    {/* Show owner icon only if user is an owner and not a disruptiveAdmin */}
+                    {canEditSpace && !isDisruptiveAdmin && (
                       <Tooltip 
                         label="Owner" 
                         placement="top" 
@@ -296,7 +309,8 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                         </Box>
                       </Tooltip>
                     )}
-                    {!canEditSpace && isSpaceHost && (
+                    {/* Show host icon only if user is a host and not a disruptiveAdmin */}
+                    {!canEditSpace && isSpaceHost && !isDisruptiveAdmin && (
                       <Tooltip 
                         label="Host" 
                         placement="top" 
@@ -308,6 +322,22 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                       >
                         <Box display="inline-block">
                           <Icon as={FaStar} color="purple.400" boxSize={3} />
+                        </Box>
+                      </Tooltip>
+                    )}
+                    {/* Show admin icon only if user is a disruptiveAdmin */}
+                    {isDisruptiveAdmin && (
+                      <Tooltip 
+                        label="Admin" 
+                        placement="top" 
+                        hasArrow 
+                        zIndex={10000}
+                        openDelay={300}
+                        gutter={8}
+                        portalProps={{ containerRef: fullscreenRef }}
+                      >
+                        <Box display="inline-block">
+                          <Icon as={FaShieldAlt} color="blue.400" boxSize={3} />
                         </Box>
                       </Tooltip>
                     )}
@@ -328,6 +358,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                   onClick={handleTogglePlayerList}
                 />
                 
+                {/* Show edit button if user is an owner or disruptiveAdmin */}
                 {canEditSpace && (
                   <IconButton
                     icon={<FaEdit />}
@@ -361,7 +392,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
               <Divider borderColor="whiteAlpha.300" />
 
               <VStack align="stretch" spacing={2}>
-                {/* Edit Mode Toggle - Only show for space owners */}
+                {/* Edit Mode Toggle - Show for space owners and disruptiveAdmins */}
                 {canEditSpace && (
                   <HStack 
                     p={2} 
@@ -385,7 +416,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                   </HStack>
                 )}
                 
-                {/* Manage Space option - Only show for space owners */}
+                {/* Manage Space option - Show for space owners and disruptiveAdmins */}
                 {canEditSpace && (
                   <Text 
                     fontSize="md" 
@@ -399,8 +430,8 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                   </Text>
                 )}
                 
-                {/* Screen Share option - Only show if voice is not disabled */}
-                {user && spaceID && !voiceDisabled && (
+                {/* Screen Share option - Only show if voice is not disabled AND user is owner, host, or admin */}
+                {user && spaceID && !voiceDisabled && canShareScreen && (
                   <ScreenShareMenuOption onClose={handleCloseMenu} />
                 )}
                 

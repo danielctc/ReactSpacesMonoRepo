@@ -43,7 +43,8 @@ import {
   getSpaceItem, 
   uploadSpaceBackground, 
   deleteSpaceBackground,
-  updateSpaceSettings
+  updateSpaceSettings,
+  setSpaceAccessibleToAllUsers
 } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { useUnity } from '../providers/UnityProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
@@ -77,126 +78,132 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   
   // Settings state
   const [voiceDisabled, setVoiceDisabled] = useState(false);
+  const [accessibleToAllUsers, setAccessibleToAllUsers] = useState(true);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   
   const toast = useToast();
 
   // Fetch existing logo and background when modal opens
   useEffect(() => {
-    const fetchSpaceData = async () => {
-      if (spaceID && isOpen) {
-        try {
-          const spaceData = await getSpaceItem(spaceID);
-          if (spaceData) {
-            // Set logo if exists
-            if (spaceData.logoUrl) {
-              setExistingLogo(spaceData.logoUrl);
-            } else {
-              setExistingLogo(null);
-            }
-            
-            // Set background if exists
-            if (spaceData.backgroundUrl) {
-              setExistingBackground(spaceData.backgroundUrl);
-            } else if (spaceData.gsUrlLoadingBackground) {
-              // For backward compatibility
-              setExistingBackground(spaceData.gsUrlLoadingBackground);
-            } else {
-              setExistingBackground(null);
-            }
-            
-            // Set voice disabled state
-            setVoiceDisabled(spaceData.voiceDisabled || false);
-          }
-        } catch (error) {
-          console.error('Error fetching space data:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to load space data',
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
+    if (isOpen && spaceID) {
+      fetchSpaceData();
+    }
+  }, [isOpen, spaceID]);
+
+  // Function to fetch space users
+  const fetchSpaceUsers = async (spaceData) => {
+    if (spaceID && isOpen) {
+      setIsLoadingUsers(true);
+      try {
+        const db = getFirestore();
+        
+        // Fetch owners
+        const ownersGroupId = `space_${spaceID}_owners`;
+        const ownersQuery = query(
+          collection(db, "users"),
+          where("groups", "array-contains", ownersGroupId)
+        );
+        const ownersSnapshot = await getDocs(ownersQuery);
+        const ownersData = [];
+        
+        for (const doc of ownersSnapshot.docs) {
+          const userData = doc.data();
+          const userProfile = await getUserProfileData(doc.id);
+          ownersData.push({
+            uid: doc.id,
+            email: userData.email,
+            displayName: userData.displayName || userProfile.Nickname || "Unknown User",
+            photoURL: userData.photoURL || userProfile.photoURL,
+            firstName: userProfile.firstName,
+            lastName: userProfile.lastName,
           });
         }
+        
+        setSpaceOwners(ownersData);
+        
+        // Fetch hosts
+        const hostsGroupId = `space_${spaceID}_hosts`;
+        const hostsQuery = query(
+          collection(db, "users"),
+          where("groups", "array-contains", hostsGroupId)
+        );
+        const hostsSnapshot = await getDocs(hostsQuery);
+        const hostsData = [];
+        
+        for (const doc of hostsSnapshot.docs) {
+          const userData = doc.data();
+          const userProfile = await getUserProfileData(doc.id);
+          hostsData.push({
+            uid: doc.id,
+            email: userData.email,
+            displayName: userData.displayName || userProfile.Nickname || "Unknown User",
+            photoURL: userData.photoURL || userProfile.photoURL,
+            firstName: userProfile.firstName,
+            lastName: userProfile.lastName,
+          });
+        }
+        
+        setSpaceHosts(hostsData);
+        
+      } catch (error) {
+        Logger.error('Error fetching space users:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load space users',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
+      } finally {
+        setIsLoadingUsers(false);
       }
-    };
+    }
+  };
 
-    fetchSpaceData();
-  }, [spaceID, isOpen, toast]);
+  const fetchSpaceData = async () => {
+    try {
+      const spaceData = await getSpaceItem(spaceID);
+      
+      // Set logo if exists
+      if (spaceData.logoUrl) {
+        setExistingLogo(spaceData.logoUrl);
+      }
+      
+      // Set background if exists
+      if (spaceData.backgroundUrl) {
+        setExistingBackground(spaceData.backgroundUrl);
+      }
+      
+      // Set settings
+      if (spaceData.voiceDisabled !== undefined) {
+        setVoiceDisabled(spaceData.voiceDisabled);
+      }
+      
+      if (spaceData.accessibleToAllUsers !== undefined) {
+        setAccessibleToAllUsers(spaceData.accessibleToAllUsers);
+      }
+      
+      // Fetch users
+      fetchSpaceUsers(spaceData);
+      
+    } catch (error) {
+      Logger.error('Error fetching space data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load space data',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
 
-  // Fetch space users (owners and hosts)
+  // Fetch space users when tab changes to Users tab
   useEffect(() => {
-    const fetchSpaceUsers = async () => {
-      if (spaceID && isOpen && tabIndex === 3) { // Only fetch when users tab is active
-        setIsLoadingUsers(true);
-        try {
-          const db = getFirestore();
-          
-          // Fetch owners
-          const ownersGroupId = `space_${spaceID}_owners`;
-          const ownersQuery = query(
-            collection(db, "users"),
-            where("groups", "array-contains", ownersGroupId)
-          );
-          const ownersSnapshot = await getDocs(ownersQuery);
-          const ownersData = [];
-          
-          for (const doc of ownersSnapshot.docs) {
-            const userData = doc.data();
-            const userProfile = await getUserProfileData(doc.id);
-            ownersData.push({
-              uid: doc.id,
-              email: userData.email,
-              displayName: userData.displayName || userProfile.Nickname || "Unknown User",
-              photoURL: userData.photoURL || userProfile.photoURL,
-              firstName: userProfile.firstName,
-              lastName: userProfile.lastName,
-            });
-          }
-          
-          setSpaceOwners(ownersData);
-          
-          // Fetch hosts
-          const hostsGroupId = `space_${spaceID}_hosts`;
-          const hostsQuery = query(
-            collection(db, "users"),
-            where("groups", "array-contains", hostsGroupId)
-          );
-          const hostsSnapshot = await getDocs(hostsQuery);
-          const hostsData = [];
-          
-          for (const doc of hostsSnapshot.docs) {
-            const userData = doc.data();
-            const userProfile = await getUserProfileData(doc.id);
-            hostsData.push({
-              uid: doc.id,
-              email: userData.email,
-              displayName: userData.displayName || userProfile.Nickname || "Unknown User",
-              photoURL: userData.photoURL || userProfile.photoURL,
-              firstName: userProfile.firstName,
-              lastName: userProfile.lastName,
-            });
-          }
-          
-          setSpaceHosts(hostsData);
-          
-        } catch (error) {
-          console.error('Error fetching space users:', error);
-          toast({
-            title: 'Error',
-            description: 'Failed to load space users',
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
-          });
-        } finally {
-          setIsLoadingUsers(false);
-        }
-      }
-    };
-
-    fetchSpaceUsers();
-  }, [spaceID, isOpen, tabIndex, toast]);
+    if (spaceID && isOpen && tabIndex === 3) { // Only fetch when users tab is active
+      fetchSpaceUsers({});
+    }
+  }, [spaceID, isOpen, tabIndex]);
 
   // Handle logo file selection
   const handleFileChange = (e) => {
@@ -492,36 +499,50 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
 
   // Handle voice toggle
   const handleVoiceToggle = async () => {
+    setIsUpdatingSettings(true);
     try {
-      setIsUpdatingSettings(true);
-      
-      // Update the setting in Firebase
-      await updateSpaceSettings(spaceID, {
-        voiceDisabled: !voiceDisabled
-      });
-      
-      // Update local state
+      await updateSpaceSettings(spaceID, { voiceDisabled: !voiceDisabled });
       setVoiceDisabled(!voiceDisabled);
-      
-      // Notify other components about the change
-      window.dispatchEvent(new CustomEvent('SpaceVoiceSettingChanged', { 
-        detail: { voiceDisabled: !voiceDisabled } 
-      }));
-      
       toast({
-        title: 'Settings updated',
+        title: 'Settings Updated',
         description: `Voice chat has been ${!voiceDisabled ? 'disabled' : 'enabled'} for this space.`,
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
     } catch (error) {
-      console.error('Error updating voice settings:', error);
+      Logger.error('Error updating voice settings:', error);
       toast({
-        title: 'Update failed',
-        description: error.message || 'An error occurred while updating settings',
+        title: 'Error',
+        description: 'Failed to update voice settings',
         status: 'error',
-        duration: 5000,
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdatingSettings(false);
+    }
+  };
+
+  const handleAccessibilityToggle = async () => {
+    setIsUpdatingSettings(true);
+    try {
+      await setSpaceAccessibleToAllUsers(spaceID, !accessibleToAllUsers);
+      setAccessibleToAllUsers(!accessibleToAllUsers);
+      toast({
+        title: 'Settings Updated',
+        description: `Space is now ${!accessibleToAllUsers ? 'accessible' : 'not accessible'} to all users.`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      Logger.error('Error updating accessibility settings:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update accessibility settings',
+        status: 'error',
+        duration: 3000,
         isClosable: true,
       });
     } finally {
@@ -891,6 +912,42 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                       <Switch 
                         isChecked={!voiceDisabled}
                         onChange={handleVoiceToggle}
+                        colorScheme="green"
+                        size="md"
+                        isDisabled={isUpdatingSettings}
+                      />
+                    </HStack>
+                  </Box>
+                  
+                  {/* Accessibility Setting */}
+                  <Box 
+                    borderWidth="1px" 
+                    borderRadius="md" 
+                    p={3} 
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                  >
+                    <HStack justify="space-between" align="center">
+                      <Box>
+                        <HStack mb={1} spacing={2}>
+                          <Box position="relative" w="16px" h="16px">
+                            <Icon as={FiUsers} color={accessibleToAllUsers ? "green.400" : "red.400"} />
+                          </Box>
+                          <Text fontSize="sm" fontWeight="600">Public Access</Text>
+                        </HStack>
+                        <Text fontSize="xs" color="whiteAlpha.800">
+                          {accessibleToAllUsers 
+                            ? "This space is accessible to all users in the 'users' group." 
+                            : "This space is only accessible to specific users."}
+                        </Text>
+                        <Text fontSize="xs" color="blue.300" mt={1}>
+                          Note: Space owners and hosts will always have access regardless of this setting.
+                        </Text>
+                      </Box>
+                      
+                      <Switch
+                        isChecked={accessibleToAllUsers}
+                        onChange={handleAccessibilityToggle}
                         colorScheme="green"
                         size="md"
                         isDisabled={isUpdatingSettings}

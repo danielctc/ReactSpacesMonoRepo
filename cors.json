@@ -1,13 +1,7 @@
 [
   {
-    "origin": [
-      "https://www.spacesmetaverse.com",
-      "https://spaces.disruptive.live",
-      "http://localhost:5173"
-    ],
-    "method": [
-      "GET"
-    ],
+    "origin": ["*"],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
     "maxAgeSeconds": 3600
   }
 ]

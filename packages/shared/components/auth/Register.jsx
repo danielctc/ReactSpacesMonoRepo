@@ -56,14 +56,14 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
         setIsSubmitting(true);
 
         try {
-            await userProviderRegister(email, password, additionalData);
+            const userData = await userProviderRegister(email, password, additionalData);
             Logger.log('User: Registration process complete.');
             onClose();
             toast({
                 title: "Registration Successful",
-                description: "Your account has been created.",
+                description: "Your account has been created and you've been added to the users group.",
                 status: "success",
-                duration: 3000,
+                duration: 5000,
                 isClosable: true,
                 position: "top",
             });

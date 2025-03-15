@@ -1,68 +1,72 @@
 rules_version = '2';
 
 service cloud.firestore {
-
-  //*************************************************
-  // Temporary rules to allow known admin  users access
- match /{document=**} {
-   allow read, write: if request.auth != null && 
-   (
-   request.auth.uid == 'lppDQiMb3hhloApQ7llOtk5tckY2' || // neil@pursey.net
-   request.auth.uid == 'XutdlDmDSncMBUw6vwlQGdkpjNr2' || // tet@email.com
-   request.auth.uid == 'aMhQYu0ArucoNCc6pJJtyfRbn8k2' || // josh@disruptive.live
- request.auth.uid == 'fJVBogzjtTQqUHnYCYLhTt6jBW13' ||// andrew@andrew.com
-   request.auth.uid == '9NrbbBoc2rOYQC3xAkRBDkig8eg1' // andrew@disruptive.live
-   
-   )
-  }
-
-  // Disruptive Admin user, full access to everything
-  //*************************************************
-  // note: This rule doesn't seem to work. Could be the rule could be the custom auth in the admin.
-  // May need to move this into react admin app.
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null && 
-        ('disruptiveAdmin' in request.auth.token.claims.groups || 
-        'disruptiveAdmin' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups);
+    // Helper function to check if user is in a specific group
+    function userIsInGroup(groupName) {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups.hasAny([groupName]);
     }
-  }
-  //*************************************************
+    
+    // Helper function to check if user is in a space-specific group (owner or host)
+    function userIsInSpaceGroup(spaceId) {
+      return request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups.hasAny([
+          'space_' + spaceId + '_owners',
+          'space_' + spaceId + '_hosts'
+        ]);
+    }
 
-  match /databases/{database}/documents {
-    // Users can read and write their own profile records.
+    // Users can read and write their own profile records
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow other authenticated users to read user profiles
+      allow read: if request.auth != null;
     }
 
-    // Spaces
+    // Public resources accessible to all authenticated users
+    match /public/{document=**} {
+      allow read: if request.auth != null;
+    }
+
+    // Spaces - Make more permissive for testing
     match /spaces/{spaceId} {
-      // Allow read access if the space is public or the user's UID is in the usersAdmin, usersModerators, or usersAllowed arrays
-      allow read: if resource.data.isPublic == true 
-                  || request.auth.uid in resource.data.usersAdmin 
-                  || request.auth.uid in resource.data.usersModerators 
-                  || request.auth.uid in resource.data.usersAllowed;
+      // Allow read access to any authenticated user
+      allow read: if request.auth != null;
 
-      // Allow write access if the user's UID is in the usersAdmin or usersModerators arrays
-      allow write: if request.auth.uid in resource.data.usersAdmin 
-                   || request.auth.uid in resource.data.usersModerators;
+      // Allow write access if:
+      // 1. The user's UID is in the usersAdmin or usersModerators arrays
+      // 2. The user is in a space-specific owner or host group
+      // 3. The user is in the disruptiveAdmin group
+      allow write: if (request.auth != null && 
+                      (request.auth.uid in resource.data.usersAdmin ||
+                       request.auth.uid in resource.data.usersModerators ||
+                       userIsInSpaceGroup(spaceId) ||
+                       userIsInGroup('disruptiveAdmin')));
 
-      // Space Chat
+      // Space Chat - Make more permissive
       match /chatMessages/{messageId} {
-        // Allow read/write access if the space is public or the user's UID is in the usersAdmin, usersModerators, or usersAllowed arrays
-        allow read, write: if get(/databases/$(database)/documents/spaces/$(spaceId)).data.isPublic == true 
-                           || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersAdmin 
-                           || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersModerators 
-                           || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersAllowed;
+        allow read, write: if request.auth != null;
       }
 
-      // Space Videos (if needed)
+      // Space Videos - Make more permissive
       match /videos/{videoId} {
-        allow read: if get(/databases/$(database)/documents/spaces/$(spaceId)).data.isPublic == true 
-                   || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersAdmin 
-                   || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersModerators 
-                   || request.auth.uid in get(/databases/$(database)/documents/spaces/$(spaceId)).data.usersAllowed;
+        allow read: if request.auth != null;
       }
+      
+      // Media Screens - Make more permissive
+      match /mediaScreens/{screenId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // Disruptive Admin has full access to everything
+    match /{document=**} {
+      allow read, write: if userIsInGroup('disruptiveAdmin');
     }
   }
 }

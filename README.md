@@ -73,3 +73,40 @@ https://disruptive-metaverse.web.app/{microframework-name}
 WebFlow Test Page
 https://spaces.disruptive.live/spaces/spaces-master-build
 
+## Space Accessibility
+
+### User Groups and Permissions
+
+The system uses Firebase user groups to manage permissions. By default, all new users are added to the 'users' group.
+
+### Space Access Control
+
+Spaces can be configured with different access levels:
+
+1. **Public Access (Default)**: By default, spaces have `accessibleToAllUsers` set to `true`, allowing any user in the 'users' group to access them.
+2. **Restricted Access**: When `accessibleToAllUsers` is manually set to `false`, only users explicitly listed in the space's `usersAllowed`, `usersAdmin`, or `usersModerators` arrays can access it.
+
+### Managing Space Accessibility
+
+Space owners can manage accessibility settings through the Space Management modal:
+
+1. Open the main menu in a space
+2. Click "Manage Space"
+3. Go to the "Settings" tab
+4. Toggle the "Public Access" switch (on by default)
+
+### Utility Scripts
+
+The project includes utility scripts for managing space accessibility:
+
+- `scripts/checkSpacesAccessibility.js`: Checks the current accessibility settings for all spaces
+- `scripts/setSpacesAccessible.js`: Sets the `accessibleToAllUsers` field for all spaces
+
+To run these scripts:
+```
+node scripts/checkSpacesAccessibility.js
+node scripts/setSpacesAccessible.js
+```
+
+Note: You'll need to add your Firebase configuration to these scripts before running them.
+

@@ -36,6 +36,7 @@ export const userProperties = [
     "lastName",
     // "accessCode",
     "linkedInProfile",
-
-
+    
+    // User groups for permissions
+    "groups",
 ];
