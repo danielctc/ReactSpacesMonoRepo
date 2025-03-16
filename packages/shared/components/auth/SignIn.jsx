@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
@@ -31,7 +31,7 @@ import {
 } from "@chakra-ui/react";
 import { EmailIcon, LockIcon } from "@chakra-ui/icons";
 
-function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {} }) {
+function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialIsOpen = false }) {
     const { signIn } = useContext(UserContext);
     const { fullscreenRef } = useFullscreenContext();
     const toast = useToast();
@@ -41,10 +41,23 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {} }) {
             password: '123456',
         }
     });
-    const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(initialIsOpen);
     const [showRegister, setShowRegister] = useState(false);
 
     useUnityInputManager(isOpen);
+    
+    // Listen for custom event to open the SignIn modal
+    useEffect(() => {
+        const handleOpenSignInModal = () => {
+            setIsOpen(true);
+        };
+        
+        window.addEventListener('openSignInModal', handleOpenSignInModal);
+        
+        return () => {
+            window.removeEventListener('openSignInModal', handleOpenSignInModal);
+        };
+    }, []);
 
     const handleSignIn = async (data) => {
         try {
@@ -235,7 +248,8 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {} }) {
 SignIn.propTypes = {
     mode: PropTypes.oneOf(['button', 'link']),
     label: PropTypes.string,
-    buttonProps: PropTypes.object
+    buttonProps: PropTypes.object,
+    initialIsOpen: PropTypes.bool
 };
 
 export default SignIn;

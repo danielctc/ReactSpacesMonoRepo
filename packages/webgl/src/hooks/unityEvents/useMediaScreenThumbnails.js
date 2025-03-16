@@ -48,7 +48,7 @@ export const useMediaScreenThumbnails = () => {
       
       // Check if it's a YouTube URL
       if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
-        return fetchYouTubeThumbnail(videoUrl);
+        return await fetchYouTubeThumbnail(videoUrl);
       }
       
       // Default fallback thumbnail for other video sources
@@ -71,9 +71,31 @@ export const useMediaScreenThumbnails = () => {
 
       const data = await response.json();
       
-      // Use the thumbnail URL directly from the oEmbed response
-      // This URL is more likely to have proper CORS headers
-      return data.thumbnail_url;
+      // Extract the base thumbnail URL (remove size suffix if present)
+      const baseThumbnailUrl = data.thumbnail_url.replace(/_\d+x\d+/, '');
+      const resolutions = ['640x360', '295x166']; // Try from high to low resolution
+      
+      let validThumbnailUrl = null;
+      
+      // Iterate over each resolution to find the best available with play button overlay
+      for (let res of resolutions) {
+        // Build the URL with play button overlay
+        const testUrl = `https://i.vimeocdn.com/filter/overlay?src0=${encodeURIComponent(`${baseThumbnailUrl}_${res}`)}&src1=http://f.vimeocdn.com/p/images/crawler_play.png`;
+        
+        // Check if the test URL is valid
+        try {
+          const imgResponse = await fetch(testUrl, { method: 'HEAD' });
+          if (imgResponse.ok) {
+            validThumbnailUrl = testUrl;
+            break; // Exit the loop once we find a valid thumbnail
+          }
+        } catch (error) {
+          Logger.warn(`Failed to validate thumbnail URL: ${testUrl}`, error);
+        }
+      }
+      
+      // Fallback to original thumbnail_url if none of the custom resolutions worked
+      return validThumbnailUrl || data.thumbnail_url;
     } catch (error) {
       Logger.error(`Error fetching Vimeo thumbnail: ${error.message}`);
       // Return a fallback image
@@ -82,7 +104,7 @@ export const useMediaScreenThumbnails = () => {
   };
 
   // Extract YouTube video ID and generate thumbnail URL
-  const fetchYouTubeThumbnail = (videoUrl) => {
+  const fetchYouTubeThumbnail = async (videoUrl) => {
     let videoId = '';
     
     if (videoUrl.includes('youtube.com/watch')) {
@@ -96,7 +118,20 @@ export const useMediaScreenThumbnails = () => {
       throw new Error('Could not extract YouTube video ID');
     }
     
-    // Use the high quality thumbnail
+    // Try to get the highest quality thumbnail first (maxresdefault)
+    const maxResUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+    
+    try {
+      // Check if maxresdefault is available
+      const response = await fetch(maxResUrl, { method: 'HEAD' });
+      if (response.ok) {
+        return maxResUrl;
+      }
+    } catch (error) {
+      Logger.warn(`Failed to validate maxresdefault thumbnail for YouTube video ${videoId}`, error);
+    }
+    
+    // Fall back to high quality default which always exists
     return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
   };
 
@@ -107,21 +142,21 @@ export const useMediaScreenThumbnails = () => {
         return;
       }
 
-      console.log(`Refreshing thumbnail for media screen ${mediaScreenId}`);
+      Logger.log(`Refreshing thumbnail for media screen ${mediaScreenId}`);
       
       // Get the media screen data from Firestore
       const mediaScreen = await getMediaScreenImage(spaceID, mediaScreenId);
       
       if (!mediaScreen) {
-        console.log(`No media screen found with ID ${mediaScreenId}`);
+        Logger.log(`No media screen found with ID ${mediaScreenId}`);
         return;
       }
       
-      console.log(`Media screen data:`, mediaScreen);
+      Logger.log(`Media screen data:`, mediaScreen);
       
       // Only proceed if this is a video media screen
       if (!mediaScreen.displayAsVideo || !mediaScreen.videoUrl) {
-        console.log(`Media screen ${mediaScreenId} is not set to display as video or has no video URL`);
+        Logger.log(`Media screen ${mediaScreenId} is not set to display as video or has no video URL`);
         return;
       }
       
@@ -134,9 +169,9 @@ export const useMediaScreenThumbnails = () => {
         thumbnailUrl
       });
       
-      console.log(`Sent refreshed thumbnail for media screen ${mediaScreenId}`);
+      Logger.log(`Sent refreshed thumbnail for media screen ${mediaScreenId}: ${thumbnailUrl}`);
     } catch (error) {
-      console.error(`Error refreshing thumbnail for media screen ${mediaScreenId}:`, error);
+      Logger.error(`Error refreshing thumbnail for media screen ${mediaScreenId}:`, error);
     }
   }, [spaceID, fetchThumbnailUrl, queueMessage]);
 
@@ -189,14 +224,14 @@ export const useMediaScreenThumbnails = () => {
           throw new Error("spaceID is not defined.");
         }
 
-        console.log("Fetching media screens for thumbnails...");
+        Logger.log("Fetching media screens for thumbnails...");
         // Fetch media screen data from Firestore
         const mediaScreens = await getMediaScreenImagesFromFirestore(spaceID);
-        console.log("All media screens:", mediaScreens);
+        Logger.log("All media screens:", mediaScreens);
         
         // Filter for media screens that should display as videos
         const videoMediaScreens = mediaScreens.filter(screen => screen.displayAsVideo && screen.videoUrl);
-        console.log("Media screens set to display as videos:", videoMediaScreens);
+        Logger.log("Media screens set to display as videos:", videoMediaScreens);
         
         if (videoMediaScreens.length === 0) {
           Logger.log("No media screens set to display as videos found.");
@@ -209,6 +244,7 @@ export const useMediaScreenThumbnails = () => {
         const thumbnailPromises = videoMediaScreens.map(async (screen) => {
           try {
             const thumbnailUrl = await fetchThumbnailUrl(screen.videoUrl);
+            Logger.log(`Fetched thumbnail for ${screen.id}: ${thumbnailUrl}`);
             return { mediaScreenId: screen.id, thumbnailUrl };
           } catch (error) {
             Logger.error(`Error processing thumbnail for media screen ${screen.id}:`, error);
@@ -228,6 +264,7 @@ export const useMediaScreenThumbnails = () => {
             mediaScreenId, 
             thumbnailUrl
           });
+          Logger.log(`Sent thumbnail to Unity for media screen ${mediaScreenId}: ${thumbnailUrl}`);
         });
       } catch (error) {
         Logger.error('Error fetching media screen thumbnails:', error);

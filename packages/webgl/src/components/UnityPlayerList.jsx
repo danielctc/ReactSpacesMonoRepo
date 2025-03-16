@@ -21,7 +21,8 @@ import {
   MenuList,
   MenuItem,
   MenuDivider,
-  useToast
+  useToast,
+  useMediaQuery
 } from "@chakra-ui/react";
 import { CloseIcon, ChevronDownIcon, SettingsIcon } from "@chakra-ui/icons";
 import { FaLinkedin, FaGlobe, FaMicrophone, FaMicrophoneSlash, FaStar, FaCrown, FaEllipsisV, FaBan, FaUserPlus, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
@@ -31,6 +32,31 @@ import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore
 
 // Accept spaceID as a prop
 const UnityPlayerList = ({ isVisible, onToggleVisibility, spaceID: propSpaceID }) => {
+  // Check if the device is mobile using useMediaQuery
+  const [isMobile] = useMediaQuery("(max-width: 768px)");
+  
+  // Check if the user agent indicates a mobile browser
+  const [isMobileBrowser, setIsMobileBrowser] = useState(false);
+  
+  // Detect mobile browsers using user agent
+  useEffect(() => {
+    const checkMobileBrowser = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+      const result = mobileRegex.test(userAgent);
+      setIsMobileBrowser(result);
+      
+      if (result) {
+        Logger.log("UnityPlayerList: Mobile browser detected, component will not render");
+      }
+    };
+    
+    checkMobileBrowser();
+  }, []);
+  
+  // Determine if we should hide the component based on mobile detection
+  const shouldHideOnMobile = isMobile || isMobileBrowser;
+  
   const players = useUnityPlayerList();
   const [isReady, setIsReady] = useState(false);
   const [enrichedPlayers, setEnrichedPlayers] = useState([]);
@@ -463,7 +489,7 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility, spaceID: propSpaceID }
       color="white"
       minWidth="200px"
       maxHeight="300px"
-      visibility={isReady && isVisible ? "visible" : "hidden"}
+      visibility={(isReady && isVisible && !shouldHideOnMobile) ? "visible" : "hidden"}
       role="group"
     >
       <Box

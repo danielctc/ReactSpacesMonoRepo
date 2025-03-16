@@ -30,16 +30,19 @@ const registerUser = async (email, password, additionalData) => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
+        // TEMPORARILY DISABLED: Email verification
+        /*
         // Send email verification
         await sendEmailVerification(user);
         Logger.log('userFirestore: Verification email sent to:', email);
+        */
 
         // Add default groups array with 'users' group
         const userData = { 
             email: user.email, 
             createdAt: new Date(), 
             groups: ['users'], // Add default 'users' group
-            emailVerified: false, // Track email verification status
+            emailVerified: true, // TEMPORARILY SET TO TRUE to bypass verification
             ...additionalData 
         };
 

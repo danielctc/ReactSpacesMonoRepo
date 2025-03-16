@@ -161,12 +161,21 @@ export const UnityProvider = ({
 
   if (missingUrls.length > 0) {
     Logger.error(`UnityProvider: Missing required Unity build URLs: ${missingUrls.join(', ')}`);
+    // Instead of showing an error, we'll still render the provider with a dummy unityProvider
+    // This allows the background and loader to display normally
     return (
-      <div style={{ padding: '20px', color: 'red', backgroundColor: '#ffeeee', border: '1px solid red', borderRadius: '5px' }}>
-        <h3>Unity Build Error</h3>
-        <p>Missing required Unity build URLs: {missingUrls.join(', ')}</p>
-        <p>Please check the space configuration in Firestore.</p>
-      </div>
+      <UnityInstanceContext.Provider value={{
+        unityProvider: null,
+        loadingProgression: 0,
+        isLoaded: false,
+        sendMessage: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        error: new Error(`Missing required Unity build URLs: ${missingUrls.join(', ')}`),
+        spaceID
+      }}>
+        {children}
+      </UnityInstanceContext.Provider>
     );
   }
 

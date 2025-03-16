@@ -320,7 +320,11 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
                         </Button>
                         <Text fontSize="sm" color="gray.400" textAlign="center">
                             Already have an account?{" "}
-                            <Link color="blue.400" onClick={onClose}>
+                            <Link color="blue.400" onClick={() => {
+                                onClose();
+                                // Dispatch a custom event to open the SignIn modal
+                                window.dispatchEvent(new CustomEvent('openSignInModal'));
+                            }}>
                                 Sign In
                             </Link>
                         </Text>

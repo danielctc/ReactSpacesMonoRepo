@@ -103,6 +103,8 @@ export const UserProvider = ({ children }) => {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             
+            // TEMPORARILY DISABLED: Email verification check
+            /*
             // Check if email is verified
             if (!userCredential.user.emailVerified) {
                 // Send another verification email if needed
@@ -110,6 +112,7 @@ export const UserProvider = ({ children }) => {
                 Logger.log('UserProvider: Verification email sent again to:', email);
                 throw new Error('Please verify your email before signing in. A new verification email has been sent.');
             }
+            */
             
             const userProfile = await getUserProfileData(userCredential.user.uid);
             const displayName = getDisplayName(userProfile);

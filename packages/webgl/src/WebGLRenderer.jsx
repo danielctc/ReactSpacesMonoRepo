@@ -26,12 +26,13 @@ import { AgoraProvider, VoiceButton, ScreenShareDisplay, useVoiceChat } from './
 import MediaScreenController from "./components/MediaScreenController";
 import PersistentBackground from "./components/PersistentBackground";
 import PersistentLoader from "./components/PersistentLoader";
+import SignIn from '@disruptive-spaces/shared/components/auth/SignIn';
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
 
 const WebGLRenderer = forwardRef(({ settings }, ref) => {
-  const { unityProvider, isLoaded } = useUnity();
+  const { unityProvider, isLoaded, error } = useUnity();
   const isFirstSceneLoaded = useUnityOnFirstSceneLoaded();
   const unityOnRequestUser = useUnityOnRequestUser();
   const sendUnityEvent = useSendUnityEvent();
@@ -47,6 +48,9 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   
   // State to track if Edit Mode is active
   const [isEditMode, setIsEditMode] = useState(false);
+  
+  // State to track if the sign-in modal should be shown
+  const [showSignInModal, setShowSignInModal] = useState(false);
   
   // Get spaceID from settings or default
   const spaceID = settings.spaceID || 'default';
@@ -73,6 +77,21 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       });
     }
   }, [user?.uid]);
+  
+  // Check if user is logged in and show sign-in modal if not
+  useEffect(() => {
+    // If there's an error with Unity or user isn't logged in, show sign-in modal
+    if (error || !user) {
+      Logger.log("WebGLRenderer: User not logged in or Unity error, showing sign-in modal");
+      // Add a small delay to ensure the UI is ready
+      const timer = setTimeout(() => {
+        setShowSignInModal(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowSignInModal(false);
+    }
+  }, [error, user]);
   
   // Handle player instantiation
   useEffect(() => {
@@ -195,7 +214,35 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       )}
       
       {/* Add the PersistentLoader component with container ref */}
-      <PersistentLoader containerRef={unityContainerRef} />
+      {!showSignInModal && (
+        <PersistentLoader containerRef={unityContainerRef} />
+      )}
+      
+      {/* Add the SignIn component when needed */}
+      {showSignInModal && (
+        <Box 
+          position="absolute" 
+          top="50%" 
+          left="50%" 
+          transform="translate(-50%, -50%)" 
+          zIndex="100"
+          width="100%"
+          height="100%"
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+        >
+          <SignIn 
+            mode="button" 
+            label="Sign In" 
+            initialIsOpen={true}
+            buttonProps={{ 
+              size: "lg", 
+              colorScheme: "blue"
+            }} 
+          />
+        </Box>
+      )}
       
       <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
         <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "16/9", position: "relative" }}>
@@ -262,11 +309,15 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
             
             {/* Unity display - z-index 1 */}
             <Box {...fadeStyles} width="100%" height="100%" position="absolute" zIndex="1">
-              <Unity 
-                unityProvider={unityProvider}
-                style={{ width: "100%", height: "100%" }}
-                devicePixelRatio={devicePixelRatio}
-              />
+              {unityProvider ? (
+                <Unity 
+                  unityProvider={unityProvider}
+                  style={{ width: "100%", height: "100%" }}
+                  devicePixelRatio={devicePixelRatio}
+                />
+              ) : (
+                <Box width="100%" height="100%" />
+              )}
             </Box>
             
             {/* Hide the original LoaderProgress since we're using PersistentLoader now */}

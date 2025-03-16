@@ -31,6 +31,27 @@ const PersistentLoader = ({ containerRef }) => {
     };
   }, []);
 
+  // Check for Unity errors
+  const { error } = useUnity();
+  const [errorState, setErrorState] = useState(false);
+  
+  useEffect(() => {
+    if (error) {
+      Logger.error("PersistentLoader: Unity error detected:", error);
+      setErrorState(true);
+      
+      // After a delay, force the loader to show "Reconnecting..." instead of an error
+      setTimeout(() => {
+        if (loaderRef.current) {
+          const stageText = loaderRef.current.querySelector('div:first-child');
+          if (stageText) {
+            stageText.textContent = "Reconnecting...";
+          }
+        }
+      }, 3000);
+    }
+  }, [error]);
+
   // Fetch space logo when component mounts
   useEffect(() => {
     const fetchSpaceLogo = async () => {
@@ -251,6 +272,13 @@ const PersistentLoader = ({ containerRef }) => {
       { stage: 'Loading User', progress: 1.0 }
     ];
     
+    // If there's an error, use different loading stages
+    if (errorState) {
+      loadingStages[0].stage = 'Connecting to Space';
+      loadingStages[1].stage = 'Reconnecting...';
+      loadingStages[2].stage = 'Please Wait';
+    }
+    
     // Set initial stage
     updateLoadingStage(loadingStages[0].stage);
     updateProgress(0.05); // Start at 5%
@@ -292,6 +320,12 @@ const PersistentLoader = ({ containerRef }) => {
       setIsPlayerInstantiated(true);
       updateLoadingStage(loadingStages[2].stage);
       updateProgress(1.0);
+      
+      // If there's an error, don't fade out the loader
+      if (errorState) {
+        Logger.log("PersistentLoader: Keeping loader visible due to Unity error");
+        return;
+      }
       
       // Fade out the loader and logo
       loaderElement.style.opacity = '0';
