@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth, db } from '@disruptive-spaces/shared/firebase/firebase';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
@@ -30,11 +30,16 @@ const registerUser = async (email, password, additionalData) => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
+        // Send email verification
+        await sendEmailVerification(user);
+        Logger.log('userFirestore: Verification email sent to:', email);
+
         // Add default groups array with 'users' group
         const userData = { 
             email: user.email, 
             createdAt: new Date(), 
             groups: ['users'], // Add default 'users' group
+            emailVerified: false, // Track email verification status
             ...additionalData 
         };
 

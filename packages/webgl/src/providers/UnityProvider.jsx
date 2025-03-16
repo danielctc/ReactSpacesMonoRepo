@@ -19,14 +19,6 @@ export const UnityProvider = ({
   Logger.log(`${DEBUG_PREFIX} Initializing with spaceID:`, spaceID);
   Logger.log(`${DEBUG_PREFIX} Unity URLs:`, { loaderUrl, dataUrl, frameworkUrl, codeUrl });
 
-  // Add more detailed logging for debugging
-  useEffect(() => {
-    Logger.log(`${DEBUG_PREFIX} PERMISSION DEBUG: spaceID value:`, spaceID);
-    Logger.log(`${DEBUG_PREFIX} PERMISSION DEBUG: Component props:`, { 
-      spaceID, loaderUrl, dataUrl, frameworkUrl, codeUrl 
-    });
-  }, [spaceID, loaderUrl, dataUrl, frameworkUrl, codeUrl]);
-
   const {
     unityProvider,
     loadingProgression,
@@ -53,16 +45,6 @@ export const UnityProvider = ({
     error,
     spaceID // Include spaceID in the context
   };
-
-  // Add debug logging for the context value
-  useEffect(() => {
-    Logger.log(`${DEBUG_PREFIX} PERMISSION DEBUG: Unity context value:`, unityInstance);
-    if (unityInstance.spaceID) {
-      Logger.log(`${DEBUG_PREFIX} PERMISSION DEBUG: spaceID in context:`, unityInstance.spaceID);
-    } else {
-      Logger.error(`${DEBUG_PREFIX} PERMISSION DEBUG: spaceID is missing in context!`);
-    }
-  }, [unityInstance]);
 
   const keepAliveInterval = useRef(null);
   const lastActivityTime = useRef(Date.now());

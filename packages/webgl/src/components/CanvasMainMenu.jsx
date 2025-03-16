@@ -249,9 +249,6 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
     });
   };
 
-  // Check if user has permission to share screen (owner, host, or admin)
-  const canShareScreen = canEditSpace || isSpaceHost || isDisruptiveAdmin;
-
   return (
     <>
       <Menu isOpen={isOpen} onClose={() => setIsOpen(false)}>
@@ -430,8 +427,8 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                   </Text>
                 )}
                 
-                {/* Screen Share option - Only show if voice is not disabled AND user is owner, host, or admin */}
-                {user && spaceID && !voiceDisabled && canShareScreen && (
+                {/* Screen Share option - Only show if voice is not disabled */}
+                {user && spaceID && !voiceDisabled && (
                   <ScreenShareMenuOption onClose={handleCloseMenu} />
                 )}
                 

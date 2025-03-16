@@ -3,6 +3,7 @@ import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus'
 import PropTypes from 'prop-types';
 import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { useUnity } from '../providers/UnityProvider';
+import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 /**
  * PersistentLoader - A component that displays loading progress within the Unity canvas container
@@ -18,19 +19,36 @@ const PersistentLoader = ({ containerRef }) => {
   const loaderRef = useRef(null);
   const logoRef = useRef(null);
   const logoContainerRef = useRef(null);
+  const progressIntervalRef = useRef(null);
+
+  // Debug log when component mounts
+  useEffect(() => {
+    Logger.log("PersistentLoader: Component mounted with spaceID:", spaceID);
+    Logger.log("PersistentLoader: Container ref:", containerRef);
+    
+    return () => {
+      Logger.log("PersistentLoader: Component unmounting");
+    };
+  }, []);
 
   // Fetch space logo when component mounts
   useEffect(() => {
     const fetchSpaceLogo = async () => {
       if (spaceID) {
+        Logger.log(`PersistentLoader: Fetching logo for space ${spaceID}`);
         try {
           const spaceData = await getSpaceItem(spaceID);
           if (spaceData && spaceData.logoUrl) {
+            Logger.log(`PersistentLoader: Found logo URL: ${spaceData.logoUrl}`);
             setSpaceLogo(spaceData.logoUrl);
+          } else {
+            Logger.log(`PersistentLoader: No logo URL found for space ${spaceID}`);
           }
         } catch (error) {
-          console.error('Error fetching space logo:', error);
+          Logger.error('PersistentLoader: Error fetching space logo:', error);
         }
+      } else {
+        Logger.warn('PersistentLoader: No spaceID provided, cannot fetch logo');
       }
     };
 
@@ -41,30 +59,42 @@ const PersistentLoader = ({ containerRef }) => {
   useEffect(() => {
     const handleLogoUpdate = (event) => {
       const { logoUrl } = event.detail;
+      Logger.log(`PersistentLoader: Logo update event received with URL: ${logoUrl}`);
       setSpaceLogo(logoUrl);
       
       // Update the logo element if it exists
       if (logoRef.current) {
         if (logoUrl) {
+          Logger.log('PersistentLoader: Updating logo element with new URL');
           logoRef.current.src = logoUrl;
           logoContainerRef.current.style.display = 'flex';
         } else {
+          Logger.log('PersistentLoader: Hiding logo element (no URL)');
           logoContainerRef.current.style.display = 'none';
         }
+      } else {
+        Logger.warn('PersistentLoader: Logo ref is null during update');
       }
     };
 
+    Logger.log('PersistentLoader: Adding SpaceLogoUpdated event listener');
     window.addEventListener('SpaceLogoUpdated', handleLogoUpdate);
     
     return () => {
+      Logger.log('PersistentLoader: Removing SpaceLogoUpdated event listener');
       window.removeEventListener('SpaceLogoUpdated', handleLogoUpdate);
     };
   }, []);
 
   useEffect(() => {
     // Wait for the container ref to be available
-    if (!containerRef || !containerRef.current) return;
+    if (!containerRef || !containerRef.current) {
+      Logger.error('PersistentLoader: Container ref is null or has no current property');
+      return;
+    }
 
+    Logger.log('PersistentLoader: Creating loader elements');
+    
     // Create a div element for the loader
     const loaderElement = document.createElement('div');
     loaderRef.current = loaderElement;
@@ -93,6 +123,7 @@ const PersistentLoader = ({ containerRef }) => {
     
     // Create a separate container for the logo
     if (spaceLogo) {
+      Logger.log(`PersistentLoader: Creating logo element with URL: ${spaceLogo}`);
       const logoContainer = document.createElement('div');
       logoContainerRef.current = logoContainer;
       
@@ -127,6 +158,9 @@ const PersistentLoader = ({ containerRef }) => {
       
       // Add the logo container to the main container
       containerRef.current.appendChild(logoContainer);
+      Logger.log('PersistentLoader: Logo container added to main container');
+    } else {
+      Logger.log('PersistentLoader: No logo URL available, skipping logo creation');
     }
     
     // Create the animation style
@@ -145,6 +179,7 @@ const PersistentLoader = ({ containerRef }) => {
       }
     `;
     document.head.appendChild(style);
+    Logger.log('PersistentLoader: Animation styles added to document head');
     
     // Create stage text
     const stageText = document.createElement('div');
@@ -192,18 +227,21 @@ const PersistentLoader = ({ containerRef }) => {
     
     // Add the loader element to the container
     containerRef.current.appendChild(loaderElement);
+    Logger.log('PersistentLoader: Loader element added to container');
     
     // Function to update the progress display
     const updateProgress = (value) => {
       setProgress(value);
       progressBar.style.width = `${Math.round(value * 100)}%`;
       progressText.textContent = `${Math.round(value * 100)}%`;
+      Logger.log(`PersistentLoader: Progress updated to ${Math.round(value * 100)}%`);
     };
     
     // Function to update the loading stage
     const updateLoadingStage = (stage) => {
       setLoadingStage(stage);
       stageText.textContent = stage;
+      Logger.log(`PersistentLoader: Loading stage updated to "${stage}"`);
     };
     
     // Define loading stages with corresponding progress values
@@ -220,6 +258,7 @@ const PersistentLoader = ({ containerRef }) => {
     // Function to handle progress updates
     const handleProgress = (event) => {
       const progressValue = event.detail.progress;
+      Logger.log(`PersistentLoader: Progress event received with value: ${progressValue}`);
       updateProgress(progressValue);
       
       // Update stage based on progress
@@ -234,7 +273,7 @@ const PersistentLoader = ({ containerRef }) => {
     
     // Function to handle first scene loaded
     const handleFirstSceneLoaded = () => {
-      console.log("PersistentLoader: First scene loaded event received");
+      Logger.log("PersistentLoader: First scene loaded event received");
       setIsFirstSceneLoaded(true);
       updateLoadingStage(loadingStages[1].stage);
       updateProgress(0.66);
@@ -242,123 +281,117 @@ const PersistentLoader = ({ containerRef }) => {
     
     // Function to handle player instantiation
     const handlePlayerInstantiated = () => {
-      console.log("PersistentLoader: Player instantiated event received");
+      Logger.log("PersistentLoader: Player instantiated event received");
       
       // Immediately stop all other progress updates
-      if (progressInterval) {
-        clearInterval(progressInterval);
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        Logger.log("PersistentLoader: Progress interval cleared");
       }
       
-      // Unsubscribe from all events that might update progress
-      window.removeEventListener('UnityProgress', handleProgress);
-      
-      // Set state
       setIsPlayerInstantiated(true);
       updateLoadingStage(loadingStages[2].stage);
+      updateProgress(1.0);
       
-      // Force to 100% immediately
-      progressBar.style.width = '100%';
-      progressText.textContent = '100%';
+      // Fade out the loader and logo
+      loaderElement.style.opacity = '0';
+      if (logoContainerRef.current) {
+        logoContainerRef.current.style.opacity = '0';
+      }
       
-      // Keep at 100% for 1 second, then fade out
+      // Remove the elements after the transition
       setTimeout(() => {
-        // Fade out the loader and logo
-        loaderElement.style.opacity = '0';
-        if (logoContainerRef.current) {
-          logoContainerRef.current.style.opacity = '0';
+        if (containerRef.current && containerRef.current.contains(loaderElement)) {
+          containerRef.current.removeChild(loaderElement);
+          Logger.log("PersistentLoader: Loader element removed after fade");
+        } else {
+          Logger.warn("PersistentLoader: Could not remove loader element (not found in container)");
         }
         
-        // Remove the loader and logo after the transition
-        setTimeout(() => {
-          if (containerRef.current) {
-            if (containerRef.current.contains(loaderElement)) {
-              containerRef.current.removeChild(loaderElement);
-            }
-            if (logoContainerRef.current && containerRef.current.contains(logoContainerRef.current)) {
-              containerRef.current.removeChild(logoContainerRef.current);
-            }
-          }
-        }, 1500); // Match the transition duration
-      }, 1000); // Show 100% for 1 second
-    };
-    
-    // Simulate progress updates for better user experience
-    let progressInterval = null;
-    if (!window.isPlayerInstantiated) {
-      let simulatedProgress = 0.05; // Start at 5%
-      progressInterval = setInterval(() => {
-        if (!isFirstSceneLoaded && !isPlayerInstantiated) {
-          simulatedProgress += 0.01;
-          if (simulatedProgress > 0.6) {
-            simulatedProgress = 0.6; // Cap at 60% until first scene is loaded
-            clearInterval(progressInterval);
-            progressInterval = null;
-          }
-          updateProgress(simulatedProgress);
-          
-          // Update stage based on simulated progress
-          if (simulatedProgress < 0.33) {
-            updateLoadingStage(loadingStages[0].stage);
-          } else if (simulatedProgress < 0.66) {
-            updateLoadingStage(loadingStages[1].stage);
-          }
-        } else {
-          clearInterval(progressInterval);
-          progressInterval = null;
+        if (logoContainerRef.current && containerRef.current && containerRef.current.contains(logoContainerRef.current)) {
+          containerRef.current.removeChild(logoContainerRef.current);
+          Logger.log("PersistentLoader: Logo container removed after fade");
+        } else if (logoContainerRef.current) {
+          Logger.warn("PersistentLoader: Could not remove logo container (not found in container)");
         }
-      }, 200);
-    }
+      }, 1500); // Match the transition duration
+    };
     
     // Check if player is already instantiated
     if (window.isPlayerInstantiated) {
-      console.log("PersistentLoader: Player was already instantiated");
+      Logger.log("PersistentLoader: Player was already instantiated");
       handlePlayerInstantiated();
     } else {
-      // Subscribe to progress events
+      // Subscribe to player instantiated event
+      Logger.log("PersistentLoader: Subscribing to playerInstantiated event");
+      eventBus.subscribe(EventNames.playerInstantiated, handlePlayerInstantiated);
+      
+      // Also listen for the custom event
+      const customEventHandler = () => handlePlayerInstantiated();
+      Logger.log("PersistentLoader: Adding PlayerInstantiated event listener");
+      window.addEventListener("PlayerInstantiated", customEventHandler);
+      
+      // Listen for first scene loaded event
+      Logger.log("PersistentLoader: Adding firstSceneLoaded event listener");
+      eventBus.subscribe(EventNames.firstSceneLoaded, handleFirstSceneLoaded);
+      
+      // Listen for progress updates
+      Logger.log("PersistentLoader: Adding UnityProgress event listener");
       window.addEventListener('UnityProgress', handleProgress);
       
-      // Subscribe to first scene loaded event
-      eventBus.subscribe(EventNames.firstSceneLoaded, handleFirstSceneLoaded);
-      window.addEventListener('FirstSceneLoaded', handleFirstSceneLoaded);
+      // Simulate progress updates if no events are received
+      progressIntervalRef.current = setInterval(() => {
+        if (!isPlayerInstantiated) {
+          setProgress(prevProgress => {
+            const newProgress = Math.min(prevProgress + 0.01, 0.95);
+            progressBar.style.width = `${Math.round(newProgress * 100)}%`;
+            progressText.textContent = `${Math.round(newProgress * 100)}%`;
+            
+            // Update stage based on progress
+            if (newProgress < 0.33 && loadingStage !== loadingStages[0].stage) {
+              updateLoadingStage(loadingStages[0].stage);
+            } else if (newProgress >= 0.33 && newProgress < 0.66 && loadingStage !== loadingStages[1].stage) {
+              updateLoadingStage(loadingStages[1].stage);
+            } else if (newProgress >= 0.66 && loadingStage !== loadingStages[2].stage) {
+              updateLoadingStage(loadingStages[2].stage);
+            }
+            
+            return newProgress;
+          });
+        }
+      }, 500);
       
-      // Subscribe to player instantiated event
-      eventBus.subscribe(EventNames.playerInstantiated, handlePlayerInstantiated);
-      window.addEventListener('PlayerInstantiated', handlePlayerInstantiated);
-      
-      // Force progress to 100% after a timeout (failsafe)
+      // Force hide after a timeout (failsafe)
       const timeoutId = setTimeout(() => {
-        console.log("PersistentLoader: Forcing loader removal after timeout");
+        Logger.log("PersistentLoader: Forcing loader removal after timeout");
         handlePlayerInstantiated();
-      }, 30000); // 30 seconds max
+      }, 60000); // 60 seconds max
       
       return () => {
         // Clean up event listeners
-        window.removeEventListener('UnityProgress', handleProgress);
-        eventBus.unsubscribe(EventNames.firstSceneLoaded, handleFirstSceneLoaded);
-        window.removeEventListener('FirstSceneLoaded', handleFirstSceneLoaded);
+        Logger.log("PersistentLoader: Cleaning up event listeners");
         eventBus.unsubscribe(EventNames.playerInstantiated, handlePlayerInstantiated);
-        window.removeEventListener('PlayerInstantiated', handlePlayerInstantiated);
+        window.removeEventListener("PlayerInstantiated", customEventHandler);
+        eventBus.unsubscribe(EventNames.firstSceneLoaded, handleFirstSceneLoaded);
+        window.removeEventListener('UnityProgress', handleProgress);
+        clearInterval(progressIntervalRef.current);
         clearTimeout(timeoutId);
         
-        // Remove the loader element if it still exists
-        if (containerRef.current) {
-          if (loaderElement && containerRef.current.contains(loaderElement)) {
-            containerRef.current.removeChild(loaderElement);
-          }
-          if (logoContainerRef.current && containerRef.current.contains(logoContainerRef.current)) {
-            containerRef.current.removeChild(logoContainerRef.current);
-          }
+        // Remove the elements if they still exist
+        if (containerRef.current && containerRef.current.contains(loaderElement)) {
+          containerRef.current.removeChild(loaderElement);
+          Logger.log("PersistentLoader: Loader element removed during cleanup");
         }
         
-        // Remove the style element
-        if (document.head.contains(style)) {
-          document.head.removeChild(style);
+        if (logoContainerRef.current && containerRef.current && containerRef.current.contains(logoContainerRef.current)) {
+          containerRef.current.removeChild(logoContainerRef.current);
+          Logger.log("PersistentLoader: Logo container removed during cleanup");
         }
       };
     }
-  }, [containerRef, spaceLogo]); // Run when containerRef or spaceLogo changes
+  }, [spaceLogo, containerRef]); // Run when the component mounts or spaceLogo/containerRef changes
 
-  // This component doesn't render anything visible through React
+  // This component doesn't render anything visible
   return null;
 };
 

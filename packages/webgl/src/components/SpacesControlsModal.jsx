@@ -152,7 +152,7 @@ function SpacesControlsModal({ open, onClose }) {
                   <Text fontSize="xs">• Press ESC to access settings</Text>
                   <Text fontSize="xs">• Click on players to view their profile</Text>
                   <Text fontSize="xs">• Use the minimap to navigate</Text>
-                </VStack>
+          </VStack>
               </TabPanel>
             </TabPanels>
           </Tabs>

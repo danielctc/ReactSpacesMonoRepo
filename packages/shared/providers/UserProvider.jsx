@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useRef } from 'react';
-import { onAuthStateChanged, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
+import { onAuthStateChanged, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore'; // Import onSnapshot for real-time updates
 import { auth, db } from '@disruptive-spaces/shared/firebase/firebase'; // Ensure db is your Firestore instance
 import { getUserProfileData, registerUser } from '@disruptive-spaces/shared/firebase/userFirestore';
@@ -36,6 +36,7 @@ export const UserProvider = ({ children }) => {
                     const fullUserDetails = {
                         uid: authUser.uid,
                         email: authUser.email,
+                        emailVerified: authUser.emailVerified,
                         ...userProfile,
                         displayName
                     };
@@ -101,11 +102,21 @@ export const UserProvider = ({ children }) => {
     const signIn = async (email, password) => {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            
+            // Check if email is verified
+            if (!userCredential.user.emailVerified) {
+                // Send another verification email if needed
+                await sendEmailVerification(userCredential.user);
+                Logger.log('UserProvider: Verification email sent again to:', email);
+                throw new Error('Please verify your email before signing in. A new verification email has been sent.');
+            }
+            
             const userProfile = await getUserProfileData(userCredential.user.uid);
             const displayName = getDisplayName(userProfile);
             const fullUserDetails = {
                 uid: userCredential.user.uid,
                 email: userCredential.user.email,
+                emailVerified: userCredential.user.emailVerified,
                 ...userProfile,
                 displayName
             };
@@ -131,9 +142,6 @@ export const UserProvider = ({ children }) => {
     const sendUserToUnity = () => {
         const currentUser = currentUserRef.current;
         if (currentUser) {
-            // Add debug logging
-            Logger.log("UserProvider: Current user before filtering:", currentUser);
-            
             const filteredUser = filterUserPropertiesForUnity(currentUser);
             Logger.log("UserProvider: sendUserToUnity() using the eventBus", filteredUser);
             eventBus.publish(EventNames.sendUserToUnity, filteredUser);
@@ -143,24 +151,15 @@ export const UserProvider = ({ children }) => {
     };
 
     const filterUserPropertiesForUnity = (userObject) => {
-        // Add debug logging
-        Logger.log("UserProvider: Filtering user properties for Unity. Original user object:", userObject);
-        
         const filteredUser = {};
         // Add uid to the list of properties to send
         const propertiesForUnity = [...userProperties, 'uid'];
-        
-        Logger.log("UserProvider: Properties to include:", propertiesForUnity);
         
         propertiesForUnity.forEach(field => {
             if (userObject.hasOwnProperty(field)) {
                 filteredUser[field] = userObject[field];
             }
         });
-        
-        // Add debug logging for the filtered user
-        Logger.log("UserProvider: Filtered user object for Unity:", filteredUser);
-        
         return filteredUser;
     };
 
@@ -235,6 +234,21 @@ export const UserProvider = ({ children }) => {
         }
     };
 
+    const resendVerificationEmail = async () => {
+        try {
+            const currentUser = auth.currentUser;
+            if (currentUser && !currentUser.emailVerified) {
+                await sendEmailVerification(currentUser);
+                Logger.log('UserProvider: Verification email resent to:', currentUser.email);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            Logger.error("UserProvider: Error resending verification email:", error);
+            throw error;
+        }
+    };
+
     return (
         <UserContext.Provider value={{
             user,
@@ -247,6 +261,7 @@ export const UserProvider = ({ children }) => {
             userHasAccessToSpace,
             userIsAdminOfSpace,
             userIsModeratorOfSpace,
+            resendVerificationEmail,
         }}>
             {children}
         </UserContext.Provider>

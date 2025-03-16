@@ -61,9 +61,9 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
             onClose();
             toast({
                 title: "Registration Successful",
-                description: "Your account has been created and you've been added to the users group.",
+                description: "Your account has been created. Please check your email to verify your account before signing in.",
                 status: "success",
-                duration: 5000,
+                duration: 7000,
                 isClosable: true,
                 position: "top",
             });

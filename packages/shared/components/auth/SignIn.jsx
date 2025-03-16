@@ -63,10 +63,15 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {} }) {
             
         } catch (error) {
             Logger.error("User: SignIn Error:", error);
+            
+            // Check if the error is about email verification
+            const errorMessage = error.message || "An error occurred while logging in. Please check your credentials.";
+            const isVerificationError = errorMessage.includes("verify your email");
+            
             toast({
-                title: "Error",
-                description: "An error occurred while logging in. Please check your credentials.",
-                status: "error",
+                title: isVerificationError ? "Email Verification Required" : "Error",
+                description: errorMessage,
+                status: isVerificationError ? "warning" : "error",
                 duration: 10000,
                 isClosable: true,
                 position: "top",

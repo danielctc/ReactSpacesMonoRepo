@@ -235,11 +235,6 @@ export const userBelongsToGroup = async (userId, groupName) => {
  * @returns {Promise<boolean>} - True if the user belongs to a space-specific group
  */
 export const userBelongsToSpaceGroup = async (userId, spaceId) => {
-  // Use override if enabled
-  if (USE_PERMISSION_OVERRIDES) {
-    return overrides.userBelongsToSpaceGroup(userId, spaceId);
-  }
-  
   try {
     if (!userId || !spaceId) return false;
     

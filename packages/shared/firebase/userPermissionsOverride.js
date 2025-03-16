@@ -30,7 +30,7 @@ export const isSpaceOwner = (user, spaceId) => {
  * @returns {boolean} - Always true
  */
 export const isSpaceHost = (user, spaceId) => {
-  Logger.log(`OVERRIDE: isSpaceHost check for user ${user?.uid} and space ${spaceId} - Returning true`);
+  console.log(`OVERRIDE: isSpaceHost check for user ${user?.uid} and space ${spaceId} - Returning true`);
   return true;
 };
 
@@ -45,7 +45,7 @@ export const isSpaceHost = (user, spaceId) => {
 export const userBelongsToGroup = (userId, groupName) => {
   // Always return true for 'users' group
   if (groupName === 'users') {
-    Logger.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and group ${groupName} - Returning true`);
+    console.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and group ${groupName} - Returning true`);
     return true;
   }
   
@@ -60,12 +60,12 @@ export const userBelongsToGroup = (userId, groupName) => {
     ];
     
     const isAdmin = adminUids.includes(userId);
-    Logger.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and admin group ${groupName} - Returning ${isAdmin}`);
+    console.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and admin group ${groupName} - Returning ${isAdmin}`);
     return isAdmin;
   }
   
   // For other groups, return false
-  Logger.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and group ${groupName} - Returning false`);
+  console.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and group ${groupName} - Returning false`);
   return false;
 };
 
@@ -78,7 +78,7 @@ export const userBelongsToGroup = (userId, groupName) => {
  * @returns {boolean} - Always true
  */
 export const userBelongsToSpaceGroup = (userId, spaceId) => {
-  Logger.log(`OVERRIDE: userBelongsToSpaceGroup check for user ${userId} and space ${spaceId} - Returning true`);
+  console.log(`OVERRIDE: userBelongsToSpaceGroup check for user ${userId} and space ${spaceId} - Returning true`);
   return true;
 };
 
@@ -99,7 +99,7 @@ export const isAdmin = (user) => {
   ];
   
   const isAdmin = adminUids.includes(user?.uid);
-  Logger.log(`OVERRIDE: isAdmin check for user ${user?.uid} - Returning ${isAdmin}`);
+  console.log(`OVERRIDE: isAdmin check for user ${user?.uid} - Returning ${isAdmin}`);
   return isAdmin;
 };
 
@@ -112,6 +112,6 @@ export const isAdmin = (user) => {
  * @returns {boolean} - Always true
  */
 export const hasSpaceAccess = (user, spaceId) => {
-  Logger.log(`OVERRIDE: hasSpaceAccess check for user ${user?.uid} and space ${spaceId} - Returning true`);
+  console.log(`OVERRIDE: hasSpaceAccess check for user ${user?.uid} and space ${spaceId} - Returning true`);
   return true;
 }; 
