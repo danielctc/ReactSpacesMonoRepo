@@ -24,6 +24,73 @@
     
     <!-- webgl -->
     <script type="module" crossorigin src="https://disruptive-metaverse.web.app/webgl/assets/main.v0.9.22.js"></script>
+    
+    <!-- Unity Keyboard Focus Styles -->
+    <style>
+      /* When the unity-focused class is present on the body, only prevent keyboard scrolling but allow mouse scrolling */
+      body.unity-focused {
+        /* Remove overflow: hidden to allow mouse scrolling */
+        overflow: auto;
+        /* Add a specific CSS variable to indicate Unity has focus for JavaScript to use */
+        --unity-has-focus: 1;
+      }
+      
+      /* Add CSS targetting the actual Unity canvas element to improve its focus appearance */
+      body.unity-focused canvas {
+        outline: none !important; /* Remove default focus outline */
+        border: none !important;
+      }
+      
+      /* Improve focus handling for Unity container */
+      #webgl-root {
+        position: relative;
+        z-index: 1;
+      }
+      
+      /* Ensure overlay UI properly appears above Unity */
+      .webgl-overlay, .game-ui, .player-list, .unity-ui-overlay {
+        position: relative;
+        z-index: 2;
+      }
+    </style>
+    
+    <!-- Custom Keyboard Handling Script -->
+    <script>
+      // Add a script to only prevent arrow key scrolling, not mouse scrolling
+      document.addEventListener('DOMContentLoaded', function() {
+        // List of keys that should be prevented from scrolling the page
+        const navigationKeys = [
+          'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+          'Space', 'PageUp', 'PageDown', 'Home', 'End',
+          // Include WASD for games that use these for movement
+          'KeyW', 'KeyA', 'KeyS', 'KeyD'
+        ];
+        
+        // Handle keydown events
+        document.addEventListener('keydown', function(e) {
+          // Only prevent default if Unity has focus (check for CSS variable)
+          if (getComputedStyle(document.body).getPropertyValue('--unity-has-focus') === '1') {
+            // Get the key or code from the event
+            const key = e.key || e.code;
+            
+            // Check if we should prevent this key's default behavior
+            if (navigationKeys.includes(key) || 
+                navigationKeys.includes(e.code) || 
+                // Handle space key which might be " " instead of "Space"
+                (key === ' ')) {
+              
+              // Only prevent if not typing in an input element
+              if (!e.target.tagName || 
+                  !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+                
+                console.log(`Preventing page scroll for key: ${key}`);
+                e.preventDefault();
+              }
+            }
+          }
+        }, { capture: true }); // Use capture phase to catch events before they bubble
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -19,7 +19,7 @@ import { useState, useContext, useEffect, useRef } from "react";
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
-import useKeyboardFocus from "@disruptive-spaces/shared/hooks/useKeyboardFocus";
+import { blockUnityKeyboardInput, focusUnity } from "@disruptive-spaces/webgl/src/utils/unityKeyboard";
 
 const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -31,7 +31,7 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
         linkedInProfile: user?.linkedInProfile || ""
     });
     const [isLoading, setIsLoading] = useState(false);
-    const [isFocused, setIsFocused] = useKeyboardFocus();
+    const [isInputFocused, setIsInputFocused] = useState(false);
     const toast = useToast();
     const { sendUserToUnity } = useContext(UserContext);
     const inputRef = useRef(null);
@@ -47,16 +47,42 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
         });
     }, [user]);
 
+    // Block Unity keyboard input when modal is open
+    useEffect(() => {
+        if (isOpen) {
+            console.log('ProfileModal: Modal opened, blocking Unity keyboard input');
+            blockUnityKeyboardInput(true);
+            
+            // Dispatch modal-opened event for WebGLRenderer to listen for
+            window.dispatchEvent(new CustomEvent('modal-opened'));
+        } else {
+            console.log('ProfileModal: Modal closed, unblocking Unity keyboard input');
+            blockUnityKeyboardInput(false).then(() => {
+                setTimeout(() => {
+                    focusUnity(true);
+                }, 100);
+            });
+            
+            // Dispatch modal-closed event for WebGLRenderer to listen for
+            window.dispatchEvent(new CustomEvent('modal-closed'));
+        }
+        
+        return () => {
+            if (isOpen) {
+                console.log('ProfileModal: Cleanup on unmount, unblocking Unity keyboard input');
+                blockUnityKeyboardInput(false);
+                window.dispatchEvent(new CustomEvent('modal-closed'));
+            }
+        };
+    }, [isOpen]);
+
     // Handle focus when editing mode changes
     useEffect(() => {
         if (isEditing && inputRef.current) {
             const focusInput = () => {
                 inputRef.current.focus();
-                setIsFocused(true);
-                const unityCanvas = document.querySelector('#unity-canvas');
-                if (unityCanvas) {
-                    unityCanvas.blur();
-                }
+                setIsInputFocused(true);
+                blockUnityKeyboardInput(true);
             };
 
             focusInput();
@@ -68,13 +94,13 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
                 clearTimeout(timer2);
             };
         } else {
-            setIsFocused(false);
+            setIsInputFocused(false);
         }
-    }, [isEditing, setIsFocused]);
+    }, [isEditing]);
 
     const handleClose = () => {
         setIsEditing(false);
-        setIsFocused(false);
+        setIsInputFocused(false);
         onClose();
     };
 
@@ -194,9 +220,8 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
                     value={formData.Nickname}
                     onChange={handleInputChange}
                     onFocus={() => {
-                        setIsFocused(true);
-                        const unityCanvas = document.querySelector('#unity-canvas');
-                        if (unityCanvas) unityCanvas.blur();
+                        setIsInputFocused(true);
+                        blockUnityKeyboardInput(true);
                     }}
                     placeholder="Enter nickname"
                     bg="gray.700"

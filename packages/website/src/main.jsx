@@ -13,6 +13,18 @@ import './index.css';
 // Initialize Firebase if needed
 import '@disruptive-spaces/shared/firebase/firebase';
 
+// Override WebGL console error - we only need webgl-root on specific pages
+const originalConsoleError = console.error;
+console.error = function(msg, ...args) {
+  // Suppress the specific error about webgl-root not being found
+  if (typeof msg === 'string' && msg.includes("Root element 'webgl-root' not found")) {
+    // This error is expected on non-SpacePage routes, so we'll ignore it
+    return;
+  }
+  // Call the original console.error for all other messages
+  originalConsoleError.apply(console, [msg, ...args]);
+};
+
 // Initialize Webflow script if it exists
 window.Webflow && window.Webflow.destroy();
 window.Webflow && window.Webflow.ready();

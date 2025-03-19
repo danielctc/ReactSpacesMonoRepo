@@ -146,62 +146,6 @@ const EmbedPage = () => {
     }
   };
 
-  // Set up the webgl-root element when the component mounts
-  useEffect(() => {
-    // Check if webgl-root exists, create it if it doesn't
-    let webglRoot = document.getElementById('webgl-root');
-    
-    if (!webglRoot) {
-      Logger.log('EmbedPage: Creating webgl-root element as it does not exist');
-      webglRoot = document.createElement('div');
-      webglRoot.id = 'webgl-root';
-      webglRoot.style.display = 'block';
-      webglRoot.style.width = '100%';
-      webglRoot.style.height = '100%';
-      webglRoot.style.position = 'relative';
-      document.body.appendChild(webglRoot);
-    }
-    
-    const webglContainer = containerRef.current;
-    
-    if (webglRoot && webglContainer) {
-      // Store the original parent to restore later
-      const originalParent = webglRoot.parentElement;
-      const originalStyle = {
-        display: webglRoot.style.display,
-        width: webglRoot.style.width,
-        height: webglRoot.style.height,
-        position: webglRoot.style.position
-      };
-      
-      // Move the webgl-root element into our container
-      webglContainer.appendChild(webglRoot);
-      
-      // Set the data-space-id attribute based on the space slug
-      const spaceId = isPotatoWebsite ? POTATO_SPACE_ID : actualSpaceId || webglBuildId;
-      Logger.log(`EmbedPage: Setting data-space-id to: ${spaceId}`);
-      webglRoot.setAttribute('data-space-id', spaceId);
-      
-      // Clean up when component unmounts
-      return () => {
-        // Move the webgl-root element back to its original parent
-        if (webglRoot.parentElement === webglContainer) {
-          if (originalParent) {
-            originalParent.appendChild(webglRoot);
-          } else {
-            document.body.appendChild(webglRoot);
-          }
-          
-          // Restore original styles
-          webglRoot.style.display = originalStyle.display;
-          webglRoot.style.width = originalStyle.width;
-          webglRoot.style.height = originalStyle.height;
-          webglRoot.style.position = originalStyle.position;
-        }
-      };
-    }
-  }, [actualSpaceId, webglBuildId, isPotatoWebsite]);
-
   // Render loading state
   if (loading) {
     return (
@@ -248,19 +192,26 @@ const EmbedPage = () => {
       overflow="hidden"
       ref={containerRef}
     >
-      {space && webglBuildId && (
-        <>
+      {/* Create webgl-root element declaratively */}
+      <div 
+        id="webgl-root" 
+        data-space-id={isPotatoWebsite ? POTATO_SPACE_ID : actualSpaceId || webglBuildId}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          position: 'relative'
+        }}
+      >
+        {/* WebGLLoader will mount its content in here */}
+        {(actualSpaceId || webglBuildId) && (
           <UserProvider>
             <FullScreenProvider>
-              <WebGLLoader 
-                spaceID={webglBuildId} 
-                containerRef={containerRef}
-                isEmbed={true}
-              />
+              <WebGLLoader spaceID={isPotatoWebsite ? POTATO_SPACE_ID : actualSpaceId || webglBuildId} />
             </FullScreenProvider>
           </UserProvider>
-        </>
-      )}
+        )}
+      </div>
     </Box>
   );
 };

@@ -1,65 +1,51 @@
-// packages/shared/hooks/useKeyboardFocus.js
+// This is a backward compatibility proxy for the useKeyboardFocus hook
+// It redirects to the unified unityKeyboard utility
 
 import { useState, useEffect } from 'react';
+import { blockUnityKeyboardInput, focusUnity } from '@disruptive-spaces/webgl/src/utils/unityKeyboard';
 
+/**
+ * @deprecated Use window.useUnityKeyboardFocus or import the blockUnityKeyboardInput/focusUnity utilities directly
+ */
 const useKeyboardFocus = () => {
     const [isFocused, setIsFocused] = useState(false);
 
     useEffect(() => {
         if (isFocused) {
-            const unityCanvas = document.querySelector('#unity-canvas');
-            
-            // Force Unity canvas to blur and disable pointer events
-            if (unityCanvas) {
-                unityCanvas.blur();
-                unityCanvas.style.pointerEvents = 'none';
-            }
-
-            // Store the original focus handler
-            const originalHandleKeyboard = window.unityInstance?.Module?.WebGLInputHandler;
-            
-            // Disable Unity's keyboard handler
-            if (window.unityInstance?.Module) {
-                window.unityInstance.Module.WebGLInputHandler = null;
-            }
-
-            // Handle all keyboard events
-            const handleKeyEvent = (e) => {
-                e.stopImmediatePropagation();
-                e.stopPropagation();
-            };
-
-            // Add event listeners in both capture and bubble phases
-            document.addEventListener('keydown', handleKeyEvent, true);
-            document.addEventListener('keyup', handleKeyEvent, true);
-            document.addEventListener('keypress', handleKeyEvent, true);
-            document.addEventListener('keydown', handleKeyEvent, false);
-            document.addEventListener('keyup', handleKeyEvent, false);
-            document.addEventListener('keypress', handleKeyEvent, false);
-
-            return () => {
-                // Restore Unity's keyboard handler
-                if (window.unityInstance?.Module && originalHandleKeyboard) {
-                    window.unityInstance.Module.WebGLInputHandler = originalHandleKeyboard;
-                }
-
-                // Re-enable Unity canvas pointer events
-                if (unityCanvas) {
-                    unityCanvas.style.pointerEvents = 'auto';
-                }
-
-                // Remove all event listeners
-                document.removeEventListener('keydown', handleKeyEvent, true);
-                document.removeEventListener('keyup', handleKeyEvent, true);
-                document.removeEventListener('keypress', handleKeyEvent, true);
-                document.removeEventListener('keydown', handleKeyEvent, false);
-                document.removeEventListener('keyup', handleKeyEvent, false);
-                document.removeEventListener('keypress', handleKeyEvent, false);
-            };
+            console.log('useKeyboardFocus (legacy): Blocking Unity keyboard input');
+            blockUnityKeyboardInput(true);
+            window.dispatchEvent(new CustomEvent('modal-opened'));
+        } else {
+            console.log('useKeyboardFocus (legacy): Unblocking Unity keyboard input');
+            blockUnityKeyboardInput(false).then(() => {
+                setTimeout(() => {
+                    if (!isFocused) { // Double-check we're still not focused
+                        focusUnity(true);
+                    }
+                }, 100);
+            });
+            window.dispatchEvent(new CustomEvent('modal-closed'));
         }
+
+        return () => {
+            if (isFocused) {
+                console.log('useKeyboardFocus (legacy): Cleanup - unblocking Unity keyboard input');
+                blockUnityKeyboardInput(false);
+                window.dispatchEvent(new CustomEvent('modal-closed'));
+            }
+        };
     }, [isFocused]);
+
+    // Log a deprecation warning
+    useEffect(() => {
+        console.warn(
+            'The useKeyboardFocus hook is deprecated. ' +
+            'Use window.useUnityKeyboardFocus or import the blockUnityKeyboardInput/focusUnity utilities directly ' +
+            'from @disruptive-spaces/webgl/src/utils/unityKeyboard'
+        );
+    }, []);
 
     return [isFocused, setIsFocused];
 };
 
-export default useKeyboardFocus;
+export default useKeyboardFocus; 

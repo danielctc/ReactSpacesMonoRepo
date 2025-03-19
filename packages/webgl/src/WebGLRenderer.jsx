@@ -27,9 +27,15 @@ import MediaScreenController from "./components/MediaScreenController";
 import PersistentBackground from "./components/PersistentBackground";
 import PersistentLoader from "./components/PersistentLoader";
 import SignIn from '@disruptive-spaces/shared/components/auth/SignIn';
+import { initUnityKeyboard, focusUnity, setUnityKeyboardCapture, blockUnityKeyboardInput } from './utils/unityKeyboard';
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
+
+// Add a utility function to get the Unity canvas
+const getUnityCanvas = () => {
+  return document.querySelector('canvas') || document.getElementById('unity-canvas');
+};
 
 const WebGLRenderer = forwardRef(({ settings }, ref) => {
   const { unityProvider, isLoaded, error } = useUnity();
@@ -51,6 +57,28 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   
   // State to track if the sign-in modal should be shown
   const [showSignInModal, setShowSignInModal] = useState(false);
+  
+  // State to track if a modal is open (for keyboard focus management)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // When modal state changes, update Unity keyboard capture
+  useEffect(() => {
+    if (isModalOpen) {
+      console.log('WebGLRenderer: Modal opened, disabling Unity keyboard capture');
+      // Use the enhanced blockUnityKeyboardInput for more reliable focus management
+      blockUnityKeyboardInput(true);
+    } else {
+      console.log('WebGLRenderer: Modal closed, enabling Unity keyboard capture');
+      if (isLoaded && !showSignInModal) {
+        // Unblock Unity keyboard input and then focus Unity
+        blockUnityKeyboardInput(false).then(() => {
+          setTimeout(() => {
+            focusUnity(true);
+          }, 100);
+        });
+      }
+    }
+  }, [isModalOpen, isLoaded, showSignInModal]);
   
   // Get spaceID from settings or default
   const spaceID = settings.spaceID || 'default';
@@ -86,6 +114,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       // Add a small delay to ensure the UI is ready
       const timer = setTimeout(() => {
         setShowSignInModal(true);
+        setIsModalOpen(true);
       }, 1000);
       return () => clearTimeout(timer);
     } else {
@@ -132,6 +161,37 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     }
   }, [isPlayerInstantiated]);
   
+  // Handle keyboard focus management
+  useEffect(() => {
+    const handleModalOpen = () => {
+      console.log("WebGLRenderer: Modal opened");
+      setIsModalOpen(true);
+    };
+
+    const handleModalClose = () => {
+      console.log("WebGLRenderer: Modal closed");
+      setIsModalOpen(false);
+    };
+
+    // Listen for modal open/close events
+    window.addEventListener('modal-opened', handleModalOpen);
+    window.addEventListener('modal-closed', handleModalClose);
+
+    return () => {
+      window.removeEventListener('modal-opened', handleModalOpen);
+      window.removeEventListener('modal-closed', handleModalClose);
+    };
+  }, []);
+
+  // Handle keyboard focus for nameplate modal
+  useEffect(() => {
+    if (nameplateData !== null) {
+      setIsModalOpen(true);
+    } else {
+      setIsModalOpen(false);
+    }
+  }, [nameplateData]);
+  
   // Ensure the Unity environment is ready before attempting interactions
   useEffect(() => {
     if (isLoaded || isFirstSceneLoaded) {
@@ -144,6 +204,206 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       Logger.warn("WebGLRenderer: Unity is NOT ready yet.");
     }
   }, [isLoaded, isFirstSceneLoaded]);
+  
+  // Add this useEffect to disable keyboard capture when Unity loads
+  useEffect(() => {
+    // Only run this once when Unity loads
+    if (isLoaded && unityProvider) {
+      // Ensure WebGLInput.captureAllKeyboardInput is set to false
+      setTimeout(() => {
+        if (window.unityInstance) {
+          try {
+            console.log('WebGLRenderer: Disabling Unity keyboard capture on initialization');
+            window.unityInstance.SendMessage('WebGLInput', 'SetCaptureAllKeyboardInput', false);
+          } catch (err) {
+            console.error('WebGLRenderer: Error disabling Unity keyboard capture:', err);
+          }
+        }
+      }, 1000); // Delay to ensure Unity is fully loaded
+    }
+  }, [isLoaded, unityProvider]);
+  
+  // Ensure the webgl-root element is visible and properly configured
+  useEffect(() => {
+    // Find the webgl-root element
+    const webglRoot = document.getElementById('webgl-root');
+    
+    if (webglRoot) {
+      console.log('WebGLRenderer: Found webgl-root element, ensuring it is visible');
+      
+      // Make sure it's visible
+      webglRoot.style.display = 'block';
+      
+      // Set the space ID attribute if needed
+      if (spaceID && webglRoot.getAttribute('data-space-id') !== spaceID) {
+        webglRoot.setAttribute('data-space-id', spaceID);
+        console.log(`WebGLRenderer: Set data-space-id attribute to ${spaceID}`);
+      }
+    } else {
+      console.error('WebGLRenderer: Could not find webgl-root element');
+    }
+    
+    // Clean up when component unmounts
+    return () => {
+      // Don't hide the webgl-root on unmount as it might be needed by other components
+    };
+  }, [spaceID]);
+  
+  // Add this useEffect to properly configure the Unity canvas for keyboard focus
+  useEffect(() => {
+    // Function to ensure Unity canvas is properly configured
+    const configureUnityCanvas = () => {
+      const unityCanvas = getUnityCanvas();
+      
+      if (unityCanvas) {
+        console.log('WebGLRenderer: Configuring Unity canvas for keyboard input');
+        
+        // Set tabIndex to make canvas focusable (essential for keyboard input)
+        unityCanvas.tabIndex = 1;
+        
+        // Remove outline to avoid visible focus ring
+        unityCanvas.style.outline = 'none';
+        
+        // Add event listener to re-enable keyboard capture when canvas is clicked
+        unityCanvas.addEventListener('click', () => {
+          console.log('WebGLRenderer: Unity canvas clicked, enabling keyboard capture');
+          if (!isModalOpen) {
+            // Use focusUnity which handles both focus and keyboard capture
+            focusUnity(true);
+          }
+        });
+        
+        console.log('WebGLRenderer: Unity canvas configured with tabIndex=1');
+      } else {
+        console.warn('WebGLRenderer: Could not find Unity canvas to configure');
+      }
+    };
+    
+    // Try immediately for already loaded Unity
+    configureUnityCanvas();
+    
+    // Also try after a delay to ensure Unity has fully initialized
+    const timerId = setTimeout(configureUnityCanvas, 1000);
+    
+    // Try again when Unity sends the 'unityReady' event
+    const handleUnityReady = () => {
+      console.log('WebGLRenderer: Received unityReady event, configuring canvas');
+      configureUnityCanvas();
+    };
+    window.addEventListener('unityReady', handleUnityReady);
+    
+    return () => {
+      clearTimeout(timerId);
+      window.removeEventListener('unityReady', handleUnityReady);
+    };
+  }, [isLoaded, isModalOpen]);
+  
+  // Handle clicks on Unity canvas to ensure keyboard input works
+  const handleCanvasClick = useCallback(() => {
+    console.log('WebGLRenderer: Unity canvas clicked, enabling keyboard capture');
+    
+    if (!isModalOpen) {
+      focusUnity(true);
+    }
+  }, [isModalOpen]);
+
+  // Add event listener for canvas clicks
+  useEffect(() => {
+    if (isLoaded && unityProvider) {
+      const canvas = getUnityCanvas();
+      if (canvas) {
+        console.log('WebGLRenderer: Adding click handler to Unity canvas');
+        canvas.addEventListener('click', handleCanvasClick);
+        
+        return () => {
+          canvas.removeEventListener('click', handleCanvasClick);
+        };
+      }
+    }
+  }, [isLoaded, unityProvider, handleCanvasClick]);
+  
+  // Add global click handler to manage focus when clicking outside of modals
+  useEffect(() => {
+    if (isLoaded && unityProvider) {
+      console.log('WebGLRenderer: Setting up global click handler for focus management');
+      
+      const handleGlobalClick = (e) => {
+        // Don't refocus if clicking inside a modal
+        if (isModalOpen) {
+          console.log('WebGLRenderer: Modal is open, not refocusing Unity on click');
+          return;
+        }
+        
+        // Don't refocus if clicking on form elements
+        if (e.target.tagName === 'INPUT' || 
+            e.target.tagName === 'TEXTAREA' || 
+            e.target.tagName === 'SELECT' ||
+            e.target.tagName === 'BUTTON') {
+          console.log('WebGLRenderer: Clicked on form element, not refocusing Unity');
+          return;
+        }
+        
+        // Don't refocus if clicking inside specific UI containers that should maintain their own focus
+        if (e.target.closest('.chakra-modal__content') || 
+            e.target.closest('[role="dialog"]') ||
+            e.target.closest('[role="menu"]') ||
+            e.target.closest('.chakra-popover__content') ||
+            e.target.closest('[role="tooltip"]')) {
+          console.log('WebGLRenderer: Clicked inside modal/dialog content, not refocusing Unity');
+          return;
+        }
+        
+        // If the click is on the Unity canvas, let the canvas click handler handle it
+        const canvas = getUnityCanvas();
+        if (canvas && (e.target === canvas || canvas.contains(e.target))) {
+          return;
+        }
+        
+        // Check for UI overlay elements
+        const isOverlayUI = e.target.closest('.webgl-overlay') || 
+                          e.target.closest('.game-ui') ||
+                          e.target.closest('.player-list') ||
+                          e.target.closest('.unity-ui-overlay');
+        
+        // If clicking on UI overlay elements that should allow keyboard input to pass through
+        if (isOverlayUI) {
+          console.log('WebGLRenderer: Clicked on UI overlay that should allow keyboard events');
+          
+          // Ensure keyboard capture is enabled for Unity
+          setTimeout(() => {
+            if (!isModalOpen) {
+              focusUnity(true);
+            }
+          }, 50);
+          
+          return;
+        }
+        
+        // If clicked outside modals/forms/special UI, refocus the canvas
+        console.log('WebGLRenderer: Clicked outside forms/modals/special UI, refocusing Unity canvas');
+        
+        // Wait a short time to ensure any UI state changes complete
+        setTimeout(() => {
+          if (canvas && !isModalOpen) {
+            if (canvas.tabIndex === undefined || canvas.tabIndex < 0) {
+              canvas.tabIndex = 1;
+            }
+            canvas.focus();
+            
+            // Re-enable keyboard capture
+            focusUnity(true);
+          }
+        }, 50);
+      };
+      
+      // Add click listener to entire document to catch all clicks
+      document.addEventListener('click', handleGlobalClick, true);
+      
+      return () => {
+        document.removeEventListener('click', handleGlobalClick, true);
+      };
+    }
+  }, [isLoaded, unityProvider, isModalOpen]);
   
   // Handle user data sending to Unity
   useEffect(() => {
@@ -314,6 +574,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
                   unityProvider={unityProvider}
                   style={{ width: "100%", height: "100%" }}
                   devicePixelRatio={devicePixelRatio}
+                  tabIndex={1} // Set tabIndex to 1 to enable proper keyboard focus handling
                 />
               ) : (
                 <Box width="100%" height="100%" />
