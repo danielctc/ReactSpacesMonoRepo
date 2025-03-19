@@ -33,10 +33,24 @@ service cloud.firestore {
       allow read: if request.auth != null;
     }
 
-    // Spaces - Make more permissive for testing
+    // Website CMS Content - Publicly readable but only admins can write
+    match /website/{docId} {
+      allow read;
+      allow write: if request.auth != null && userIsInGroup('disruptiveAdmin');
+    }
+    
+    // Contact form submissions - Allow anyone to create, only admins can read/update
+    match /contactSubmissions/{submissionId} {
+      // Anyone can create a contact submission (even without authentication)
+      allow create;
+      // Only admins can read/update/delete
+      allow read, update, delete: if request.auth != null && userIsInGroup('disruptiveAdmin');
+    }
+
+    // Spaces - Make publicly readable for SEO
     match /spaces/{spaceId} {
-      // Allow read access to any authenticated user
-      allow read: if request.auth != null;
+      // Allow public read access to spaces for SEO purposes
+      allow read;
 
       // Allow write access if:
       // 1. The user's UID is in the usersAdmin or usersModerators arrays
@@ -62,6 +76,12 @@ service cloud.firestore {
       match /mediaScreens/{screenId} {
         allow read, write: if request.auth != null;
       }
+    }
+    
+    // SEO Content - Make publicly readable
+    match /seoContent/{docId} {
+      allow read;
+      allow write: if request.auth != null && userIsInGroup('disruptiveAdmin');
     }
     
     // Disruptive Admin has full access to everything
