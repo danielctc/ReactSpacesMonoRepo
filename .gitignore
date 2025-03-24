@@ -95,3 +95,6 @@ packages/testing/public/devBuilds/SpacesMetaverse_SDK/Build/SpacesMetaverse_SDK.
 
 # Ignore all devBuilds
 packages/testing/public/devBuilds/
+
+# Add the SpacesMetaverse_SDK build folder to gitignore
+packages/webgl/public/devBuilds/SpacesMetaverse_SDK/

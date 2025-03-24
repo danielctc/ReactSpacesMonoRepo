@@ -7,7 +7,7 @@ export async function loadTheme(themeName) {
         // Using switch-case to manage theme imports
         switch (themeName) {
             case 'default':
-                themeModule = await import('@disruptive-spaces/shared/themes/default');
+                themeModule = await import('./default');
                 break;
             // case 'dark':
             //     themeModule = await import('@disruptive-spaces/shared/themes/dark');
@@ -20,13 +20,13 @@ export async function loadTheme(themeName) {
 
 
             default:
-                themeModule = await import('@disruptive-spaces/shared/themes/default');
+                themeModule = await import('./default');
         }
         return themeModule.default;
     } catch (error) {
         Logger.error("Failed to load theme:", error);
         // Fallback to default theme in case of error
-        themeModule = await import('@disruptive-spaces/shared/themes/default');
+        themeModule = await import('./default');
         return themeModule.default;
     }
 }

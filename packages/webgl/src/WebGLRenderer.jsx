@@ -505,8 +505,8 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       )}
       
       <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
-        <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "16/9", position: "relative" }}>
-          {/* Top right buttons - Moved inside the fullscreen container */}
+        <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "auto", position: "absolute" }}>
+          {/* Top right buttons - Moved inside the fullscreen container - also changed aspact ratio from 16/9 and position to absolute from relative */}
           <Box position="absolute" zIndex="10" top={4} right={4} display="flex" alignItems="center" gap={2}>
             {settings.showAuthButton && <AuthenticationButton />}
             

@@ -1,3 +1,4 @@
+// @jsxImportSource react
 import { useContext } from "react";
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider"; // Adjust the path as needed
 // import { Logger } from '@disruptive-spaces/shared/logging/react-log';

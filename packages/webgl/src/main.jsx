@@ -56,4 +56,6 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// Export both as default and named export
+export { WebGLLoader };
 export default WebGLLoader;

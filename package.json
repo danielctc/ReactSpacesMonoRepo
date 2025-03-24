@@ -10,9 +10,10 @@
     "build:header-auth-links": "cross-env NODE_ENV=production npm --prefix packages/header-auth-links run build",
     "build:chat": "cross-env NODE_ENV=production npm --prefix packages/chat run build",
     "build:testing": "cross-env NODE_ENV=production npm --prefix packages/testing run build",
-    "build:website": "cross-env NODE_ENV=production npm --prefix packages/website run build",
     "prep-deploy": "shx rm -rf dist/ && shx mkdir -p dist && shx cp index.html dist/  && node scripts/manage-builds.js",
     "deploy": "npm run build && firebase deploy",
+    "deploy:rules": "firebase deploy --only firestore:rules",
+    "deploy:indexes": "firebase deploy --only firestore:indexes",
     "reset": "rimraf './node_modules' './packages/*/node_modules' './**/package-lock.json' && npm install"
   },
   "devDependencies": {

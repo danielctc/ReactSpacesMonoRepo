@@ -7,6 +7,8 @@ const distDir = path.join(__dirname, '..', 'dist');
 const baseURL = "https://disruptive-metaverse.web.app"; // Base URL for hosted files
 
 const maxBuilds = 10;  // Maximum number of build folders to keep
+// Packages to exclude from deployment
+const excludedPackages = ['website']; 
 
 const COLORS = {
     RED: '\x1b[31m',
@@ -40,6 +42,12 @@ function archiveCurrentBuild() {
     fs.mkdirSync(buildPath, { recursive: true });
 
     fs.readdirSync(packagesDir).forEach(packageName => {
+        // Skip excluded packages
+        if (excludedPackages.includes(packageName)) {
+            console.log(`Skipping excluded package: ${packageName}`);
+            return;
+        }
+        
         const packagePath = path.join(packagesDir, packageName);
         const packageDistPath = path.join(packagePath, 'dist');
         if (fs.existsSync(packageDistPath) && fs.statSync(packageDistPath).isDirectory()) {
@@ -100,6 +108,11 @@ function populateDistWithHistoricalBuilds() {
         const buildPath = path.join(buildsDir, build);
         if (fs.statSync(buildPath).isDirectory()) {
             fs.readdirSync(buildPath).forEach(package => {
+                // Skip excluded packages
+                if (excludedPackages.includes(package)) {
+                    return;
+                }
+                
                 const assetsPath = path.join(buildPath, package, 'assets');
                 if (fs.existsSync(assetsPath) && fs.statSync(assetsPath).isDirectory()) {
                     fs.readdirSync(assetsPath).forEach(file => {
@@ -129,8 +142,8 @@ function logScriptTags() {
     console.log(`Latest script tags for WebFlow:`);
     console.log(`--------------------------------------------------------------------------------------------------------------${COLORS.RESET}`);
     fs.readdirSync(distDir).forEach(package => {
-        // Skip the 'testing' package only
-        if (package === 'testing') {
+        // Skip excluded packages and testing
+        if (package === 'testing' || excludedPackages.includes(package)) {
             return;
         }
         const assetsPath = path.join(distDir, package, 'assets');

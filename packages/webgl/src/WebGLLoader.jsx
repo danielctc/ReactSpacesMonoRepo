@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+// @jsxImportSource react
+import React, { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 
 import { UnityProvider } from "./providers/UnityProvider";

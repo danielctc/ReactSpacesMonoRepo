@@ -27,6 +27,9 @@ export const getSpaceItem = async (itemId) => {
             // Get the complete item document data
             let itemData = itemDocSnapshot.data();
 
+            // Save the space's original name and description
+            const spaceName = itemData.name;
+            const spaceDescription = itemData.description;
 
             // Check if itemData has a webglBuildId
             if (itemData.webglBuildId) {
@@ -39,7 +42,10 @@ export const getSpaceItem = async (itemId) => {
                     // Merge webglBuildData into itemData
                     itemData = {
                         ...itemData,
-                        ...webglBuildData
+                        ...webglBuildData,
+                        // Restore the space's original name and description, ensuring they take precedence
+                        name: spaceName || webglBuildData.name,
+                        description: spaceDescription || webglBuildData.description
                     };
                 } else {
                     Logger.warn(`spacesFirestore: No document found for webglBuildId: ${itemData.webglBuildId}`);

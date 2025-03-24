@@ -1,0 +1,88 @@
+.mock-unity-manager {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.mock-unity-status {
+  background-color: #27293d;
+  border-radius: 8px;
+  padding: 16px;
+  color: white;
+}
+
+.mock-unity-status h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+.status-indicator {
+  font-weight: bold;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.status-indicator.active {
+  background-color: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
+}
+
+.status-indicator.disabled {
+  background-color: rgba(245, 101, 101, 0.2);
+  color: #f56565;
+}
+
+.global-flags {
+  font-family: monospace;
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.global-flags div {
+  margin-bottom: 4px;
+}
+
+.unity-console {
+  background-color: #27293d;
+  border-radius: 8px;
+  padding: 16px;
+  color: white;
+}
+
+.unity-console h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+.console-logs {
+  background-color: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 13px;
+  height: 200px;
+  overflow-y: auto;
+}
+
+.log-entry {
+  margin-bottom: 6px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.empty-log {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  text-align: center;
+  padding: 24px 0;
+} 

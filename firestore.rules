@@ -1,92 +1,147 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is in a specific group
-    function userIsInGroup(groupName) {
-      return request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups.hasAny([groupName]);
+    // Allow admin access to everything
+    match /{document=**} {
+      allow read, write: if isDisruptiveAdmin();
     }
     
-    // Helper function to check if user is in a space-specific group (owner or host)
-    function userIsInSpaceGroup(spaceId) {
-      return request.auth != null && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups.hasAny([
-          'space_' + spaceId + '_owners',
-          'space_' + spaceId + '_hosts'
-        ]);
-    }
-
-    // Users can read and write their own profile records
+    // Allow users to read and write their own profile records
     match /users/{userId} {
+      // Allow users to read and write their own profile
       allow read, write: if request.auth != null && request.auth.uid == userId;
-      // Allow other authenticated users to read user profiles
+      // Allow any authenticated user to read any user document
       allow read: if request.auth != null;
-    }
-
-    // Public resources accessible to all authenticated users
-    match /public/{document=**} {
-      allow read: if request.auth != null;
-    }
-
-    // Website CMS Content - Publicly readable but only admins can write
-    match /website/{docId} {
-      allow read;
-      allow write: if request.auth != null && userIsInGroup('disruptiveAdmin');
+      // Allow updates to user documents when updating group memberships
+      allow update: if isUpdatingGroups(userId) || isDisruptiveAdmin();
     }
     
-    // Contact form submissions - Allow anyone to create, only admins can read/update
-    match /contactSubmissions/{submissionId} {
-      // Anyone can create a contact submission (even without authentication)
-      allow create;
-      // Only admins can read/update/delete
-      allow read, update, delete: if request.auth != null && userIsInGroup('disruptiveAdmin');
+    // Allow access to groups based on membership
+    match /groups/{groupId} {
+      allow read: if isGroupMember(groupId) || isDisruptiveAdmin();
+      allow write: if isDisruptiveAdmin();
     }
-
-    // Spaces - Make publicly readable for SEO
+    
+    // Allow access to spaces - public access for spaces marked as public
     match /spaces/{spaceId} {
-      // Allow public read access to spaces for SEO purposes
-      allow read;
-
-      // Allow write access if:
-      // 1. The user's UID is in the usersAdmin or usersModerators arrays
-      // 2. The user is in a space-specific owner or host group
-      // 3. The user is in the disruptiveAdmin group
-      allow write: if (request.auth != null && 
-                      (request.auth.uid in resource.data.usersAdmin ||
-                       request.auth.uid in resource.data.usersModerators ||
-                       userIsInSpaceGroup(spaceId) ||
-                       userIsInGroup('disruptiveAdmin')));
-
-      // Space Chat - Make more permissive
-      match /chatMessages/{messageId} {
-        allow read, write: if request.auth != null;
-      }
-
-      // Space Videos - Make more permissive
-      match /videos/{videoId} {
-        allow read: if request.auth != null;
+      // Allow public read access to spaces explicitly marked as public,
+      // or allow authenticated users based on additional access rules
+      allow read: if true
+      // Allow write access only to the space owner or an admin
+      allow write: if isSpaceOwner(spaceId) || isDisruptiveAdmin();
+      
+      // Allow access to media screens within spaces
+      match /mediaScreens/{screenId} {
+        // Allow public read access only for public spaces
+        allow read: if isSpacePublic(spaceId) || request.auth != null;
+        allow write: if isSpaceOwnerOrHost(spaceId) || isDisruptiveAdmin();
       }
       
-      // Media Screens - Make more permissive
-      match /mediaScreens/{screenId} {
-        allow read, write: if request.auth != null;
+      // Allow access to media screen images
+      match /mediaScreenImages/{imageId} {
+        // Allow public read access only for public spaces
+        allow read: if isSpacePublic(spaceId) || request.auth != null;
+        allow write: if isSpaceOwnerOrHost(spaceId) || isDisruptiveAdmin();
+      }
+      
+      // Allow access to media screen thumbnails
+      match /mediaScreenThumbnails/{thumbnailId} {
+        // Allow public read access only for public spaces
+        allow read: if isSpacePublic(spaceId) || request.auth != null;
+        allow write: if isSpaceOwnerOrHost(spaceId) || isDisruptiveAdmin();
       }
     }
     
-    // SEO Content - Make publicly readable
-    match /seoContent/{docId} {
-      allow read;
-      allow write: if request.auth != null && userIsInGroup('disruptiveAdmin');
+    // Allow website components read (PUBLIC)
+    match /website/{websiteId} {
+      allow read: if true;
     }
     
-    // Disruptive Admin has full access to everything
-    match /{document=**} {
-      allow read, write: if userIsInGroup('disruptiveAdmin');
+    // Allow all authenticated users to read WebGL builds, and public access for builds used in public spaces
+    match /webglBuilds/{buildId} {
+      allow read: if isWebGLBuildPublic(buildId) || request.auth != null;
+      allow write: if isDisruptiveAdmin();
+    }
+    
+    // Allow access to chat messages for spaces - keep these private
+    match /chatMessages/{messageId} {
+      // Ensure chat message access is limited to relevant spaces
+      allow read: if request.auth != null && 
+                   (resource.data.spaceId == null || 
+                    isSpaceOwnerOrHost(resource.data.spaceId) || 
+                    isSpacePublic(resource.data.spaceId));
+      allow write: if request.auth != null && 
+                    (request.resource.data.spaceId == null || 
+                     isSpaceOwnerOrHost(request.resource.data.spaceId));
+    }
+    
+    // Allow access to media screens collection at root level
+    match /mediaScreens/{screenId} {
+      allow read: if request.auth != null;
+      allow write: if isDisruptiveAdmin();
+    }
+    
+    // Allow access to media screen images collection at root level
+    match /mediaScreenImages/{imageId} {
+      allow read: if request.auth != null;
+      allow write: if isDisruptiveAdmin();
+    }
+    
+    // Allow access to media screen thumbnails collection at root level
+    match /mediaScreenThumbnails/{thumbnailId} {
+      allow read: if request.auth != null;
+      allow write: if isDisruptiveAdmin();
+    }
+    
+    // Helper functions
+    function isDisruptiveAdmin() {
+      return request.auth != null 
+             && request.auth.token.groups != null 
+             && request.auth.token.groups.hasAny(['disruptiveAdmin']);
+    }
+    
+    function isGroupMember(groupId) {
+      return request.auth != null 
+             && request.auth.token.groups != null 
+             && request.auth.token.groups.hasAny([groupId]);
+    }
+    
+    function isSpaceOwner(spaceId) {
+      return request.auth != null 
+             && request.auth.token.groups != null 
+             && request.auth.token.groups.hasAny(['space_' + spaceId + '_owners']);
+    }
+    
+    function isSpaceHost(spaceId) {
+      return request.auth != null 
+             && request.auth.token.groups != null 
+             && request.auth.token.groups.hasAny(['space_' + spaceId + '_hosts']);
+    }
+    
+    function isSpaceOwnerOrHost(spaceId) {
+      return isSpaceOwner(spaceId) || isSpaceHost(spaceId);
+    }
+    
+    function isSpacePublic(spaceId) {
+      return get(/databases/$(database)/documents/spaces/$(spaceId)).data.isPublic == true;
+    }
+    
+    function isSpaceAccessibleToAll(spaceId) {
+      return request.auth != null && get(/databases/$(database)/documents/spaces/$(spaceId)).data.accessibleToAllUsers == true;
+    }
+    
+    // Check if a WebGL build is used in a public space
+    function isWebGLBuildPublic(buildId) {
+      return exists(/databases/$(database)/documents/spaces/{spaceId}) 
+             && get(/databases/$(database)/documents/spaces/{spaceId}).data.webglBuildId == buildId
+             && get(/databases/$(database)/documents/spaces/{spaceId}).data.isPublic == true;
+    }
+    
+    function isUpdatingGroups(userId) {
+      // Allow updates to user documents when only the groups field is being modified
+      // This is needed for group membership changes
+      return request.auth != null 
+             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['groups']);
     }
   }
 }

@@ -1,4 +1,5 @@
-import { useContext, useEffect, useState } from "react";
+// @jsxImportSource react
+import React, { useContext, useEffect, useState } from "react";
 import { Box, Avatar, Flex, Menu, MenuButton, MenuList, MenuItem, Text, Divider, Button, useDisclosure, Portal } from "@chakra-ui/react";
 import { ChevronDownIcon } from "@chakra-ui/icons";
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
@@ -45,6 +46,8 @@ const HeaderAuthLinks = () => {
     const profileImageUrl = user?.rpmURL
         ? user.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75")
         : null;
+
+    const isAdmin = user?.groups?.includes('disruptiveAdmin');
 
     // Don't render anything while loading
     if (isLoading) {
@@ -127,6 +130,17 @@ const HeaderAuthLinks = () => {
                                     </Text>
                                 </Box>
                                 <Divider borderColor="gray.700" />
+                                {isAdmin && (
+                                    <MenuItem 
+                                        as="a"
+                                        href="/myadmin"
+                                        _hover={{ bg: "gray.700" }}
+                                        color="white" 
+                                        bg="gray.800"
+                                    >
+                                        My Admin
+                                    </MenuItem>
+                                )}
                                 <MenuItem _hover={{ bg: "gray.700" }} color="white" bg="gray.800">
                                     My Spaces
                                 </MenuItem>

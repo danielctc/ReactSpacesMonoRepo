@@ -1,3 +1,4 @@
+// @jsxImportSource react
 import { useContext } from 'react';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { Box, Text } from '@chakra-ui/react';

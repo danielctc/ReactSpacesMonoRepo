@@ -35,6 +35,7 @@ import {
   Spinner,
   Spacer,
   Switch,
+  Textarea,
 } from '@chakra-ui/react';
 import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2 } from 'react-icons/fi';
 import { 
@@ -49,11 +50,16 @@ import {
 import { useUnity } from '../providers/UnityProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 
 const SpaceManageModal = ({ isOpen, onClose }) => {
   const { spaceID } = useUnity();
   const [tabIndex, setTabIndex] = useState(0);
+  
+  // Space details state
+  const [spaceName, setSpaceName] = useState('');
+  const [spaceDescription, setSpaceDescription] = useState('');
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
   
   // Logo state
   const [selectedFile, setSelectedFile] = useState(null);
@@ -83,12 +89,54 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   
   const toast = useToast();
 
-  // Fetch existing logo and background when modal opens
+  // Fetch existing data when modal opens
   useEffect(() => {
     if (isOpen && spaceID) {
       fetchSpaceData();
     }
   }, [isOpen, spaceID]);
+
+  const fetchSpaceData = async () => {
+    try {
+      const spaceData = await getSpaceItem(spaceID);
+      
+      // Set logo if exists
+      if (spaceData.logoUrl) {
+        setExistingLogo(spaceData.logoUrl);
+      }
+      
+      // Set background if exists
+      if (spaceData.backgroundUrl) {
+        setExistingBackground(spaceData.backgroundUrl);
+      }
+      
+      // Set settings
+      if (spaceData.voiceDisabled !== undefined) {
+        setVoiceDisabled(spaceData.voiceDisabled);
+      }
+      
+      if (spaceData.accessibleToAllUsers !== undefined) {
+        setAccessibleToAllUsers(spaceData.accessibleToAllUsers);
+      }
+      
+      // Set space details from the space's name field, not from WebGL build
+      setSpaceName(spaceData.name || '');
+      setSpaceDescription(spaceData.description || '');
+      
+      // Fetch users
+      fetchSpaceUsers(spaceData);
+      
+    } catch (error) {
+      Logger.error('Error fetching space data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load space data',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
 
   // Function to fetch space users
   const fetchSpaceUsers = async (spaceData) => {
@@ -157,44 +205,6 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       } finally {
         setIsLoadingUsers(false);
       }
-    }
-  };
-
-  const fetchSpaceData = async () => {
-    try {
-      const spaceData = await getSpaceItem(spaceID);
-      
-      // Set logo if exists
-      if (spaceData.logoUrl) {
-        setExistingLogo(spaceData.logoUrl);
-      }
-      
-      // Set background if exists
-      if (spaceData.backgroundUrl) {
-        setExistingBackground(spaceData.backgroundUrl);
-      }
-      
-      // Set settings
-      if (spaceData.voiceDisabled !== undefined) {
-        setVoiceDisabled(spaceData.voiceDisabled);
-      }
-      
-      if (spaceData.accessibleToAllUsers !== undefined) {
-        setAccessibleToAllUsers(spaceData.accessibleToAllUsers);
-      }
-      
-      // Fetch users
-      fetchSpaceUsers(spaceData);
-      
-    } catch (error) {
-      Logger.error('Error fetching space data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load space data',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
     }
   };
 
@@ -550,6 +560,49 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
     }
   };
 
+  // Handle space details save
+  const handleSaveSpaceDetails = async () => {
+    if (!spaceID) return;
+    
+    setIsSavingDetails(true);
+    try {
+      const db = getFirestore();
+      const spaceRef = doc(db, 'spaces', spaceID);
+      
+      await updateDoc(spaceRef, {
+        name: spaceName,
+        description: spaceDescription
+      });
+      
+      toast({
+        title: 'Success',
+        description: 'Space details updated successfully',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      // Dispatch an event to notify other components of the update
+      window.dispatchEvent(new CustomEvent('SpaceDetailsUpdated', { 
+        detail: { 
+          name: spaceName, 
+          description: spaceDescription 
+        } 
+      }));
+    } catch (error) {
+      Logger.error('Error updating space details:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update space details',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSavingDetails(false);
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>
       <ModalOverlay backdropFilter="blur(4px)" />
@@ -602,6 +655,17 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                 _selected={{ bg: "whiteAlpha.100", color: "blue.300" }}
                 _hover={{ bg: "whiteAlpha.50" }}
               >
+                <Icon as={FiInfo} mb={1} />
+                <Text fontSize="xs">Details</Text>
+              </Tab>
+              <Tab 
+                display="flex" 
+                flexDirection="column" 
+                alignItems="center"
+                py={3}
+                _selected={{ bg: "whiteAlpha.100", color: "blue.300" }}
+                _hover={{ bg: "whiteAlpha.50" }}
+              >
                 <Icon as={FiImage} mb={1} />
                 <Text fontSize="xs">Logo</Text>
               </Tab>
@@ -641,6 +705,60 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
             </TabList>
             
             <TabPanels flexGrow={1} display="flex" flexDirection="column" overflowY="auto">
+              {/* Details Tab */}
+              <TabPanel p={4} display="flex" flexDirection="column">
+                <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Space Details</Text>
+                <Text fontSize="xs" mb={4}>Edit the name and description of your space.</Text>
+                
+                <VStack spacing={4} align="stretch">
+                  <FormControl>
+                    <FormLabel fontSize="xs">Space Name</FormLabel>
+                    <Input
+                      value={spaceName}
+                      onChange={(e) => setSpaceName(e.target.value)}
+                      placeholder="Enter space name"
+                      size="sm"
+                      bg="whiteAlpha.100"
+                      borderColor="whiteAlpha.200"
+                      _hover={{ borderColor: "whiteAlpha.300" }}
+                      _focus={{ borderColor: "blue.300", boxShadow: "0 0 0 1px #63B3ED" }}
+                      color="white"
+                    />
+                  </FormControl>
+                  
+                  <FormControl>
+                    <FormLabel fontSize="xs">Description</FormLabel>
+                    <Textarea
+                      value={spaceDescription}
+                      onChange={(e) => setSpaceDescription(e.target.value)}
+                      placeholder="Enter space description"
+                      size="sm"
+                      bg="whiteAlpha.100"
+                      borderColor="whiteAlpha.200"
+                      _hover={{ borderColor: "whiteAlpha.300" }}
+                      _focus={{ borderColor: "blue.300", boxShadow: "0 0 0 1px #63B3ED" }}
+                      rows={5}
+                      resize="vertical"
+                    />
+                    <FormHelperText fontSize="xs" color="whiteAlpha.700">
+                      Provide a clear description of your space for users.
+                    </FormHelperText>
+                  </FormControl>
+                  
+                  <Button
+                    colorScheme="blue"
+                    size="sm"
+                    onClick={handleSaveSpaceDetails}
+                    isLoading={isSavingDetails}
+                    loadingText="Saving..."
+                    alignSelf="flex-start"
+                    mt={2}
+                  >
+                    Save Details
+                  </Button>
+                </VStack>
+              </TabPanel>
+              
               {/* Logo Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
                 <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Space Logo</Text>
