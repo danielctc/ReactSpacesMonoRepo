@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useState, useEffect, useRef, useContext } from 'react';
 import { onAuthStateChanged, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore'; // Import onSnapshot for real-time updates
 import { auth, db } from '@disruptive-spaces/shared/firebase/firebase'; // Ensure db is your Firestore instance
@@ -103,8 +103,6 @@ export const UserProvider = ({ children }) => {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             
-            // TEMPORARILY DISABLED: Email verification check
-            /*
             // Check if email is verified
             if (!userCredential.user.emailVerified) {
                 // Send another verification email if needed
@@ -112,7 +110,6 @@ export const UserProvider = ({ children }) => {
                 Logger.log('UserProvider: Verification email sent again to:', email);
                 throw new Error('Please verify your email before signing in. A new verification email has been sent.');
             }
-            */
             
             const userProfile = await getUserProfileData(userCredential.user.uid);
             const displayName = getDisplayName(userProfile);
@@ -269,4 +266,13 @@ export const UserProvider = ({ children }) => {
             {children}
         </UserContext.Provider>
     );
+};
+
+// Add a custom hook for using the user context
+export const useUser = () => {
+  const context = useContext(UserContext);
+  if (context === undefined) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
 };

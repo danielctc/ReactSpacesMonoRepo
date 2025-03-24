@@ -37,7 +37,7 @@ import {
   Switch,
   Textarea,
 } from '@chakra-ui/react';
-import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2 } from 'react-icons/fi';
+import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2, FiTag } from 'react-icons/fi';
 import { 
   uploadSpaceLogo, 
   deleteSpaceLogo, 
@@ -51,6 +51,7 @@ import { useUnity } from '../providers/UnityProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
 import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import SpaceTagsManager from './SpaceTagsManager';
 
 const SpaceManageModal = ({ isOpen, onClose }) => {
   const { spaceID } = useUnity();
@@ -210,7 +211,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
 
   // Fetch space users when tab changes to Users tab
   useEffect(() => {
-    if (spaceID && isOpen && tabIndex === 3) { // Only fetch when users tab is active
+    if (spaceID && isOpen && tabIndex === 4) { // Only fetch when users tab is active (index is now 4)
       fetchSpaceUsers({});
     }
   }, [spaceID, isOpen, tabIndex]);
@@ -708,7 +709,6 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
               {/* Details Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
                 <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Space Details</Text>
-                <Text fontSize="xs" mb={4}>Edit the name and description of your space.</Text>
                 
                 <VStack spacing={4} align="stretch">
                   <FormControl>
@@ -723,6 +723,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                       _hover={{ borderColor: "whiteAlpha.300" }}
                       _focus={{ borderColor: "blue.300", boxShadow: "0 0 0 1px #63B3ED" }}
                       color="white"
+                      maxLength={100}
                     />
                   </FormControl>
                   
@@ -737,12 +738,33 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                       borderColor="whiteAlpha.200"
                       _hover={{ borderColor: "whiteAlpha.300" }}
                       _focus={{ borderColor: "blue.300", boxShadow: "0 0 0 1px #63B3ED" }}
-                      rows={5}
+                      rows={4}
                       resize="vertical"
+                      maxLength={500}
                     />
-                    <FormHelperText fontSize="xs" color="whiteAlpha.700">
-                      Provide a clear description of your space for users.
-                    </FormHelperText>
+                  </FormControl>
+                  
+                  <FormControl>
+                    <FormLabel fontSize="xs">Space Tags</FormLabel>
+                    <Box 
+                      p={3} 
+                      bg="whiteAlpha.50"
+                      borderWidth="1px"
+                      borderColor="whiteAlpha.200"
+                      borderRadius="md"
+                    >
+                      {spaceID ? (
+                        <SpaceTagsManager spaceID={spaceID} />
+                      ) : (
+                        <Alert status="warning" variant="subtle" borderRadius="md">
+                          <AlertIcon />
+                          <AlertTitle fontSize="sm">Space ID missing</AlertTitle>
+                          <AlertDescription fontSize="xs">
+                            Unable to load tags without a valid space ID.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </Box>
                   </FormControl>
                   
                   <Button

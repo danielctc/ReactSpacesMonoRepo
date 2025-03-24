@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -19,6 +19,23 @@ import {
 import { getAuth } from 'firebase/auth';
 import AboutPageEditor from './AboutPageEditor';
 import HomePageEditor from './HomePageEditor';
+
+// Try to import TagsAdmin, but don't fail if it can't be loaded
+const TagsAdminLazy = lazy(() => 
+  import('@disruptive-spaces/webgl/src/components/TagsAdmin')
+    .catch(() => ({ default: () => 
+      <Alert status="error">
+        <AlertIcon />
+        Unable to load TagsAdmin component
+      </Alert> 
+    }))
+);
+
+const TagsAdminWithFallback = () => (
+  <Suspense fallback={<Spinner />}>
+    <TagsAdminLazy />
+  </Suspense>
+);
 
 // Check if user is an admin by checking if they have the disruptiveAdmin group
 const useIsAdmin = () => {
@@ -96,6 +113,8 @@ const WebsiteManager = () => {
         return <HomePageEditor />;
       case 'about':
         return <AboutPageEditor />;
+      case 'tags':
+        return <TagsAdminWithFallback />;
       default:
         return <HomePageEditor />;
     }
@@ -138,12 +157,24 @@ const WebsiteManager = () => {
                 variant="ghost" 
                 justifyContent="flex-start" 
                 py={4}
+                borderBottomWidth="1px"
                 borderRadius="0"
                 colorScheme={activePage === 'about' ? 'blue' : 'gray'}
                 bg={activePage === 'about' ? 'blue.50' : 'transparent'}
                 onClick={() => setActivePage('about')}
               >
                 About Page
+              </Button>
+              <Button 
+                variant="ghost" 
+                justifyContent="flex-start" 
+                py={4}
+                borderRadius="0"
+                colorScheme={activePage === 'tags' ? 'blue' : 'gray'}
+                bg={activePage === 'tags' ? 'blue.50' : 'transparent'}
+                onClick={() => setActivePage('tags')}
+              >
+                Tags Management
               </Button>
               {/* Add more page buttons here */}
             </VStack>

@@ -6,6 +6,8 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { useForm } from "react-hook-form";
 import Register from "./Register";
 import { useUnityInputManager } from '@disruptive-spaces/webgl/src/hooks/useUnityInputManager';
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from '@disruptive-spaces/shared/firebase/firebase';
 
 import {
     IconButton,
@@ -43,8 +45,11 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
     });
     const [isOpen, setIsOpen] = useState(initialIsOpen);
     const [showRegister, setShowRegister] = useState(false);
+    const [showResetPassword, setShowResetPassword] = useState(false);
+    const [resetEmail, setResetEmail] = useState('');
+    const [isResetting, setIsResetting] = useState(false);
 
-    useUnityInputManager(isOpen);
+    useUnityInputManager(isOpen || showResetPassword);
     
     // Listen for custom event to open the SignIn modal
     useEffect(() => {
@@ -93,11 +98,61 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
         }
     };
 
+    const handleResetPassword = async () => {
+        if (!resetEmail) {
+            toast({
+                title: "Email Required",
+                description: "Please enter your email address to reset your password.",
+                status: "warning",
+                duration: 3000,
+                isClosable: true,
+                position: "top",
+                container: fullscreenRef.current
+            });
+            return;
+        }
+
+        try {
+            setIsResetting(true);
+            await sendPasswordResetEmail(auth, resetEmail);
+            
+            toast({
+                title: "Password Reset Email Sent",
+                description: "Check your email for instructions to reset your password.",
+                status: "success",
+                duration: 5000,
+                isClosable: true,
+                position: "top",
+                container: fullscreenRef.current
+            });
+            
+            setShowResetPassword(false);
+        } catch (error) {
+            Logger.error("User: Reset Password Error:", error);
+            
+            toast({
+                title: "Error",
+                description: error.message || "Failed to send password reset email. Please try again.",
+                status: "error",
+                duration: 5000,
+                isClosable: true,
+                position: "top",
+                container: fullscreenRef.current
+            });
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
     const toggleModal = () => setIsOpen(prev => !prev);
 
     const handleShowRegister = () => {
         setIsOpen(false);
         setShowRegister(true);
+    };
+
+    const handleShowResetPassword = () => {
+        setShowResetPassword(true);
     };
 
     const signInTrigger = mode === 'link' ? (
@@ -212,6 +267,16 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
                                         {errors.password && errors.password.message}
                                     </FormErrorMessage>
                                 </FormControl>
+                                
+                                <Box alignSelf="flex-end">
+                                    <Link 
+                                        color="blue.400" 
+                                        fontSize="sm"
+                                        onClick={handleShowResetPassword}
+                                    >
+                                        Forgot Password?
+                                    </Link>
+                                </Box>
                             </VStack>
                         </ModalBody>
 
@@ -236,6 +301,99 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
                     </ModalContent>
                 </form>
             </Modal>
+            
+            <Modal
+                isOpen={showResetPassword}
+                onClose={() => setShowResetPassword(false)}
+                size="md"
+                portalProps={{ containerRef: fullscreenRef }}
+                isCentered
+                motionPreset="slideInBottom"
+                blockScrollOnMount={false}
+            >
+                <ModalOverlay
+                    bg="blackAlpha.800"
+                    backdropFilter="blur(5px)"
+                />
+                <ModalContent
+                    bg="gray.800"
+                    borderRadius="xl"
+                    boxShadow="xl"
+                    color="white"
+                    maxW="md"
+                    mx={4}
+                    position="relative"
+                    zIndex={9999}
+                    sx={{
+                        isolation: 'isolate',
+                        '& input': {
+                            position: 'relative',
+                            zIndex: 10000,
+                            isolation: 'isolate'
+                        },
+                        '& *': {
+                            pointerEvents: 'auto !important'
+                        }
+                    }}
+                    onKeyDown={(e) => {
+                        e.stopPropagation();
+                    }}
+                >
+                    <ModalHeader p={8} textAlign="center">
+                        <Heading size="lg" mb={2}>Reset Password</Heading>
+                        <Text fontSize="sm" color="gray.400">
+                            Enter your email to receive password reset instructions
+                        </Text>
+                    </ModalHeader>
+                    <ModalCloseButton color="gray.400" />
+                    <ModalBody px={8} pb={4}>
+                        <FormControl>
+                            <InputGroup>
+                                <InputLeftElement pointerEvents="none">
+                                    <EmailIcon color="gray.500" />
+                                </InputLeftElement>
+                                <Input
+                                    type="email"
+                                    placeholder="Email"
+                                    bg="gray.700"
+                                    border="none"
+                                    color="white"
+                                    _placeholder={{ color: 'gray.500' }}
+                                    _hover={{ bg: 'gray.600' }}
+                                    _focus={{
+                                        bg: 'gray.600',
+                                        boxShadow: '0 0 0 1px var(--chakra-colors-blue-400)'
+                                    }}
+                                    value={resetEmail}
+                                    onChange={(e) => setResetEmail(e.target.value)}
+                                />
+                            </InputGroup>
+                        </FormControl>
+                    </ModalBody>
+                    <ModalFooter px={8} pb={8} flexDirection="column" gap={4}>
+                        <Button
+                            colorScheme="blue"
+                            size="lg"
+                            width="100%"
+                            onClick={handleResetPassword}
+                            isLoading={isResetting}
+                            loadingText="Sending"
+                        >
+                            Send Reset Link
+                        </Button>
+                        <Text fontSize="sm" color="gray.400" textAlign="center">
+                            Remember your password?{" "}
+                            <Link 
+                                color="blue.400" 
+                                onClick={() => setShowResetPassword(false)}
+                            >
+                                Back to Sign In
+                            </Link>
+                        </Text>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+            
             <Register 
                 mode="link" 
                 isOpen={showRegister} 
