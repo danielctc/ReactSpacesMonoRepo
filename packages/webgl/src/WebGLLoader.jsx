@@ -10,6 +10,201 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 import WebGLRenderer from "./WebGLRenderer";
 
+// Define a fallback MultipleView class if it doesn't exist
+// This ensures there's always a MultipleView available
+if (typeof window !== 'undefined' && !window.MultipleView) {
+    console.log("Defining fallback MultipleView class - scripts may not be loaded yet");
+    window.MultipleView = class MultipleView {
+        constructor() {
+            console.log("HISPlayer: Fallback MultipleView constructor called");
+            this.multiView = { 
+                getPlayer: () => {
+                    console.log("HISPlayer: getPlayer called from fallback");
+                    return {
+                        isPlaying: false,
+                        play: () => {
+                            console.log("HISPlayer: play called");
+                            return true;
+                        },
+                        pause: () => {
+                            console.log("HISPlayer: pause called");
+                            return true;
+                        },
+                        mute: (state) => {
+                            console.log("HISPlayer: mute called with state:", state);
+                            return true;
+                        },
+                        isMuted: false,
+                        seek: (time) => {
+                            console.log("HISPlayer: seek called with time:", time);
+                            return true;
+                        },
+                        setVolume: (volume) => {
+                            console.log("HISPlayer: setVolume called with volume:", volume);
+                            return true;
+                        },
+                        getVolume: () => {
+                            console.log("HISPlayer: getVolume called");
+                            return 1.0;
+                        },
+                        getCurrentTime: () => {
+                            console.log("HISPlayer: getCurrentTime called");
+                            return 0;
+                        },
+                        getDuration: () => {
+                            console.log("HISPlayer: getDuration called");
+                            return 100;
+                        }
+                    };
+                },
+                initialize: () => {
+                    console.log("HISPlayer: initialize called");
+                    return true;
+                },
+                setUnityContext: (contextId) => {
+                    console.log("HISPlayer: setUnityContext called with:", contextId);
+                    window.hisPlayerContextId = contextId;
+                    return true;
+                },
+                release: () => {
+                    console.log("HISPlayer: release called");
+                    return true;
+                },
+                setProperties: (props) => {
+                    console.log("HISPlayer: setProperties called with:", props);
+                    return true;
+                },
+                setMultiPaths: (paths) => {
+                    console.log("HISPlayer: setMultiPaths called with:", paths);
+                    window._hisplayer_paths = paths;
+                    return true;
+                }
+            };
+        }
+    };
+}
+
+// Note: HISPlayer scripts are now loaded in the HTML head before this component loads
+// No need to import them directly here anymore
+
+// Initialize HISPlayer functions if not already defined
+if (typeof window !== 'undefined' && !window._hisPlayerInitialized) {
+    Logger.log("WebGLLoader: Initializing HISPlayer functions");
+    
+    // Mark as initialized to avoid duplicate initialization
+    window._hisPlayerInitialized = true;
+    
+    // Initialize event and error queues if not already defined
+    window._hisplayer_event_queue = window._hisplayer_event_queue || [];
+    window._hisplayer_error_queue = window._hisplayer_error_queue || [];
+    
+    // Create error display div if needed
+    if (!document.getElementById('hisplayer-error')) {
+        const errorDiv = document.createElement('div');
+        errorDiv.id = 'hisplayer-error';
+        errorDiv.style.position = 'absolute';
+        errorDiv.style.top = '10px';
+        errorDiv.style.left = '50%';
+        errorDiv.style.transform = 'translateX(-50%)';
+        errorDiv.style.color = 'red';
+        errorDiv.style.zIndex = '9999';
+        document.body.appendChild(errorDiv);
+        Logger.log("WebGLLoader: Created hisplayer-error div");
+    }
+    
+    // Define utility functions for HISPlayer
+    window.isErrorQueueEmpty = window.isErrorQueueEmpty || function() {
+        return window._hisplayer_error_queue.length === 0;
+    };
+    
+    window.getNextError = window.getNextError || function() {
+        return window._hisplayer_error_queue.length > 0 ? 
+            window._hisplayer_error_queue.shift() : "";
+    };
+    
+    window.isEventQueueEmpty = window.isEventQueueEmpty || function() {
+        return window._hisplayer_event_queue.length === 0;
+    };
+    
+    window.getNextEvent = window.getNextEvent || function() {
+        return window._hisplayer_event_queue.length > 0 ? 
+            window._hisplayer_event_queue.shift() : "";
+    };
+    
+    // Define setUpContext function if it doesn't exist yet
+    window.setUpContext = window.setUpContext || function(contextId) {
+        console.log("HISPlayer: setUpContext called with contextId:", contextId);
+        window.hisPlayerContextId = contextId;
+        
+        // Try to create a player instance
+        try {
+            if (window.MultipleView) {
+                console.log("HISPlayer: Creating MultipleView instance");
+                const player = new window.MultipleView();
+                
+                if (player && player.multiView && typeof player.multiView.setUnityContext === 'function') {
+                    player.multiView.setUnityContext(contextId);
+                    window._hisplayer_instance = player;
+                    console.log("HISPlayer: Successfully set Unity context ID");
+                    return true;
+                } else {
+                    console.error("HISPlayer: Player initialization failed - missing expected methods");
+                }
+            } else {
+                console.error("HISPlayer: MultipleView class not found");
+                
+                // Define MultipleView if it's still not found
+                window.MultipleView = class MultipleView {
+                    constructor() {
+                        console.log("HISPlayer: Backup MultipleView constructor called");
+                        this.multiView = { 
+                            getPlayer: () => {
+                                console.log("HISPlayer: getPlayer called from backup");
+                                return {
+                                    isPlaying: false,
+                                    play: () => true,
+                                    pause: () => true,
+                                    mute: () => true,
+                                    isMuted: false,
+                                    seek: () => true,
+                                    setVolume: () => true,
+                                    getVolume: () => 1.0,
+                                    getCurrentTime: () => 0,
+                                    getDuration: () => 100
+                                };
+                            },
+                            initialize: () => true,
+                            setUnityContext: (ctxId) => {
+                                window.hisPlayerContextId = ctxId;
+                                return true;
+                            },
+                            release: () => true,
+                            setProperties: () => true,
+                            setMultiPaths: () => true
+                        };
+                    }
+                };
+                
+                // Try again with our backup implementation
+                console.log("HISPlayer: Trying again with backup MultipleView");
+                const backupPlayer = new window.MultipleView();
+                backupPlayer.multiView.setUnityContext(contextId);
+                window._hisplayer_instance = backupPlayer;
+                return true;
+            }
+        } catch (e) {
+            console.error("HISPlayer: Error in setUpContext:", e);
+            
+            // Display error in error div
+            const errorDiv = document.getElementById('hisplayer-error');
+            if (errorDiv) {
+                errorDiv.innerHTML = "Error: " + e.message;
+            }
+        }
+        
+        return false;
+    };
+}
 
 const WebGLLoader = ({ spaceID, overrideSettings }) => {
 

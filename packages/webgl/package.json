@@ -19,6 +19,7 @@
     "agora-rtc-react": "^2.3.0",
     "agora-rtc-sdk-ng": "^4.20.0",
     "framer-motion": "^10.17.12",
+    "hls.js": "^1.5.20",
     "npm": "^10.2.4",
     "prop-types": "^15.8.1",
     "react-hook-form": "^7.51.3",
