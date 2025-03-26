@@ -37,7 +37,7 @@ import {
   Switch,
   Textarea,
 } from '@chakra-ui/react';
-import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2, FiTag } from 'react-icons/fi';
+import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2, FiTag, FiVideo } from 'react-icons/fi';
 import { 
   uploadSpaceLogo, 
   deleteSpaceLogo, 
@@ -52,6 +52,7 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
 import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import SpaceTagsManager from './SpaceTagsManager';
+import { useHLSStream } from '../hooks/unityEvents';
 
 const SpaceManageModal = ({ isOpen, onClose }) => {
   const { spaceID } = useUnity();
@@ -88,6 +89,14 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   const [accessibleToAllUsers, setAccessibleToAllUsers] = useState(true);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   
+  // Add streaming state variables
+  const [streamingEnabled, setStreamingEnabled] = useState(true);
+  const [hlsStreamUrl, setHlsStreamUrl] = useState('');
+  const [rtmpUrl, setRtmpUrl] = useState('');
+  const [streamKey, setStreamKey] = useState('');
+  const [isSavingStream, setIsSavingStream] = useState(false);
+  const { setHLSStreamUrl, playerStatus, isLoading: isStreamLoading, savedStreamData } = useHLSStream();
+  
   const toast = useToast();
 
   // Fetch existing data when modal opens
@@ -97,6 +106,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen, spaceID]);
 
+  // Update function to fetch stream data 
   const fetchSpaceData = async () => {
     try {
       const spaceData = await getSpaceItem(spaceID);
@@ -124,6 +134,14 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       setSpaceName(spaceData.name || '');
       setSpaceDescription(spaceData.description || '');
       
+      // Set stream data if available
+      if (savedStreamData) {
+        setHlsStreamUrl(savedStreamData.streamUrl || '');
+        setRtmpUrl(savedStreamData.rtmpUrl || '');
+        setStreamKey(savedStreamData.streamKey || '');
+        setStreamingEnabled(savedStreamData.enabled !== false);
+      }
+      
       // Fetch users
       fetchSpaceUsers(spaceData);
       
@@ -138,6 +156,16 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       });
     }
   };
+
+  // Add effect to update stream fields when savedStreamData changes
+  useEffect(() => {
+    if (savedStreamData) {
+      setHlsStreamUrl(savedStreamData.streamUrl || '');
+      setRtmpUrl(savedStreamData.rtmpUrl || '');
+      setStreamKey(savedStreamData.streamKey || '');
+      setStreamingEnabled(savedStreamData.enabled !== false);
+    }
+  }, [savedStreamData]);
 
   // Function to fetch space users
   const fetchSpaceUsers = async (spaceData) => {
@@ -604,6 +632,50 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
     }
   };
 
+  // Handle streaming settings save
+  const handleSaveStreamSettings = async () => {
+    if (!spaceID) return;
+    
+    setIsSavingStream(true);
+    try {
+      // Prepare streaming data
+      const streamData = {
+        enabled: streamingEnabled,
+        streamUrl: hlsStreamUrl,
+        rtmpUrl: rtmpUrl,
+        streamKey: streamKey,
+        playerIndex: "0", // Fixed player index as requested
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Update in Firebase
+      await setHLSStreamUrl(hlsStreamUrl, 0, {
+        enabled: streamingEnabled,
+        rtmpUrl: rtmpUrl,
+        streamKey: streamKey
+      });
+      
+      toast({
+        title: 'Success',
+        description: 'Stream settings updated successfully',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      Logger.error('Error updating stream settings:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update stream settings',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSavingStream(false);
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>
       <ModalOverlay backdropFilter="blur(4px)" />
@@ -613,7 +685,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
         borderRadius="md"
         boxShadow="0 4px 20px rgba(0, 0, 0, 0.5)"
         maxW="800px"
-        h="500px"
+        maxH="90vh"
         overflow="hidden"
       >
         <ModalHeader 
@@ -632,14 +704,15 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
           _hover={{ color: "white", bg: "whiteAlpha.100" }}
         />
         
-        <ModalBody p={0} display="flex">
+        <ModalBody p={0} display="flex" overflow="hidden">
           <Tabs 
             orientation="vertical" 
             variant="unstyled" 
             index={tabIndex} 
             onChange={setTabIndex}
             display="flex" 
-            flexGrow={1}
+            width="100%"
+            height="100%"
           >
             <TabList 
               bg="rgba(0, 0, 0, 0.2)" 
@@ -647,6 +720,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
               py={4} 
               borderRight="1px solid" 
               borderColor="whiteAlpha.200"
+              flexShrink={0}
             >
               <Tab 
                 display="flex" 
@@ -703,9 +777,37 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                 <Icon as={FiUsers} mb={1} />
                 <Text fontSize="xs">Users</Text>
               </Tab>
+              <Tab 
+                display="flex" 
+                flexDirection="column" 
+                alignItems="center"
+                py={3}
+                _selected={{ bg: "whiteAlpha.100", color: "blue.300" }}
+                _hover={{ bg: "whiteAlpha.50" }}
+              >
+                <Icon as={FiVideo} mb={1} />
+                <Text fontSize="xs">Stream</Text>
+              </Tab>
             </TabList>
             
-            <TabPanels flexGrow={1} display="flex" flexDirection="column" overflowY="auto">
+            <TabPanels 
+              flexGrow={1} 
+              display="flex" 
+              flexDirection="column" 
+              overflowY="auto"
+              css={{
+                '&::-webkit-scrollbar': {
+                  width: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: 'rgba(0,0,0,0.1)',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: 'rgba(255,255,255,0.3)',
+                  borderRadius: '4px',
+                },
+              }}
+            >
               {/* Details Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
                 <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Space Details</Text>
@@ -1255,6 +1357,140 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                     </Alert>
                   </VStack>
                 )}
+              </TabPanel>
+
+              {/* Streaming Tab */}
+              <TabPanel p={4} display="flex" flexDirection="column">
+                <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Stream Settings</Text>
+                
+                <VStack spacing={4} align="stretch">
+                  {/* Streaming Toggle */}
+                  <Box 
+                    borderWidth="1px" 
+                    borderRadius="md" 
+                    p={3} 
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                  >
+                    <HStack justify="space-between" align="center">
+                      <Box>
+                        <HStack mb={1} spacing={2}>
+                          <Box position="relative" w="16px" h="16px">
+                            <Icon as={FiVideo} color={streamingEnabled ? "green.400" : "red.400"} />
+                          </Box>
+                          <Text fontSize="sm" fontWeight="600">Streaming Enabled</Text>
+                        </HStack>
+                      </Box>
+                      
+                      <Switch
+                        isChecked={streamingEnabled}
+                        onChange={() => setStreamingEnabled(!streamingEnabled)}
+                        colorScheme="green"
+                        size="md"
+                        isDisabled={isSavingStream}
+                      />
+                    </HStack>
+                  </Box>
+                  
+                  {/* Stream Settings */}
+                  <Box
+                    borderWidth="1px" 
+                    borderRadius="md" 
+                    p={4} 
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                  >
+                    <Text fontSize="sm" fontWeight="600" mb={3}>Stream Configuration</Text>
+                    
+                    {/* HLS Player URL */}
+                    <FormControl mb={4}>
+                      <FormLabel fontSize="xs">Stream URL</FormLabel>
+                      <Input
+                        value={hlsStreamUrl}
+                        onChange={(e) => setHlsStreamUrl(e.target.value)}
+                        placeholder="https://example.com/stream.m3u8"
+                        size="sm"
+                        bg="whiteAlpha.100"
+                        borderColor="whiteAlpha.200"
+                        _hover={{ borderColor: "whiteAlpha.300" }}
+                        _focus={{ borderColor: "blue.300", boxShadow: "0 0 0 1px #63B3ED" }}
+                        color="white"
+                        isDisabled={isSavingStream}
+                      />
+                    </FormControl>
+                    
+                    <Divider my={3} borderColor="whiteAlpha.200" />
+                    
+                    <Text fontSize="sm" fontWeight="600" mb={3}>RTMP Configuration</Text>
+                    
+                    {/* RTMP URL */}
+                    <FormControl mb={3}>
+                      <FormLabel fontSize="xs">RTMP URL</FormLabel>
+                      <Input
+                        value={rtmpUrl}
+                        onChange={(e) => setRtmpUrl(e.target.value)}
+                        placeholder="rtmp://example.com/live"
+                        size="sm"
+                        bg="whiteAlpha.100"
+                        borderColor="whiteAlpha.200"
+                        _hover={{ borderColor: "whiteAlpha.300" }}
+                        _focus={{ borderColor: "blue.300", boxShadow: "0 0 0 1px #63B3ED" }}
+                        color="white"
+                        isDisabled={isSavingStream}
+                      />
+                    </FormControl>
+                    
+                    {/* Stream Key */}
+                    <FormControl mb={3}>
+                      <FormLabel fontSize="xs">Stream Key</FormLabel>
+                      <Input
+                        value={streamKey}
+                        onChange={(e) => setStreamKey(e.target.value)}
+                        placeholder="xxxxxxxxxxxxxxxxxxxxxxxx"
+                        size="sm"
+                        bg="whiteAlpha.100"
+                        borderColor="whiteAlpha.200"
+                        _hover={{ borderColor: "whiteAlpha.300" }}
+                        _focus={{ borderColor: "blue.300", boxShadow: "0 0 0 1px #63B3ED" }}
+                        color="white"
+                        isDisabled={isSavingStream}
+                        type="password"
+                      />
+                    </FormControl>
+                  </Box>
+                  
+                  <Button
+                    colorScheme="blue"
+                    size="sm"
+                    onClick={handleSaveStreamSettings}
+                    isLoading={isSavingStream}
+                    loadingText="Saving..."
+                    alignSelf="flex-start"
+                    mt={2}
+                  >
+                    Save Stream Settings
+                  </Button>
+                  
+                  <Alert 
+                    status="info" 
+                    variant="subtle" 
+                    bg="whiteAlpha.100" 
+                    borderRadius="md"
+                    borderWidth="1px"
+                    borderColor="blue.800"
+                    mt={2}
+                    mb={8}
+                  >
+                    <AlertIcon color="blue.300" />
+                    <Box>
+                      <AlertTitle fontSize="xs" fontWeight="medium">HLS Streaming</AlertTitle>
+                      <AlertDescription fontSize="xs">
+                        After saving, the stream will be available on all screens.
+                        Player index: 0
+                      </AlertDescription>
+                    </Box>
+                  </Alert>
+                </VStack>
               </TabPanel>
             </TabPanels>
           </Tabs>

@@ -598,3 +598,114 @@ export const createSpace = async (spaceData) => {
     throw error;
   }
 };
+
+/**
+ * Updates the HLS stream URL for a space in Firestore
+ * @param {string} spaceId - The ID of the space to update
+ * @param {Object} hlsStreamData - The HLS stream data
+ * @param {string} hlsStreamData.streamUrl - The HLS stream URL
+ * @param {string} hlsStreamData.playerIndex - The player index (defaults to "0")
+ * @param {boolean} hlsStreamData.enabled - Whether streaming is enabled
+ * @param {string} hlsStreamData.rtmpUrl - The RTMP URL (optional)
+ * @param {string} hlsStreamData.streamKey - The stream key (optional)
+ * @returns {Promise<void>}
+ */
+export const updateSpaceHLSStream = async (spaceId, hlsStreamData) => {
+  try {
+    Logger.log(`spacesFirestore: Updating HLS stream for space: ${spaceId}`, hlsStreamData);
+    
+    // Reference to the space document
+    const spaceRef = doc(db, 'spaces', spaceId);
+    
+    // Get the current space data
+    const spaceSnapshot = await getDoc(spaceRef);
+    if (!spaceSnapshot.exists()) {
+      throw new Error(`Space with ID ${spaceId} not found`);
+    }
+    
+    // Prepare the HLS stream data
+    const { 
+      streamUrl, 
+      playerIndex = "0", 
+      enabled = true,
+      rtmpUrl = "",
+      streamKey = ""
+    } = hlsStreamData;
+    
+    // Create or update the HLSStreamURL field with a structured format
+    const updateData = {
+      HLSStreamURL: {
+        streamUrl,
+        playerIndex,
+        enabled,
+        rtmpUrl,
+        streamKey,
+        updatedAt: new Date().toISOString()
+      },
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Update the space document with the new HLS stream data
+    await updateDoc(spaceRef, updateData);
+    
+    // Clear the cache for this space
+    if (cachedSpaces[spaceId]) {
+      delete cachedSpaces[spaceId];
+    }
+    
+    // Dispatch an event to notify components about the change
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('SpaceHLSStreamUpdated', {
+        detail: { 
+          spaceId, 
+          streamUrl, 
+          playerIndex,
+          enabled,
+          rtmpUrl,
+          streamKey
+        }
+      }));
+    }
+    
+    Logger.log(`spacesFirestore: Successfully updated HLS stream for space: ${spaceId}`);
+    return true;
+  } catch (error) {
+    Logger.error(`spacesFirestore: Error updating HLS stream for space: ${spaceId}`, error);
+    throw error;
+  }
+};
+
+/**
+ * Gets the HLS stream URL for a space from Firestore
+ * @param {string} spaceId - The ID of the space
+ * @returns {Promise<Object|null>} - The HLS stream data or null if not found
+ */
+export const getSpaceHLSStream = async (spaceId) => {
+  try {
+    Logger.log(`spacesFirestore: Getting HLS stream for space: ${spaceId}`);
+    
+    // Reference to the space document
+    const spaceRef = doc(db, 'spaces', spaceId);
+    
+    // Get the space data
+    const spaceSnapshot = await getDoc(spaceRef);
+    if (!spaceSnapshot.exists()) {
+      Logger.warn(`spacesFirestore: Space with ID ${spaceId} not found`);
+      return null;
+    }
+    
+    const spaceData = spaceSnapshot.data();
+    
+    // Return the HLS stream data if it exists
+    if (spaceData.HLSStreamURL) {
+      Logger.log(`spacesFirestore: Found HLS stream for space: ${spaceId}`, spaceData.HLSStreamURL);
+      return spaceData.HLSStreamURL;
+    }
+    
+    Logger.log(`spacesFirestore: No HLS stream found for space: ${spaceId}`);
+    return null;
+  } catch (error) {
+    Logger.error(`spacesFirestore: Error getting HLS stream for space: ${spaceId}`, error);
+    throw error;
+  }
+};

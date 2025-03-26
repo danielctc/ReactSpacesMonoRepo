@@ -13,3 +13,4 @@ export { useUnityOnRequestForMedia } from './useUnityOnRequestForMedia';
 export { useUnityThumbnails } from './useUnityThumbnails';
 export { useUnityOnNameplateClick } from './useUnityOnNameplateClick';
 export { useUnityPlayerList } from './useUnityPlayerList';
+export { useHLSStream } from './useHLSStream';

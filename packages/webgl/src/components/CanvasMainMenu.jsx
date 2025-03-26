@@ -38,7 +38,7 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { HamburgerIcon } from "@chakra-ui/icons";
-import { FaUsers, FaDesktop, FaEdit, FaCog, FaStar, FaCrown, FaShieldAlt } from 'react-icons/fa';
+import { FaUsers, FaDesktop, FaEdit, FaCog, FaStar, FaCrown, FaShieldAlt, FaVideo } from 'react-icons/fa';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';

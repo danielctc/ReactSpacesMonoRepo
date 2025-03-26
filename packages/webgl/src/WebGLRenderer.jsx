@@ -28,6 +28,7 @@ import PersistentBackground from "./components/PersistentBackground";
 import PersistentLoader from "./components/PersistentLoader";
 import SignIn from '@disruptive-spaces/shared/components/auth/SignIn';
 import { initUnityKeyboard, focusUnity, setUnityKeyboardCapture, blockUnityKeyboardInput } from './utils/unityKeyboard';
+import LiveStreamButton from './components/LiveStreamButton';
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -509,6 +510,9 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
           {/* Top right buttons - Moved inside the fullscreen container - also changed aspact ratio from 16/9 and position to absolute from relative */}
           <Box position="absolute" zIndex="10" top={4} right={4} display="flex" alignItems="center" gap={2}>
             {settings.showAuthButton && <AuthenticationButton />}
+            
+            {/* Live Stream Button - Show when user is logged in */}
+            {user && <LiveStreamButton size="md" />}
             
             {/* Voice Button - Only show if voice chat is enabled */}
             {showVoiceChat && (
