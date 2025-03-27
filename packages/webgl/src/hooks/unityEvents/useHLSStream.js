@@ -164,7 +164,7 @@ export const useHLSStream = () => {
         skipSendToUnity = false
       } = options;
       
-      // Send to Unity immediately if not skipped
+      // Send to Unity immediately if not skipped, regardless of enabled state
       if (!skipSendToUnity) {
         sendStreamToUnity(streamUrl, playerIndex);
       }

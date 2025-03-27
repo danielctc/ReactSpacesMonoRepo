@@ -23,6 +23,11 @@ import { FaCopy, FaCheck, FaWifi } from 'react-icons/fa';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { useHLSStream } from '../hooks/unityEvents';
 import { useUnity } from '../providers/UnityProvider';
+import { isSpaceOwner } from '@disruptive-spaces/shared/firebase/userPermissions';
+import { userBelongsToGroup } from '@disruptive-spaces/shared/firebase/userFirestore';
+import { useContext } from 'react';
+import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
+import { getSpaceHLSStream } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 
 /**
  * Button component to show livestream info
@@ -34,15 +39,77 @@ const LiveStreamButton = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
-  const { savedStreamData } = useHLSStream();
+  const { savedStreamData, reloadStreamData } = useHLSStream();
   const { spaceID } = useUnity();
+  const { user } = useContext(UserContext);
   const toast = useToast();
+  
+  // Track if user has permission to see the button
+  const [hasPermission, setHasPermission] = useState(false);
   
   // Set up clipboard for RTMP URL
   const rtmpUrlClipboard = useClipboard(savedStreamData?.rtmpUrl || "");
   
   // Set up clipboard for Stream Key
   const streamKeyClipboard = useClipboard(savedStreamData?.streamKey || "");
+  
+  // Force reload stream data when component mounts
+  useEffect(() => {
+    if (spaceID) {
+      // Force reload stream data from Firebase
+      Logger.log('LiveStreamButton: Forcing reload of stream data');
+      reloadStreamData();
+      
+      // Also set up listener for stream settings changes
+      const handleStreamSettingsChanged = () => {
+        Logger.log('LiveStreamButton: Stream settings changed, reloading data');
+        reloadStreamData();
+      };
+      
+      window.addEventListener('StreamSettingsChanged', handleStreamSettingsChanged);
+      
+      return () => {
+        window.removeEventListener('StreamSettingsChanged', handleStreamSettingsChanged);
+      };
+    }
+  }, [spaceID, reloadStreamData]);
+  
+  // Check if user is disruptiveAdmin or space owner
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (!user?.uid || !spaceID) {
+        setHasPermission(false);
+        return;
+      }
+      
+      try {
+        // Check if user is a disruptiveAdmin
+        const isAdmin = await userBelongsToGroup(user.uid, 'disruptiveAdmin');
+        
+        // Check if user is a space owner
+        const isOwner = await isSpaceOwner(user, spaceID);
+        
+        // Set permission if user is either admin or owner
+        setHasPermission(isAdmin || isOwner);
+      } catch (error) {
+        Logger.error('Error checking user permissions:', error);
+        setHasPermission(false);
+      }
+    };
+    
+    checkPermissions();
+  }, [user?.uid, spaceID]);
+  
+  // Add effect to log streaming status whenever savedStreamData changes
+  useEffect(() => {
+    Logger.log('LiveStreamButton: Current streaming data:', { 
+      enabled: savedStreamData?.enabled,
+      hasRtmpUrl: !!savedStreamData?.rtmpUrl, 
+      hasStreamKey: !!savedStreamData?.streamKey,
+      hasPermission,
+      isPlayerReady
+    });
+  }, [savedStreamData, hasPermission, isPlayerReady]);
   
   // Listen for player instantiated event
   useEffect(() => {
@@ -77,8 +144,15 @@ const LiveStreamButton = ({
     setIsModalOpen(false);
   };
   
-  // If player is not ready, don't render the button
-  if (!isPlayerReady) {
+  // If player is not ready, or user doesn't have permission, or streaming is disabled, don't render the button
+  if (!isPlayerReady || !hasPermission || savedStreamData?.enabled !== true) {
+    // Add more detailed logging about why the button is not showing
+    Logger.log('LiveStreamButton: Not rendering button because:', {
+      playerNotReady: !isPlayerReady,
+      noPermission: !hasPermission,
+      streamingDisabled: savedStreamData?.enabled !== true,
+      enabledValue: savedStreamData?.enabled
+    });
     return null;
   }
   

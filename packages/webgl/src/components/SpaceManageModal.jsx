@@ -45,7 +45,9 @@ import {
   uploadSpaceBackground, 
   deleteSpaceBackground,
   updateSpaceSettings,
-  setSpaceAccessibleToAllUsers
+  setSpaceAccessibleToAllUsers,
+  updateSpaceHLSStream,
+  getSpaceHLSStream
 } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { useUnity } from '../providers/UnityProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
@@ -90,7 +92,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   
   // Add streaming state variables
-  const [streamingEnabled, setStreamingEnabled] = useState(true);
+  const [streamingEnabled, setStreamingEnabled] = useState(false);
   const [hlsStreamUrl, setHlsStreamUrl] = useState('');
   const [rtmpUrl, setRtmpUrl] = useState('');
   const [streamKey, setStreamKey] = useState('');
@@ -134,12 +136,44 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       setSpaceName(spaceData.name || '');
       setSpaceDescription(spaceData.description || '');
       
-      // Set stream data if available
-      if (savedStreamData) {
-        setHlsStreamUrl(savedStreamData.streamUrl || '');
-        setRtmpUrl(savedStreamData.rtmpUrl || '');
-        setStreamKey(savedStreamData.streamKey || '');
-        setStreamingEnabled(savedStreamData.enabled !== false);
+      // Fetch HLS Stream Data directly from Firebase for reliability
+      try {
+        const streamData = await getSpaceHLSStream(spaceID);
+        if (streamData) {
+          setHlsStreamUrl(streamData.streamUrl || '');
+          setRtmpUrl(streamData.rtmpUrl || '');
+          setStreamKey(streamData.streamKey || '');
+          // Explicitly check for true to ensure proper boolean handling
+          const isEnabled = streamData.enabled === true;
+          setStreamingEnabled(isEnabled);
+          Logger.log('SpaceManageModal: Directly loaded streaming enabled state from Firebase:', { 
+            enabled: isEnabled, 
+            rawValue: streamData.enabled 
+          });
+        } else {
+          // Default to false if no stream data exists
+          setStreamingEnabled(false);
+          Logger.log('SpaceManageModal: No stream data found in Firebase, defaulting enabled to false');
+        }
+      } catch (streamError) {
+        Logger.error('Error fetching stream data directly:', streamError);
+        // Fall back to savedStreamData if direct fetch fails
+        if (savedStreamData) {
+          setHlsStreamUrl(savedStreamData.streamUrl || '');
+          setRtmpUrl(savedStreamData.rtmpUrl || '');
+          setStreamKey(savedStreamData.streamKey || '');
+          // Default to false if enabled property doesn't exist or is explicitly false
+          const isEnabled = savedStreamData.enabled === true;
+          setStreamingEnabled(isEnabled);
+          Logger.log('SpaceManageModal: Loaded streaming enabled state from savedStreamData:', { 
+            enabled: isEnabled, 
+            rawValue: savedStreamData.enabled 
+          });
+        } else {
+          // Default to false if no saved stream data exists
+          setStreamingEnabled(false);
+          Logger.log('SpaceManageModal: No savedStreamData available, defaulting enabled to false');
+        }
       }
       
       // Fetch users
@@ -160,12 +194,27 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   // Add effect to update stream fields when savedStreamData changes
   useEffect(() => {
     if (savedStreamData) {
-      setHlsStreamUrl(savedStreamData.streamUrl || '');
-      setRtmpUrl(savedStreamData.rtmpUrl || '');
-      setStreamKey(savedStreamData.streamKey || '');
-      setStreamingEnabled(savedStreamData.enabled !== false);
+      // Only update if not currently saving (to avoid overwriting user's current edits)
+      if (!isSavingStream) {
+        setHlsStreamUrl(savedStreamData.streamUrl || '');
+        setRtmpUrl(savedStreamData.rtmpUrl || '');
+        setStreamKey(savedStreamData.streamKey || '');
+        // Default to false if enabled property doesn't exist or is explicitly false
+        const isEnabled = savedStreamData.enabled === true;
+        setStreamingEnabled(isEnabled);
+        Logger.log('SpaceManageModal: Updated streaming enabled state from savedStreamData:', { 
+          enabled: isEnabled, 
+          rawValue: savedStreamData.enabled 
+        });
+      }
+    } else {
+      // Don't default to false if no saved stream data exists - only on initial load
+      // This prevents wiping out user changes when savedStreamData is temporarily null
+      if (isOpen && !isSavingStream) {
+        Logger.log('SpaceManageModal: No savedStreamData available but NOT defaulting enabled to false (preserving current state)');
+      }
     }
-  }, [savedStreamData]);
+  }, [savedStreamData, isSavingStream, isOpen]);
 
   // Function to fetch space users
   const fetchSpaceUsers = async (spaceData) => {
@@ -648,20 +697,50 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
         updatedAt: new Date().toISOString()
       };
       
-      // Update in Firebase
+      Logger.log('SpaceManageModal: Saving stream settings to Firebase:', {
+        enabled: streamingEnabled,
+        url: hlsStreamUrl,
+        hasRtmp: !!rtmpUrl,
+        hasKey: !!streamKey
+      });
+      
+      // Direct update to Firebase first for reliability
+      try {
+        await updateSpaceHLSStream(spaceID, streamData);
+        Logger.log('SpaceManageModal: Successfully updated stream settings in Firebase directly');
+      } catch (directError) {
+        Logger.error('SpaceManageModal: Error updating stream settings directly in Firebase:', directError);
+        // Fall back to hook method
+        throw directError;
+      }
+      
+      // Also use the hook method as a backup
       await setHLSStreamUrl(hlsStreamUrl, 0, {
         enabled: streamingEnabled,
         rtmpUrl: rtmpUrl,
         streamKey: streamKey
       });
       
+      // Dispatch an event to notify other components about stream settings changes
+      window.dispatchEvent(new CustomEvent('StreamSettingsChanged', {
+        detail: {
+          enabled: streamingEnabled,
+          spaceId: spaceID
+        }
+      }));
+      
       toast({
         title: 'Success',
-        description: 'Stream settings updated successfully',
+        description: `Stream settings updated successfully. Streaming is now ${streamingEnabled ? 'enabled' : 'disabled'}.`,
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
+      
+      // Refresh data after a short delay to ensure we have the latest state
+      setTimeout(() => {
+        fetchSpaceData();
+      }, 500);
     } catch (error) {
       Logger.error('Error updating stream settings:', error);
       toast({
@@ -1384,7 +1463,78 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                       
                       <Switch
                         isChecked={streamingEnabled}
-                        onChange={() => setStreamingEnabled(!streamingEnabled)}
+                        onChange={async () => {
+                          // Update local state for immediate UI feedback
+                          const newEnabledState = !streamingEnabled;
+                          setStreamingEnabled(newEnabledState);
+                          
+                          // Save to Firebase immediately when toggled
+                          setIsSavingStream(true);
+                          try {
+                            Logger.log('SpaceManageModal: Auto-saving streaming enabled state:', newEnabledState);
+                            
+                            // Prepare data for the update
+                            const streamData = {
+                              enabled: newEnabledState,
+                              streamUrl: hlsStreamUrl || '',
+                              rtmpUrl: rtmpUrl || '',
+                              streamKey: streamKey || '',
+                              playerIndex: "0",
+                              updatedAt: new Date().toISOString()
+                            };
+                            
+                            // Direct update to Firebase first for reliability
+                            try {
+                              await updateSpaceHLSStream(spaceID, streamData);
+                              Logger.log('SpaceManageModal: Successfully updated streaming enabled state in Firebase directly');
+                            } catch (directError) {
+                              Logger.error('SpaceManageModal: Error updating streaming state directly in Firebase:', directError);
+                              // Fall back to hook method
+                              throw directError;
+                            }
+                            
+                            // Also use the hook method as a backup
+                            await setHLSStreamUrl(hlsStreamUrl, 0, {
+                              enabled: newEnabledState,
+                              rtmpUrl: rtmpUrl,
+                              streamKey: streamKey
+                            });
+                            
+                            // Dispatch event to notify other components
+                            window.dispatchEvent(new CustomEvent('StreamSettingsChanged', {
+                              detail: {
+                                enabled: newEnabledState,
+                                spaceId: spaceID
+                              }
+                            }));
+                            
+                            toast({
+                              title: 'Streaming ' + (newEnabledState ? 'Enabled' : 'Disabled'),
+                              description: `Streaming is now ${newEnabledState ? 'enabled' : 'disabled'}.`,
+                              status: 'success',
+                              duration: 2000,
+                              isClosable: true,
+                            });
+                          } catch (error) {
+                            Logger.error('Error auto-saving streaming state:', error);
+                            // Revert the toggle if save fails
+                            setStreamingEnabled(!newEnabledState);
+                            toast({
+                              title: 'Error',
+                              description: 'Failed to update streaming status',
+                              status: 'error',
+                              duration: 3000,
+                              isClosable: true,
+                            });
+                          } finally {
+                            setIsSavingStream(false);
+                            
+                            // Trigger a refresh of stream data after a short delay
+                            setTimeout(() => {
+                              fetchSpaceData();
+                            }, 500);
+                          }
+                        }}
                         colorScheme="green"
                         size="md"
                         isDisabled={isSavingStream}
@@ -1467,6 +1617,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                     loadingText="Saving..."
                     alignSelf="flex-start"
                     mt={2}
+                    display={streamingEnabled ? "inline-flex" : "none"}
                   >
                     Save Stream Settings
                   </Button>
