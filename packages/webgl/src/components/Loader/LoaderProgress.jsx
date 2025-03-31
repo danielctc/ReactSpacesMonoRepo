@@ -93,7 +93,6 @@ function LoaderProgress() {
       
       if (canvas) {
         unityCanvasRef.current = canvas;
-        console.log("LoaderProgress: Found Unity canvas");
         
         // Ensure Unity canvas has lower z-index
         canvas.style.zIndex = '1';
@@ -101,7 +100,6 @@ function LoaderProgress() {
       
       if (container) {
         unityContainerRef.current = container;
-        console.log("LoaderProgress: Found Unity container");
         
         // Ensure Unity container has lower z-index
         container.style.zIndex = '1';
@@ -133,17 +131,13 @@ function LoaderProgress() {
 
   // Listen for FirstSceneLoaded event
   useEffect(() => {
-    console.log("LoaderProgress: Setting up FirstSceneLoaded listener");
-    
     // Check if we already have a window flag for FirstSceneLoaded
     if (window.isFirstSceneLoaded) {
-      console.log("LoaderProgress: FirstSceneLoaded already set via window flag");
       firstSceneLoadedRef.current = true;
       setIsFirstSceneLoaded(true);
     }
     
     const handleFirstSceneLoaded = () => {
-      console.log("LoaderProgress: FirstSceneLoaded event received");
       firstSceneLoadedRef.current = true;
       setIsFirstSceneLoaded(true);
       
@@ -156,7 +150,6 @@ function LoaderProgress() {
     // Force FirstSceneLoaded after a timeout if it hasn't happened yet
     const forceTimeout = setTimeout(() => {
       if (!firstSceneLoadedRef.current) {
-        console.log("LoaderProgress: Forcing FirstSceneLoaded after timeout");
         firstSceneLoadedRef.current = true;
         setIsFirstSceneLoaded(true);
         window.isFirstSceneLoaded = true;
@@ -171,17 +164,13 @@ function LoaderProgress() {
 
   // Listen for PlayerInstantiated event
   useEffect(() => {
-    console.log("LoaderProgress: Setting up PlayerInstantiated listener");
-    
     // Check if already instantiated
     if (window.isPlayerInstantiated) {
-      console.log("LoaderProgress: Player already instantiated via window flag");
       playerInstantiatedRef.current = true;
       setIsPlayerInstantiated(true);
       
       // Also force FirstSceneLoaded if player is already instantiated
       if (!firstSceneLoadedRef.current) {
-        console.log("LoaderProgress: Forcing FirstSceneLoaded because player is already instantiated");
         firstSceneLoadedRef.current = true;
         setIsFirstSceneLoaded(true);
         window.isFirstSceneLoaded = true;
@@ -189,13 +178,11 @@ function LoaderProgress() {
     }
     
     const handlePlayerInstantiated = () => {
-      console.log("LoaderProgress: PlayerInstantiated event received");
       playerInstantiatedRef.current = true;
       setIsPlayerInstantiated(true);
       
       // Also force FirstSceneLoaded if it hasn't happened yet
       if (!firstSceneLoadedRef.current) {
-        console.log("LoaderProgress: Forcing FirstSceneLoaded because player is instantiated");
         firstSceneLoadedRef.current = true;
         setIsFirstSceneLoaded(true);
         window.isFirstSceneLoaded = true;
@@ -211,13 +198,11 @@ function LoaderProgress() {
     // Force player instantiation after timeout
     const forceTimeout = setTimeout(() => {
       if (!playerInstantiatedRef.current) {
-        console.log("LoaderProgress: Forcing player instantiation after timeout");
         playerInstantiatedRef.current = true;
         setIsPlayerInstantiated(true);
         
         // Also force FirstSceneLoaded if it hasn't happened yet
         if (!firstSceneLoadedRef.current) {
-          console.log("LoaderProgress: Forcing FirstSceneLoaded because of timeout");
           firstSceneLoadedRef.current = true;
           setIsFirstSceneLoaded(true);
           window.isFirstSceneLoaded = true;
@@ -234,11 +219,6 @@ function LoaderProgress() {
 
   // Handle visibility changes based on player instantiation
   useEffect(() => {
-    console.log("LoaderProgress: Handling visibility changes", {
-      isFirstSceneLoaded,
-      isPlayerInstantiated
-    });
-    
     // Only proceed if both conditions are met
     if (isFirstSceneLoaded && isPlayerInstantiated) {
       console.log("LoaderProgress: Both conditions met, showing Unity canvas");
@@ -250,8 +230,6 @@ function LoaderProgress() {
       
       // Set timeout to show Unity canvas and hide loader
       timeoutRef.current = setTimeout(() => {
-        console.log("LoaderProgress: Showing Unity canvas now");
-        
         // Show Unity canvas
         if (unityCanvasRef.current) {
           unityCanvasRef.current.style.opacity = '1';
@@ -286,38 +264,6 @@ function LoaderProgress() {
       }
     };
   }, [isFirstSceneLoaded, isPlayerInstantiated]);
-
-  // Debug logging
-  useEffect(() => {
-    // Set up interval to log state every second
-    debugIntervalRef.current = setInterval(() => {
-      console.log("LoaderProgress: Debug interval", {
-        isLoaded,
-        isFirstSceneLoaded: firstSceneLoadedRef.current,
-        isPlayerInstantiated: playerInstantiatedRef.current,
-        windowFirstSceneLoaded: window.isFirstSceneLoaded,
-        windowPlayerInstantiated: window.isPlayerInstantiated,
-        unityCanvasZIndex: unityCanvasRef.current?.style.zIndex,
-        loaderZIndex: loaderRef.current?.style.zIndex
-      });
-    }, 5000); // Log every 5 seconds
-    
-    return () => {
-      if (debugIntervalRef.current) {
-        clearInterval(debugIntervalRef.current);
-      }
-    };
-  }, [isLoaded]);
-
-  // Immediate debug logging on state changes
-  useEffect(() => {
-    console.log("LoaderProgress: State updated", {
-      isLoaded,
-      isFirstSceneLoaded,
-      isPlayerInstantiated,
-      loadingProgression
-    });
-  }, [isLoaded, isFirstSceneLoaded, isPlayerInstantiated, loadingProgression]);
 
   // Determine the current loading stage and progress
   const getLoadingStage = () => {

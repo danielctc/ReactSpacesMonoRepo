@@ -9,6 +9,8 @@ export {
   useUnityOnStoreUserData,
   useUnityOnHelloFromUnity, 
   useUnityOnPlayerInstantiated,
+  usePlacePrefab,
+  useSpaceObjects,
   useUnityOnRequestForMedia,
   useUnityThumbnails,
   useUnityOnNameplateClick,

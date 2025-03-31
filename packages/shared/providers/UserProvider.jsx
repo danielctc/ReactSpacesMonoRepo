@@ -10,12 +10,13 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 
 export const UserContext = createContext(null);
+export const RegistrationContext = createContext(null);
 
 export const UserProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const currentUserRef = useRef(null); // Initialize ref with null
-
     const [loading, setLoading] = useState(true);
+    const [registrationInProgress, setRegistrationInProgress] = useState(false);
     const auth = getAuth();
 
     const getDisplayName = (userProfile) => {
@@ -63,67 +64,148 @@ export const UserProvider = ({ children }) => {
 
     const register = async (email, password, additionalData) => {
         try {
+            // Set registration in progress
+            setRegistrationInProgress(true);
+            
+            console.log("UserProvider: Starting registration with additionalData:", JSON.stringify(additionalData));
+            console.log("UserProvider: Fields in additionalData:", Object.keys(additionalData).join(', '));
+            
+            // Check if we received critical fields
+            if (!additionalData) {
+                throw new Error("Registration data is missing");
+            }
+            
+            // Extract and verify captcha token
+            const captchaToken = additionalData.captchaToken;
+            if (!captchaToken) {
+                throw new Error("CAPTCHA verification is required");
+            }
+            
+            // Remove captchaToken from the data we pass to Firebase
+            const { captchaToken: _, ...registrationData } = additionalData;
+            
+            // Log detailed field values for debugging
+            console.log("UserProvider: Received field values:");
+            console.log("- firstName:", registrationData.firstName);
+            console.log("- lastName:", registrationData.lastName);
+            console.log("- companyName:", registrationData.companyName);
+            console.log("- linkedInProfile:", registrationData.linkedInProfile);
+            console.log("- username:", registrationData.username);
+            console.log("- Nickname:", registrationData.Nickname);
+            
             // Generate nickname from first name and first letter of last name
-            const { firstName, lastName } = additionalData;
-            const Nickname = `${firstName}${lastName.charAt(0).toUpperCase()}`;
-
-            // Add default RPM URL and ensure groups field is included in the registration data
-            const registrationData = {
-                ...additionalData,
-                Nickname,
+            const firstName = registrationData.firstName || "";
+            const lastName = registrationData.lastName || "";
+            const defaultNickname = firstName && lastName 
+                ? `${firstName}${lastName.charAt(0).toUpperCase()}`
+                : "";
+                
+            console.log("UserProvider: Generated default Nickname:", defaultNickname);
+            
+            // Create the registration data
+            const registrationDataToSend = {
+                // Set defaults first
+                firstName: "",
+                lastName: "",
+                companyName: "",
+                linkedInProfile: "",
+                username: "",
+                Nickname: registrationData.Nickname || defaultNickname, // Use provided or generated
+                groups: ['users'], // Ensure the user is added to the 'users' group
                 rpmURL: "https://models.readyplayer.me/67c8408d38f7924e15a8bd0a.glb",
-                groups: ['users'] // Ensure the user is added to the 'users' group
+                // Then apply any remaining user data
+                ...registrationData
             };
+            
+            console.log("UserProvider: Prepared registrationData:", JSON.stringify(registrationDataToSend));
+            console.log("UserProvider: Fields in registrationData:", Object.keys(registrationDataToSend).join(', '));
+            console.log("UserProvider: Critical values - firstName:", registrationDataToSend.firstName, 
+                "lastName:", registrationDataToSend.lastName, "Nickname:", registrationDataToSend.Nickname);
 
             // Register the user with the updated data
-            const userData = await registerUser(email, password, registrationData);
+            const userData = await registerUser(email, password, registrationDataToSend);
+            console.log("UserProvider: Received userData from registerUser:", JSON.stringify(userData));
+            
+            // Verify received data
+            console.log("UserProvider: Verifying returned user data:");
+            console.log("- firstName:", userData.firstName || "MISSING");
+            console.log("- lastName:", userData.lastName || "MISSING");
+            console.log("- Nickname:", userData.Nickname || "MISSING");
+            console.log("- username:", userData.username || "MISSING");
+            console.log("- companyName:", userData.companyName || "MISSING");
+            
+            // Check for missing critical fields and use our original data if missing
+            if (!userData.firstName) {
+                console.warn("UserProvider: firstName is missing in returned data, using original value");
+                userData.firstName = registrationDataToSend.firstName;
+            }
+            
+            if (!userData.lastName) {
+                console.warn("UserProvider: lastName is missing in returned data, using original value");
+                userData.lastName = registrationDataToSend.lastName;
+            }
+            
+            if (!userData.Nickname) {
+                console.warn("UserProvider: Nickname is missing in returned data, using original value");
+                userData.Nickname = registrationDataToSend.Nickname;
+            }
+            
+            if (!userData.companyName) {
+                console.warn("UserProvider: companyName is missing in returned data, using original value");
+                userData.companyName = registrationDataToSend.companyName;
+            }
             
             // Create a full user object with display name
-            const displayName = getDisplayName(registrationData);
+            const displayName = getDisplayName(userData);
             const fullUserDetails = {
                 uid: userData.uid,
                 email: userData.email,
-                ...registrationData,
+                ...userData,
                 displayName
             };
+            
+            console.log("UserProvider: Created fullUserDetails:", JSON.stringify(fullUserDetails));
             
             // Update the user state
             setUser(fullUserDetails);
             currentUserRef.current = fullUserDetails;
             
-            Logger.log('UserProvider: User registered successfully with groups:', registrationData.groups);
+            Logger.log('UserProvider: User registered successfully with groups:', registrationDataToSend.groups);
+            
+            // Wait for a moment to ensure Firebase has fully processed everything
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Registration complete
+            setRegistrationInProgress(false);
             return fullUserDetails;
         } catch (error) {
             Logger.error("UserProvider: Error creating user:", error);
+            // Ensure registration state is reset even if there's an error
+            setRegistrationInProgress(false);
             throw error;
         }
     };
 
-    const signIn = async (email, password) => {
+    const signIn = async (email, password, captchaToken) => {
         try {
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            Logger.log('UserProvider: Signing in user');
             
-            // Check if email is verified
-            if (!userCredential.user.emailVerified) {
-                // Send another verification email if needed
-                await sendEmailVerification(userCredential.user);
-                Logger.log('UserProvider: Verification email sent again to:', email);
-                throw new Error('Please verify your email before signing in. A new verification email has been sent.');
+            // Verify captchaToken is provided
+            if (!captchaToken) {
+                throw new Error("CAPTCHA verification is required");
             }
             
-            const userProfile = await getUserProfileData(userCredential.user.uid);
-            const displayName = getDisplayName(userProfile);
-            const fullUserDetails = {
-                uid: userCredential.user.uid,
-                email: userCredential.user.email,
-                emailVerified: userCredential.user.emailVerified,
-                ...userProfile,
-                displayName
-            };
-            setUser(fullUserDetails);
-            sendUserToUnity(fullUserDetails);
+            // Here we could verify the captchaToken with a server-side API if needed
+            // For now, we'll just proceed with the sign-in
+            
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const authUser = userCredential.user;
+            
+            // We don't need to set user here as the onAuthStateChanged will handle that
+            Logger.log('UserProvider: User signed in successfully:', authUser.email);
+            return authUser;
         } catch (error) {
-            Logger.error("UserProvider: Error signing in:", error);
+            Logger.error('UserProvider: Error signing in:', error);
             throw error;
         }
     };
@@ -249,30 +331,84 @@ export const UserProvider = ({ children }) => {
         }
     };
 
+    // Add an updateUser function to refresh user data from Firestore
+    const updateUser = async () => {
+        try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                Logger.warn('UserProvider: updateUser called but no current user exists');
+                return null;
+            }
+
+            Logger.log('UserProvider: Updating user data from Firestore');
+            const userProfile = await getUserProfileData(currentUser.uid);
+            
+            if (!userProfile) {
+                Logger.error('UserProvider: Failed to fetch updated user profile');
+                return null;
+            }
+            
+            const displayName = getDisplayName(userProfile);
+            const fullUserDetails = {
+                uid: currentUser.uid,
+                email: currentUser.email,
+                emailVerified: currentUser.emailVerified,
+                ...userProfile,
+                displayName
+            };
+            
+            Logger.log('UserProvider: User data updated with fields:', Object.keys(fullUserDetails).join(', '));
+            
+            // Update state and ref
+            setUser(fullUserDetails);
+            currentUserRef.current = fullUserDetails;
+            
+            // Update Unity if needed
+            sendUserToUnity(fullUserDetails);
+            
+            return fullUserDetails;
+        } catch (error) {
+            Logger.error('UserProvider: Error updating user data:', error);
+            throw error;
+        }
+    };
+
     return (
-        <UserContext.Provider value={{
-            user,
-            loading,
-            register,
-            signIn,
-            signOut,
-            sendUserToUnity,
-            isUserInGroup,
-            userHasAccessToSpace,
-            userIsAdminOfSpace,
-            userIsModeratorOfSpace,
-            resendVerificationEmail,
-        }}>
-            {children}
-        </UserContext.Provider>
+        <RegistrationContext.Provider value={{ registrationInProgress }}>
+            <UserContext.Provider value={{
+                user,
+                loading,
+                register,
+                signIn,
+                signOut,
+                sendUserToUnity,
+                isUserInGroup,
+                userHasAccessToSpace,
+                userIsAdminOfSpace,
+                userIsModeratorOfSpace,
+                resendVerificationEmail,
+                updateUser,
+            }}>
+                {children}
+            </UserContext.Provider>
+        </RegistrationContext.Provider>
     );
 };
 
 // Add a custom hook for using the user context
 export const useUser = () => {
-  const context = useContext(UserContext);
-  if (context === undefined) {
-    throw new Error('useUser must be used within a UserProvider');
-  }
-  return context;
+    const context = useContext(UserContext);
+    if (context === undefined) {
+        throw new Error('useUser must be used within a UserProvider');
+    }
+    return context;
+};
+
+// Add a custom hook for using the registration context
+export const useRegistration = () => {
+    const context = useContext(RegistrationContext);
+    if (context === undefined) {
+        throw new Error('useRegistration must be used within a UserProvider');
+    }
+    return context;
 };

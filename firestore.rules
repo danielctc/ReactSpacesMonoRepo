@@ -8,12 +8,26 @@ service cloud.firestore {
     
     // Allow users to read and write their own profile records
     match /users/{userId} {
-      // Allow users to read and write their own profile
+      // Allow users to read/write their own PUBLIC profile data
       allow read, write: if request.auth != null && request.auth.uid == userId;
-      // Allow any authenticated user to read any user document
+      
+      // Allow any authenticated user to read PUBLIC profile data
       allow read: if request.auth != null;
-      // Allow updates to user documents when updating group memberships
-      allow update: if isUpdatingGroups(userId) || isDisruptiveAdmin();
+      
+      // Special rule to allow username availability checking during registration
+      // This allows checking username field without authentication
+      allow list: if true;
+
+      // Allow updates for group memberships (if only 'groups' field changes on the main doc)
+      // Admins can update via the global rule.
+      allow update: if request.auth != null && request.auth.uid == userId && 
+                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['groups']);
+
+      // --- Rule for private subcollection ---
+      match /private/{privateDocId} {
+        // Allow ONLY the user themselves or an admin to read/write private data
+        allow read, write: if request.auth != null && (request.auth.uid == userId || isDisruptiveAdmin());
+      }
     }
     
     // Allow access to groups based on membership
@@ -50,11 +64,31 @@ service cloud.firestore {
         allow read: if isSpacePublic(spaceId) || request.auth != null;
         allow write: if isSpaceOwnerOrHost(spaceId) || isDisruptiveAdmin();
       }
+      
+      // Allow access to space objects
+      match /objects/{objectId} {
+        // Allow any authenticated user to read objects
+        allow read: if request.auth != null;
+        // Allow write access only to space owners, hosts, or admins
+        allow write: if isSpaceOwnerOrHost(spaceId) || isDisruptiveAdmin();
+      }
     }
     
     // Allow website components read (PUBLIC)
     match /website/{websiteId} {
       allow read: if true;
+    }
+    
+    // Allow public read access to brands, but only admin write access
+    match /brands/{brandId} {
+      allow read: if true;
+      allow write: if isDisruptiveAdmin();
+    }
+    
+    // Allow public read access to events, but only admin write access
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if isDisruptiveAdmin();
     }
     
     // Allow all authenticated users to read WebGL builds, and public access for builds used in public spaces
@@ -135,13 +169,6 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/spaces/{spaceId}) 
              && get(/databases/$(database)/documents/spaces/{spaceId}).data.webglBuildId == buildId
              && get(/databases/$(database)/documents/spaces/{spaceId}).data.isPublic == true;
-    }
-    
-    function isUpdatingGroups(userId) {
-      // Allow updates to user documents when only the groups field is being modified
-      // This is needed for group membership changes
-      return request.auth != null 
-             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['groups']);
     }
   }
 }

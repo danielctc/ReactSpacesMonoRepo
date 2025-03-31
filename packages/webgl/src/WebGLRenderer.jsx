@@ -29,6 +29,7 @@ import PersistentLoader from "./components/PersistentLoader";
 import SignIn from '@disruptive-spaces/shared/components/auth/SignIn';
 import { initUnityKeyboard, focusUnity, setUnityKeyboardCapture, blockUnityKeyboardInput } from './utils/unityKeyboard';
 import LiveStreamButton from './components/LiveStreamButton';
+import PrefabPlacer from './components/PrefabPlacer';
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -597,7 +598,10 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
           </Box>
           
           {/* Bottom right controls */}
-          <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} left={4} display="flex" alignItems="flex-start" gap={3} />
+          <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} left={4} display="flex" alignItems="flex-start" gap={3}>
+            {/* Show PrefabPlacer only when user is logged in */}
+            {user && <PrefabPlacer settings={settings} />}
+          </Box>
           <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} right={4} display="flex" alignItems="flex-start" gap={3}>
             {settings.showHelpButton && <HelpButton />}
             <FullScreenButton />

@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
@@ -8,6 +8,7 @@ import Register from "./Register";
 import { useUnityInputManager } from '@disruptive-spaces/webgl/src/hooks/useUnityInputManager';
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from '@disruptive-spaces/shared/firebase/firebase';
+import ReCAPTCHA from "react-google-recaptcha";
 
 import {
     IconButton,
@@ -30,24 +31,32 @@ import {
     Box,
     Heading,
     useToast,
+    Flex,
+    Checkbox
 } from "@chakra-ui/react";
 import { EmailIcon, LockIcon } from "@chakra-ui/icons";
+
+// reCAPTCHA site key
+const RECAPTCHA_SITE_KEY = "6Le4oQUrAAAAAHe0GMH5Z0tpuqTV2qqDzK9Yk4Uv";
 
 function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialIsOpen = false }) {
     const { signIn } = useContext(UserContext);
     const { fullscreenRef } = useFullscreenContext();
     const toast = useToast();
-    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+    const { register, handleSubmit, formState: { errors } } = useForm({
         defaultValues: {
             email: 'neil@pursey.net',
             password: '123456',
         }
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [isOpen, setIsOpen] = useState(initialIsOpen);
     const [showRegister, setShowRegister] = useState(false);
     const [showResetPassword, setShowResetPassword] = useState(false);
     const [resetEmail, setResetEmail] = useState('');
     const [isResetting, setIsResetting] = useState(false);
+    const [captchaToken, setCaptchaToken] = useState(null);
+    const recaptchaRef = useRef(null);
 
     useUnityInputManager(isOpen || showResetPassword);
     
@@ -64,9 +73,27 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
         };
     }, []);
 
+    const handleCaptchaChange = (token) => {
+        setCaptchaToken(token);
+    };
+
     const handleSignIn = async (data) => {
+        if (!captchaToken) {
+            toast({
+                title: "Verification Required",
+                description: "Please complete the reCAPTCHA verification.",
+                status: "error",
+                duration: 3000,
+                isClosable: true,
+                position: "top",
+            });
+            return;
+        }
+
+        setIsSubmitting(true);
+
         try {
-            await signIn(data.email, data.password);
+            await signIn(data.email, data.password, captchaToken);
             Logger.log('User: Sign-in process complete.');
             setIsOpen(false);
 
@@ -95,6 +122,13 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
                 position: "top",
                 container: fullscreenRef.current
             });
+        } finally {
+            setIsSubmitting(false);
+            
+            // Reset reCAPTCHA
+            if (recaptchaRef.current) {
+                recaptchaRef.current.reset();
+            }
         }
     };
 
@@ -277,6 +311,16 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
                                         Forgot Password?
                                     </Link>
                                 </Box>
+
+                                {/* Add reCAPTCHA */}
+                                <Flex width="100%" justifyContent="center" my={4}>
+                                    <ReCAPTCHA
+                                        ref={recaptchaRef}
+                                        sitekey={RECAPTCHA_SITE_KEY}
+                                        onChange={handleCaptchaChange}
+                                        theme="dark"
+                                    />
+                                </Flex>
                             </VStack>
                         </ModalBody>
 
@@ -288,6 +332,7 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
                                 width="100%"
                                 isLoading={isSubmitting}
                                 loadingText="Signing In"
+                                isDisabled={!captchaToken}
                             >
                                 Sign In
                             </Button>

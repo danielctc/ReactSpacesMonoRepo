@@ -1,9 +1,18 @@
 /**
- * This file contains override functions for user permissions.
- * These functions are used to override the default permission checks
- * for testing and development purposes.
+ * ⚠️ SEVERE SECURITY RISK - DEVELOPMENT USE ONLY ⚠️
  * 
- * IMPORTANT: This file should not be used in production.
+ * This file contains override functions that bypass normal security checks
+ * and authorization controls. It is strictly for local development and testing.
+ *
+ * ⚠️ NEVER ENABLE THESE OVERRIDES IN PRODUCTION ⚠️
+ * 
+ * Enabling these overrides in production would:
+ * 1. Grant unauthorized administrative access
+ * 2. Allow users to bypass permission checks
+ * 3. Create severe security vulnerabilities
+ * 
+ * The USE_PERMISSION_OVERRIDES flag in userPermissions.js MUST be set to false
+ * in production environments.
  */
 
 import { Logger } from '../logging/react-log';

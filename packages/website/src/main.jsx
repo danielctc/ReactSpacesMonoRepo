@@ -6,6 +6,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { UserProvider } from '@disruptive-spaces/shared/providers/UserProvider';
 import { FullScreenProvider } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { WebsiteContentProvider } from './contexts/WebsiteContentContext';
+import RegistrationOverlay from '@disruptive-spaces/shared/components/auth/RegistrationOverlay';
 import theme from './theme';
 import App from './App';
 import './index.css';
@@ -40,6 +41,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <FullScreenProvider>
               <WebsiteContentProvider>
                 <App />
+                <RegistrationOverlay />
               </WebsiteContentProvider>
             </FullScreenProvider>
           </UserProvider>

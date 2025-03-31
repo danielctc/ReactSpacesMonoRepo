@@ -27,6 +27,7 @@ export const userProperties = [
     "name",
     "rpmURL",
     "Nickname",
+    "username",
     "created_on",
     "height_cm",
     // Add more fields as needed.

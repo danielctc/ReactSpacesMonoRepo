@@ -4,6 +4,8 @@ import PropTypes from 'prop-types';
 import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { useUnity } from '../providers/UnityProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+// Import the loader logo image directly from the components directory
+import spacesLoaderLogo from './SpacesLogo_Loader.png';
 
 /**
  * PersistentLoader - A component that displays loading progress within the Unity canvas container
@@ -19,6 +21,8 @@ const PersistentLoader = ({ containerRef }) => {
   const loaderRef = useRef(null);
   const logoRef = useRef(null);
   const logoContainerRef = useRef(null);
+  const loaderLogoRef = useRef(null);
+  const loaderLogoMaskRef = useRef(null);
   const progressIntervalRef = useRef(null);
 
   // Debug log when component mounts
@@ -120,48 +124,53 @@ const PersistentLoader = ({ containerRef }) => {
     const loaderElement = document.createElement('div');
     loaderRef.current = loaderElement;
     
-    // Set styles for the loader container - position below center
+    // Set styles for the loader container - start with opacity 0
     Object.assign(loaderElement.style, {
       position: 'absolute',
-      top: '50%',
+      top: '60%', 
       left: '50%',
-      transform: 'translate(-50%, calc(-50% + 50px))', // Position below center
+      transform: 'translate(-50%, -50%)',
       width: '300px',
       padding: '16px',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: '50', // High enough to be above Unity canvas but within the container
-      transition: 'opacity 1.5s ease-in-out',
+      zIndex: '50',
+      transition: 'opacity 0.8s ease-in-out',
       pointerEvents: 'none',
       color: 'white',
       fontFamily: 'Arial, sans-serif',
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      borderRadius: '8px',
-      boxShadow: '0 0 20px rgba(0, 0, 0, 0.7)',
+      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+      borderRadius: '12px',
+      boxShadow: '0 0 20px rgba(0, 0, 0, 0.3), inset 0 0 1px rgba(255, 255, 255, 0.3)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      opacity: '0', // Start with opacity 0
     });
     
-    // Create a separate container for the logo
+    // Create a separate container for the space logo if available
     if (spaceLogo) {
       Logger.log(`PersistentLoader: Creating logo element with URL: ${spaceLogo}`);
       const logoContainer = document.createElement('div');
       logoContainerRef.current = logoContainer;
       
-      // Set styles for the logo container - position above center
+      // Set styles for the logo container - start with opacity 0
       Object.assign(logoContainer.style, {
         position: 'absolute',
-        top: '50%',
+        top: '37.5%',
         left: '50%',
-        transform: 'translate(-50%, calc(-50% - 40px))', // Position closer to the loader
+        transform: 'translate(-50%, -50%)',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: '50',
-        transition: 'opacity 1.5s ease-in-out',
+        transition: 'opacity 0.8s ease-in-out',
         pointerEvents: 'none',
         padding: '8px',
-        width: '280px', // Match loader width more closely
+        width: '280px',
+        opacity: '0', // Start with opacity 0
       });
       
       // Create logo image
@@ -169,7 +178,7 @@ const PersistentLoader = ({ containerRef }) => {
       logoRef.current = logoImage;
       logoImage.src = spaceLogo;
       logoImage.alt = 'Space Logo';
-      logoImage.style.maxHeight = '100px'; // Slightly reduced height
+      logoImage.style.maxHeight = '100px';
       logoImage.style.maxWidth = '100%';
       logoImage.style.objectFit = 'contain';
       logoImage.style.filter = 'drop-shadow(0 0 8px rgba(0, 0, 0, 0.7))';
@@ -187,12 +196,6 @@ const PersistentLoader = ({ containerRef }) => {
     // Create the animation style
     const style = document.createElement('style');
     style.textContent = `
-      @keyframes progress-pulse {
-        0% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
-        50% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.8); }
-        100% { box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
-      }
-      
       @keyframes progress-glow {
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
@@ -211,27 +214,43 @@ const PersistentLoader = ({ containerRef }) => {
     stageText.style.color = '#ffffff';
     stageText.textContent = 'Initialising World';
     
-    // Create progress bar container
-    const progressBarContainer = document.createElement('div');
-    progressBarContainer.style.width = '100%';
-    progressBarContainer.style.height = '12px';
-    progressBarContainer.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-    progressBarContainer.style.borderRadius = '6px';
-    progressBarContainer.style.overflow = 'hidden';
-    progressBarContainer.style.position = 'relative';
-    progressBarContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5) inset';
+    // Create loader logo container with initial opacity of 0
+    const loaderLogoContainer = document.createElement('div');
+    loaderLogoContainer.style.width = '240px';
+    loaderLogoContainer.style.height = '100px';
+    loaderLogoContainer.style.position = 'relative';
+    loaderLogoContainer.style.marginBottom = '15px';
+    loaderLogoContainer.style.padding = '0px';
+    loaderLogoContainer.style.overflow = 'hidden';
+    loaderLogoContainer.style.boxSizing = 'border-box';
+    loaderLogoContainer.style.transition = 'opacity 0.8s ease-in-out';
+    loaderLogoContainer.style.opacity = '0'; // Start with opacity 0
     
-    // Create progress bar
-    const progressBar = document.createElement('div');
-    progressBar.style.height = '100%';
-    progressBar.style.width = '0%';
-    progressBar.style.background = 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)';
-    progressBar.style.backgroundSize = '200% 200%';
-    progressBar.style.animation = 'progress-glow 2s ease infinite';
-    progressBar.style.transition = 'width 0.5s ease-out';
-    progressBar.style.borderRadius = '6px';
-    progressBar.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.5)';
-    progressBarContainer.appendChild(progressBar);
+    // Create a single logo element with gradient
+    const logoElement = document.createElement('div');
+    logoElement.style.width = '100%';
+    logoElement.style.height = '100%';
+    logoElement.style.position = 'absolute';
+    logoElement.style.top = '0';
+    logoElement.style.left = '0';
+    logoElement.style.maskImage = `url(${spacesLoaderLogo})`;
+    logoElement.style.maskSize = 'contain';
+    logoElement.style.maskPosition = 'center';
+    logoElement.style.maskRepeat = 'no-repeat';
+    logoElement.style.webkitMaskImage = `url(${spacesLoaderLogo})`;
+    logoElement.style.webkitMaskSize = 'contain';
+    logoElement.style.webkitMaskPosition = 'center';
+    logoElement.style.webkitMaskRepeat = 'no-repeat';
+    logoElement.style.background = 'linear-gradient(to right, #4facfe 0%, #00f2fe 15%, white 15%, white 100%)';
+    logoElement.style.backgroundSize = '100% 100%';
+    logoElement.style.transition = 'background 0.5s ease-out';
+    
+    // Store references
+    loaderLogoRef.current = logoElement;
+    loaderLogoMaskRef.current = null;
+    
+    // Add the logo to its container
+    loaderLogoContainer.appendChild(logoElement);
     
     // Create progress text
     const progressText = document.createElement('div');
@@ -243,19 +262,35 @@ const PersistentLoader = ({ containerRef }) => {
     
     // Add elements to the loader
     loaderElement.appendChild(stageText);
-    loaderElement.appendChild(progressBarContainer);
+    loaderElement.appendChild(loaderLogoContainer);
     loaderElement.appendChild(progressText);
     
     // Add the loader element to the container
     containerRef.current.appendChild(loaderElement);
     Logger.log('PersistentLoader: Loader element added to container');
     
+    // Fade in the loader after 0.5 seconds
+    setTimeout(() => {
+      if (logoContainerRef.current) {
+        logoContainerRef.current.style.opacity = '1';
+      }
+      loaderElement.style.opacity = '1';
+      loaderLogoContainer.style.opacity = '1';
+    }, 500);
+    
     // Function to update the progress display
     const updateProgress = (value) => {
       setProgress(value);
-      progressBar.style.width = `${Math.round(value * 100)}%`;
-      progressText.textContent = `${Math.round(value * 100)}%`;
-      Logger.log(`PersistentLoader: Progress updated to ${Math.round(value * 100)}%`);
+      const percentage = Math.round(value * 100);
+      
+      // Update the gradient to show progress - explicitly update background property
+      const gradientValue = `linear-gradient(to right, #4facfe 0%, #00f2fe ${percentage}%, white ${percentage}%, white 100%)`;
+      logoElement.style.background = gradientValue;
+      
+      // Update the progress text
+      progressText.textContent = `${percentage}%`;
+      
+      Logger.log(`PersistentLoader: Progress updated to ${percentage}%`);
     };
     
     // Function to update the loading stage
@@ -281,7 +316,7 @@ const PersistentLoader = ({ containerRef }) => {
     
     // Set initial stage
     updateLoadingStage(loadingStages[0].stage);
-    updateProgress(0.05); // Start at 5%
+    updateProgress(0.25); // Start at 25% instead of 15%
     
     // Function to handle progress updates
     const handleProgress = (event) => {
@@ -327,28 +362,52 @@ const PersistentLoader = ({ containerRef }) => {
         return;
       }
       
-      // Fade out the loader and logo
-      loaderElement.style.opacity = '0';
+      // Apply different transition durations for different elements
+      loaderElement.style.transition = 'all 0.5s ease-in-out';
+      loaderLogoContainer.style.transition = 'opacity 1.2s ease-in-out';
+      stageText.style.transition = 'opacity 0.4s ease-in-out';
+      progressText.style.transition = 'opacity 0.4s ease-in-out';
+      
+      // Also set transition for the space logo container if it exists
+      if (logoContainerRef.current) {
+        logoContainerRef.current.style.transition = 'opacity 0.5s ease-in-out';
+      }
+      
+      // Fade out the loader background, text elements, and the optional space logo simultaneously
+      loaderElement.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+      loaderElement.style.backdropFilter = 'blur(0px)';
+      loaderElement.style.WebkitBackdropFilter = 'blur(0px)';
+      loaderElement.style.boxShadow = '0 0 0 rgba(0, 0, 0, 0)';
+      loaderElement.style.border = '1px solid rgba(255, 255, 255, 0)';
+      stageText.style.opacity = '0';
+      progressText.style.opacity = '0';
+      
+      // Fade out the space logo at the same time as the background
       if (logoContainerRef.current) {
         logoContainerRef.current.style.opacity = '0';
       }
       
-      // Remove the elements after the transition
+      // After a short delay, begin fading out the loader logo
       setTimeout(() => {
-        if (containerRef.current && containerRef.current.contains(loaderElement)) {
-          containerRef.current.removeChild(loaderElement);
-          Logger.log("PersistentLoader: Loader element removed after fade");
-        } else {
-          Logger.warn("PersistentLoader: Could not remove loader element (not found in container)");
-        }
+        loaderLogoContainer.style.opacity = '0';
         
-        if (logoContainerRef.current && containerRef.current && containerRef.current.contains(logoContainerRef.current)) {
-          containerRef.current.removeChild(logoContainerRef.current);
-          Logger.log("PersistentLoader: Logo container removed after fade");
-        } else if (logoContainerRef.current) {
-          Logger.warn("PersistentLoader: Could not remove logo container (not found in container)");
-        }
-      }, 1500); // Match the transition duration
+        // Remove the elements after the transition
+        setTimeout(() => {
+          if (containerRef.current && containerRef.current.contains(loaderElement)) {
+            containerRef.current.removeChild(loaderElement);
+            Logger.log("PersistentLoader: Loader element removed after fade");
+          } else {
+            Logger.warn("PersistentLoader: Could not remove loader element (not found in container)");
+          }
+          
+          if (logoContainerRef.current && containerRef.current && containerRef.current.contains(logoContainerRef.current)) {
+            containerRef.current.removeChild(logoContainerRef.current);
+            Logger.log("PersistentLoader: Logo container removed after fade");
+          } else if (logoContainerRef.current) {
+            Logger.warn("PersistentLoader: Could not remove logo container (not found in container)");
+          }
+        }, 1300); // Shorter wait time
+      }, 400); // Shorter delay
     };
     
     // Check if player is already instantiated
@@ -377,9 +436,10 @@ const PersistentLoader = ({ containerRef }) => {
       progressIntervalRef.current = setInterval(() => {
         if (!isPlayerInstantiated) {
           setProgress(prevProgress => {
-            const newProgress = Math.min(prevProgress + 0.01, 0.95);
-            progressBar.style.width = `${Math.round(newProgress * 100)}%`;
-            progressText.textContent = `${Math.round(newProgress * 100)}%`;
+            const newProgress = Math.min(prevProgress + 0.02, 0.95); // Faster progress increments
+            
+            // Explicitly call our updateProgress function
+            updateProgress(newProgress);
             
             // Update stage based on progress
             if (newProgress < 0.33 && loadingStage !== loadingStages[0].stage) {
@@ -393,7 +453,7 @@ const PersistentLoader = ({ containerRef }) => {
             return newProgress;
           });
         }
-      }, 500);
+      }, 300); // Faster progress updates
       
       // Force hide after a timeout (failsafe)
       const timeoutId = setTimeout(() => {

@@ -5,6 +5,7 @@ import { loadTheme } from "@disruptive-spaces/shared/themes/loadTheme";
 import { UserProvider } from "@disruptive-spaces/shared/providers/UserProvider";
 import { FullScreenProvider } from "@disruptive-spaces/shared/providers/FullScreenProvider";
 import HeaderAuthLinks from "./HeaderAuthLinks";
+import RegistrationOverlay from "@disruptive-spaces/shared/components/auth/RegistrationOverlay";
 
 const rootElement = document.getElementById("header-auth-root");
 
@@ -27,6 +28,7 @@ if (rootElement) {
         <UserProvider>
           <FullScreenProvider>
             <HeaderAuthLinks />
+            <RegistrationOverlay />
           </FullScreenProvider>
         </UserProvider>
       </ChakraProvider>

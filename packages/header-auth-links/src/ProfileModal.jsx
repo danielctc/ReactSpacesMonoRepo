@@ -14,18 +14,24 @@ import {
     VStack,
     FormControl,
     FormLabel,
-    useToast
+    useToast,
+    InputGroup,
+    InputLeftAddon,
+    FormHelperText
 } from "@chakra-ui/react";
 import { useState, useContext, useEffect, useRef } from "react";
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { blockUnityKeyboardInput, focusUnity } from "@disruptive-spaces/webgl/src/utils/unityKeyboard";
+import { isUsernameTaken, updateUsername } from '@disruptive-spaces/shared/firebase/userFirestore';
+import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         Nickname: user?.Nickname || "",
+        username: user?.username || "",
         companyName: user?.companyName || "",
         firstName: user?.firstName || "",
         lastName: user?.lastName || "",
@@ -33,14 +39,17 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
     });
     const [isLoading, setIsLoading] = useState(false);
     const [isInputFocused, setIsInputFocused] = useState(false);
+    const [usernameError, setUsernameError] = useState("");
+    const [checkingUsername, setCheckingUsername] = useState(false);
     const toast = useToast();
-    const { sendUserToUnity } = useContext(UserContext);
+    const { sendUserToUnity, updateUser } = useContext(UserContext);
     const inputRef = useRef(null);
 
     // Update local state when user prop changes
     useEffect(() => {
         setFormData({
             Nickname: user?.Nickname || "",
+            username: user?.username || "",
             companyName: user?.companyName || "",
             firstName: user?.firstName || "",
             lastName: user?.lastName || "",
@@ -99,6 +108,38 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
         }
     }, [isEditing]);
 
+    // Check username availability when it changes
+    useEffect(() => {
+        const checkUsernameAvailability = async () => {
+            if (formData.username && formData.username !== user?.username) {
+                setCheckingUsername(true);
+                setUsernameError("");
+                
+                try {
+                    // Validate username format
+                    if (!/^[a-z0-9]{1,15}$/.test(formData.username)) {
+                        setUsernameError("Username must be 1-15 characters, lowercase letters and numbers only");
+                        setCheckingUsername(false);
+                        return;
+                    }
+                    
+                    const isTaken = await isUsernameTaken(formData.username);
+                    if (isTaken) {
+                        setUsernameError("Username is already taken");
+                    }
+                } catch (error) {
+                    Logger.error("Error checking username:", error);
+                    setUsernameError("Error checking username availability");
+                } finally {
+                    setCheckingUsername(false);
+                }
+            }
+        };
+        
+        const debounceTimer = setTimeout(checkUsernameAvailability, 500);
+        return () => clearTimeout(debounceTimer);
+    }, [formData.username, user?.username]);
+
     const handleClose = () => {
         setIsEditing(false);
         setIsInputFocused(false);
@@ -107,17 +148,38 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        
+        // For username, convert to lowercase and restrict to alphanumeric
+        if (name === "username") {
+            const formattedValue = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+            setFormData(prev => ({
+                ...prev,
+                [name]: formattedValue
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                [name]: value
+            }));
+        }
     };
 
     const handleSave = async () => {
         if (formData.Nickname.trim() === "") {
             toast({
                 title: "Error",
-                description: "Nickname cannot be empty",
+                description: "Display Name cannot be empty",
+                status: "error",
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
+
+        if (usernameError) {
+            toast({
+                title: "Error",
+                description: usernameError,
                 status: "error",
                 duration: 3000,
                 isClosable: true,
@@ -126,50 +188,130 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
         }
 
         setIsLoading(true);
+        
         try {
+            // Always check username uniqueness again before updating
+            if (formData.username !== user.username) {
+                const isTaken = await isUsernameTaken(formData.username);
+                if (isTaken) {
+                    setUsernameError("Username is already taken");
+                    toast({
+                        title: "Error",
+                        description: "Username is already taken",
+                        status: "error",
+                        duration: 3000,
+                        isClosable: true,
+                    });
+                    setIsLoading(false);
+                    return;
+                }
+            }
+            
             const userRef = doc(db, "users", user.uid);
             
-            const unsubscribe = onSnapshot(userRef, (doc) => {
-                if (doc.exists() && doc.data().Nickname === formData.Nickname) {
-                    sendUserToUnity();
-                    unsubscribe();
+            // First update username separately using the provided function
+            if (formData.username !== user.username) {
+                try {
+                    Logger.log("ProfileModal: Updating username from", user.username, "to", formData.username);
+                    const success = await updateUsername(user.uid, formData.username);
+                    if (!success) {
+                        throw new Error("Failed to update username");
+                    }
+                    Logger.log("ProfileModal: Username updated successfully");
+                } catch (error) {
+                    Logger.error("Error updating username:", error);
+                    toast({
+                        title: "Error",
+                        description: "Failed to update username: " + (error.message || "Please try again"),
+                        status: "error",
+                        duration: 3000,
+                        isClosable: true,
+                    });
+                    setIsLoading(false);
+                    return;
                 }
-            });
-
-            await updateDoc(userRef, { 
-                ...formData,
-                lastUpdated: new Date().toISOString()
-            });
-
-            // Update the user context with the new data
-            await updateUser();
-
-            // Update local state with the new data
-            setFormData({
-                Nickname: formData.Nickname,
-                companyName: formData.companyName,
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                linkedInProfile: formData.linkedInProfile
-            });
-
-            toast({
-                title: "Success",
-                description: "Profile updated successfully",
-                status: "success",
-                duration: 3000,
-                isClosable: true,
-            });
-            setIsEditing(false);
+            }
+            
+            // Then update the rest of the profile
+            Logger.log("ProfileModal: Updating user profile");
+            
+            try {
+                // Create a profile update object without the username field (already updated)
+                const profileUpdate = { 
+                    Nickname: formData.Nickname,
+                    companyName: formData.companyName,
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    linkedInProfile: formData.linkedInProfile,
+                    username: formData.username, // Include username to ensure consistency
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                await updateDoc(userRef, profileUpdate);
+                Logger.log("ProfileModal: Profile updated successfully");
+                
+                // Set up listener for updates
+                const unsubscribe = onSnapshot(userRef, (docSnapshot) => {
+                    if (docSnapshot.exists()) {
+                        const userData = docSnapshot.data();
+                        if (userData.Nickname === formData.Nickname) {
+                            try {
+                                sendUserToUnity();
+                            } catch (error) {
+                                Logger.error("Error sending user to Unity:", error);
+                            }
+                            unsubscribe();
+                        }
+                    }
+                }, (error) => {
+                    Logger.error("Error in profile update listener:", error);
+                });
+                
+                // Update the user context with the new data
+                try {
+                    await updateUser();
+                } catch (error) {
+                    Logger.error("Error updating user context:", error);
+                }
+                
+                // Update local state with the new data
+                setFormData({
+                    Nickname: formData.Nickname,
+                    username: formData.username,
+                    companyName: formData.companyName,
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    linkedInProfile: formData.linkedInProfile
+                });
+                
+                toast({
+                    title: "Success",
+                    description: "Profile updated successfully",
+                    status: "success",
+                    duration: 3000,
+                    isClosable: true,
+                });
+                
+                setIsEditing(false);
+            } catch (error) {
+                Logger.error("Error updating profile data:", error);
+                toast({
+                    title: "Error",
+                    description: "Failed to update profile: " + (error.message || "Please try again"),
+                    status: "error",
+                    duration: 3000,
+                    isClosable: true,
+                });
+            }
         } catch (error) {
+            Logger.error("Error in handleSave:", error);
             toast({
                 title: "Error",
-                description: "Failed to update profile",
+                description: "An unexpected error occurred: " + (error.message || "Please try again"),
                 status: "error",
                 duration: 3000,
                 isClosable: true,
             });
-            console.error("Error updating profile:", error);
         } finally {
             setIsLoading(false);
         }
@@ -180,6 +322,9 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
             <Flex direction="column" align="center" gap={2}>
                 <Text fontSize="2xl" fontWeight="bold">
                     {user.Nickname}
+                </Text>
+                <Text fontSize="md" color="gray.400">
+                    @{user.username}
                 </Text>
             </Flex>
             
@@ -214,7 +359,7 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
     const renderEditMode = () => (
         <VStack spacing={4} align="stretch" w="100%">
             <FormControl>
-                <FormLabel color="gray.400" fontSize="sm">Nickname</FormLabel>
+                <FormLabel color="gray.400" fontSize="sm">Display Name</FormLabel>
                 <Input
                     ref={inputRef}
                     name="Nickname"
@@ -224,7 +369,7 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
                         setIsInputFocused(true);
                         blockUnityKeyboardInput(true);
                     }}
-                    placeholder="Enter nickname"
+                    placeholder="Enter display name"
                     bg="gray.700"
                     border="none"
                     color="white"
@@ -234,7 +379,45 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
                         bg: 'gray.600',
                         boxShadow: '0 0 0 1px var(--chakra-colors-blue-400)'
                     }}
+                    maxLength={15}
                 />
+            </FormControl>
+
+            <FormControl isInvalid={!!usernameError}>
+                <FormLabel color="gray.400" fontSize="sm">Username</FormLabel>
+                <InputGroup>
+                    <InputLeftAddon 
+                        bg="gray.700" 
+                        color="gray.400" 
+                        border="none"
+                        children="@" 
+                    />
+                    <Input
+                        name="username"
+                        value={formData.username}
+                        onChange={handleInputChange}
+                        placeholder="username"
+                        bg="gray.700"
+                        border="none"
+                        color="white"
+                        _placeholder={{ color: 'gray.500' }}
+                        _hover={{ bg: 'gray.600' }}
+                        _focus={{
+                            bg: 'gray.600',
+                            boxShadow: '0 0 0 1px var(--chakra-colors-blue-400)'
+                        }}
+                        maxLength={15}
+                        isDisabled={checkingUsername}
+                    />
+                </InputGroup>
+                {usernameError && (
+                    <Text color="red.400" fontSize="sm" mt={1}>
+                        {usernameError}
+                    </Text>
+                )}
+                <FormHelperText color="gray.400">
+                    Lowercase letters and numbers only, max 15 characters
+                </FormHelperText>
             </FormControl>
 
             <FormControl>
@@ -319,12 +502,14 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
                     onClick={() => {
                         setFormData({
                             Nickname: user?.Nickname || "",
+                            username: user?.username || "",
                             companyName: user?.companyName || "",
                             firstName: user?.firstName || "",
                             lastName: user?.lastName || "",
                             linkedInProfile: user?.linkedInProfile || ""
                         });
                         setIsEditing(false);
+                        setUsernameError("");
                     }}
                     variant="outline"
                     size="sm"
@@ -339,7 +524,8 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
                     onClick={handleSave}
                     colorScheme="blue"
                     size="sm"
-                    isLoading={isLoading}
+                    isLoading={isLoading || checkingUsername}
+                    isDisabled={!!usernameError || checkingUsername}
                 >
                     Save Changes
                 </Button>

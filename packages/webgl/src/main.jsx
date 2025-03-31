@@ -7,6 +7,9 @@ import { UserProvider } from "@disruptive-spaces/shared/providers/UserProvider";
 import { FullScreenProvider } from "@disruptive-spaces/shared/providers/FullScreenProvider";
 import WebGLLoader from "./WebGLLoader"; // Adjust the import path as necessary
 
+// Export everything from exports.js
+export * from './exports';
+
 // Only initialize if we're in a context where webgl-root exists
 // This allows the package to be imported without errors on pages that don't use WebGL
 function initializeWebGL() {
