@@ -15,7 +15,39 @@
  * in production environments.
  */
 
-import { Logger } from '../logging/react-log';
+import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+
+// ⚠️⚠️⚠️ SECURITY WARNING ⚠️⚠️⚠️
+// Permission overrides should NEVER be used in production environments
+// These functions bypass normal security checks and are intended ONLY for local development
+
+// Store development admin UIDs in a single place for easier management
+// In production, this list should be empty or the entire file should be disabled
+const DEVELOPMENT_ADMIN_UIDS = [];
+
+// For local development, you can add your UID here during development
+// DO NOT commit your real UID to version control
+// Example: 
+// DEVELOPMENT_ADMIN_UIDS.push('your-firebase-uid-for-testing');
+
+// Add more robust environment detection
+export const isDevelopmentEnvironment = () => {
+  // Check multiple conditions to ensure we're in a safe development environment
+  const isDev = typeof process !== 'undefined' && 
+                process.env && 
+                process.env.NODE_ENV === 'development';
+  
+  const isLocalhost = typeof window !== 'undefined' && 
+                      (window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1');
+  
+  // Additional safeguard: check for development-specific query param
+  const hasDevFlag = typeof window !== 'undefined' && 
+                     new URLSearchParams(window.location.search).has('dev_mode');
+  
+  // All conditions must be true for overrides to be enabled
+  return isDev && isLocalhost && hasDevFlag;
+};
 
 /**
  * Override function for isSpaceOwner
@@ -26,7 +58,12 @@ import { Logger } from '../logging/react-log';
  * @returns {boolean} - Always true
  */
 export const isSpaceOwner = (user, spaceId) => {
-  Logger.log(`OVERRIDE: isSpaceOwner check for user ${user?.uid} and space ${spaceId} - Returning true`);
+  if (!isDevelopmentEnvironment()) {
+    Logger.warn('⚠️ SECURITY WARNING: Permission override attempted outside of development environment');
+    return false;
+  }
+  
+  Logger.warn(`⚠️ SECURITY OVERRIDE: Bypassing space owner check for user ${user?.uid} and space ${spaceId}`);
   return true;
 };
 
@@ -39,7 +76,12 @@ export const isSpaceOwner = (user, spaceId) => {
  * @returns {boolean} - Always true
  */
 export const isSpaceHost = (user, spaceId) => {
-  console.log(`OVERRIDE: isSpaceHost check for user ${user?.uid} and space ${spaceId} - Returning true`);
+  if (!isDevelopmentEnvironment()) {
+    Logger.warn('⚠️ SECURITY WARNING: Permission override attempted outside of development environment');
+    return false;
+  }
+  
+  Logger.warn(`⚠️ SECURITY OVERRIDE: Bypassing space host check for user ${user?.uid} and space ${spaceId}`);
   return true;
 };
 
@@ -52,6 +94,12 @@ export const isSpaceHost = (user, spaceId) => {
  * @returns {boolean} - True for 'users' group, false for others
  */
 export const userBelongsToGroup = (userId, groupName) => {
+  if (!isDevelopmentEnvironment()) {
+    Logger.warn('⚠️ SECURITY WARNING: Permission override attempted outside of development environment');
+    return false;
+  }
+  
+  Logger.warn(`⚠️ SECURITY OVERRIDE: Bypassing group membership check for user ${userId} and group ${groupName}`);
   // Always return true for 'users' group
   if (groupName === 'users') {
     console.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and group ${groupName} - Returning true`);
@@ -60,15 +108,7 @@ export const userBelongsToGroup = (userId, groupName) => {
   
   // For admin groups, check if the user is in the list of admin UIDs
   if (groupName === 'disruptiveAdmin') {
-    const adminUids = [
-      'lppDQiMb3hhloApQ7llOtk5tckY2', // neil@pursey.net
-      'XutdlDmDSncMBUw6vwlQGdkpjNr2', // tet@email.com
-      'aMhQYu0ArucoNCc6pJJtyfRbn8k2', // josh@disruptive.live
-      'fJVBogzjtTQqUHnYCYLhTt6jBW13', // andrew@andrew.com
-      '9NrbbBoc2rOYQC3xAkRBDkig8eg1'  // andrew@disruptive.live
-    ];
-    
-    const isAdmin = adminUids.includes(userId);
+    const isAdmin = DEVELOPMENT_ADMIN_UIDS.includes(userId);
     console.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and admin group ${groupName} - Returning ${isAdmin}`);
     return isAdmin;
   }
@@ -99,15 +139,7 @@ export const userBelongsToSpaceGroup = (userId, spaceId) => {
  * @returns {boolean} - True for admin UIDs, false for others
  */
 export const isAdmin = (user) => {
-  const adminUids = [
-    'lppDQiMb3hhloApQ7llOtk5tckY2', // neil@pursey.net
-    'XutdlDmDSncMBUw6vwlQGdkpjNr2', // tet@email.com
-    'aMhQYu0ArucoNCc6pJJtyfRbn8k2', // josh@disruptive.live
-    'fJVBogzjtTQqUHnYCYLhTt6jBW13', // andrew@andrew.com
-    '9NrbbBoc2rOYQC3xAkRBDkig8eg1'  // andrew@disruptive.live
-  ];
-  
-  const isAdmin = adminUids.includes(user?.uid);
+  const isAdmin = DEVELOPMENT_ADMIN_UIDS.includes(user?.uid);
   console.log(`OVERRIDE: isAdmin check for user ${user?.uid} - Returning ${isAdmin}`);
   return isAdmin;
 };
@@ -121,6 +153,11 @@ export const isAdmin = (user) => {
  * @returns {boolean} - Always true
  */
 export const hasSpaceAccess = (user, spaceId) => {
-  console.log(`OVERRIDE: hasSpaceAccess check for user ${user?.uid} and space ${spaceId} - Returning true`);
+  if (!isDevelopmentEnvironment()) {
+    Logger.warn('⚠️ SECURITY WARNING: Permission override attempted outside of development environment');
+    return false;
+  }
+  
+  Logger.warn(`⚠️ SECURITY OVERRIDE: Bypassing space access check for user ${user?.uid} and space ${spaceId}`);
   return true;
 }; 

@@ -153,25 +153,14 @@ const UsernameConfirmation = ({
                 return;
             }
             
-            // Make sure we preserve all critical fields when passing back the data
-            console.log("UsernameConfirmation: Original userData fields:", Object.keys(userData).join(', '));
-            console.log("UsernameConfirmation: Original values received:");
-            console.log("- firstName:", userData.firstName);
-            console.log("- lastName:", userData.lastName);
-            console.log("- Nickname:", userData.Nickname);
-            console.log("- username (original):", userData.username);
-            console.log("- username (new):", username);
-            console.log("- nickname (new):", nickname);
-            console.log("- companyName:", userData.companyName);
+            // Log minimal information about the operation
+            Logger.log("UsernameConfirmation: Preparing to confirm user registration");
             
             // Generate the exact format of Nickname as used in UserProvider
             const generatedNickname = userData.firstName && userData.lastName 
                 ? `${userData.firstName}${userData.lastName.charAt(0).toUpperCase()}` 
                 : "";
                 
-            console.log("UsernameConfirmation: Generated Nickname:", generatedNickname);
-            console.log("UsernameConfirmation: Custom Nickname:", nickname);
-            
             // All good, proceed with registration
             const dataToConfirm = {
                 // First spread userData to get all original fields
@@ -191,14 +180,8 @@ const UsernameConfirmation = ({
                 password: userData.password
             };
             
-            console.log("UsernameConfirmation: Data to confirm fields:", Object.keys(dataToConfirm).join(', '));
-            console.log("UsernameConfirmation: Critical values being returned:"); 
-            console.log("- firstName:", dataToConfirm.firstName);
-            console.log("- lastName:", dataToConfirm.lastName);
-            console.log("- Nickname:", dataToConfirm.Nickname);
-            console.log("- username:", dataToConfirm.username);
-            console.log("- companyName:", dataToConfirm.companyName);
-                
+            Logger.log("UsernameConfirmation: Processed registration data with fields:", Object.keys(dataToConfirm).join(', '));
+            
             await onConfirm(dataToConfirm);
             
             onClose();

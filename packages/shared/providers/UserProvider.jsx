@@ -41,7 +41,8 @@ export const UserProvider = ({ children }) => {
                         ...userProfile,
                         displayName
                     };
-                    console.log(fullUserDetails);
+                    // Sensitive user details should not be logged
+                    Logger.log(`UserProvider: User authenticated: ${authUser.uid}`);
                     setUser(fullUserDetails);
                     currentUserRef.current = fullUserDetails;
                     sendUserToUnity(fullUserDetails);
@@ -64,45 +65,29 @@ export const UserProvider = ({ children }) => {
 
     const register = async (email, password, additionalData) => {
         try {
-            // Set registration in progress
             setRegistrationInProgress(true);
             
-            console.log("UserProvider: Starting registration with additionalData:", JSON.stringify(additionalData));
-            console.log("UserProvider: Fields in additionalData:", Object.keys(additionalData).join(', '));
+            Logger.log("UserProvider: Starting registration process");
+            Logger.log("UserProvider: Registration includes fields:", Object.keys(additionalData || {}).join(', '));
+
+            // Create a sanitized registration data object
+            const registrationData = { ...additionalData };
             
-            // Check if we received critical fields
-            if (!additionalData) {
-                throw new Error("Registration data is missing");
+            // Security: Ensure critical fields exist but don't log their values
+            const requiredFields = ['firstName', 'lastName', 'username', 'companyName', 'linkedInProfile'];
+            const missingFields = requiredFields.filter(field => !registrationData[field]);
+            
+            if (missingFields.length > 0) {
+                Logger.warn(`UserProvider: Registration missing fields: ${missingFields.join(', ')}`);
             }
             
-            // Extract and verify captcha token
-            const captchaToken = additionalData.captchaToken;
-            if (!captchaToken) {
-                throw new Error("CAPTCHA verification is required");
-            }
-            
-            // Remove captchaToken from the data we pass to Firebase
-            const { captchaToken: _, ...registrationData } = additionalData;
-            
-            // Log detailed field values for debugging
-            console.log("UserProvider: Received field values:");
-            console.log("- firstName:", registrationData.firstName);
-            console.log("- lastName:", registrationData.lastName);
-            console.log("- companyName:", registrationData.companyName);
-            console.log("- linkedInProfile:", registrationData.linkedInProfile);
-            console.log("- username:", registrationData.username);
-            console.log("- Nickname:", registrationData.Nickname);
-            
-            // Generate nickname from first name and first letter of last name
-            const firstName = registrationData.firstName || "";
-            const lastName = registrationData.lastName || "";
-            const defaultNickname = firstName && lastName 
-                ? `${firstName}${lastName.charAt(0).toUpperCase()}`
+            // Generate a default nickname if not provided
+            const defaultNickname = registrationData.firstName && registrationData.lastName 
+                ? `${registrationData.firstName}${registrationData.lastName.charAt(0).toUpperCase()}`
                 : "";
                 
-            console.log("UserProvider: Generated default Nickname:", defaultNickname);
-            
-            // Create the registration data
+            Logger.log("UserProvider: Generated default nickname for registration");
+
             const registrationDataToSend = {
                 // Set defaults first
                 firstName: "",
@@ -117,54 +102,36 @@ export const UserProvider = ({ children }) => {
                 ...registrationData
             };
             
-            console.log("UserProvider: Prepared registrationData:", JSON.stringify(registrationDataToSend));
-            console.log("UserProvider: Fields in registrationData:", Object.keys(registrationDataToSend).join(', '));
-            console.log("UserProvider: Critical values - firstName:", registrationDataToSend.firstName, 
-                "lastName:", registrationDataToSend.lastName, "Nickname:", registrationDataToSend.Nickname);
+            Logger.log("UserProvider: Prepared registration data with fields:", Object.keys(registrationDataToSend).join(', '));
 
             // Register the user with the updated data
             const userData = await registerUser(email, password, registrationDataToSend);
-            console.log("UserProvider: Received userData from registerUser:", JSON.stringify(userData));
+            Logger.log("UserProvider: Registration successful, received user data");
             
-            // Verify received data
-            console.log("UserProvider: Verifying returned user data:");
-            console.log("- firstName:", userData.firstName || "MISSING");
-            console.log("- lastName:", userData.lastName || "MISSING");
-            console.log("- Nickname:", userData.Nickname || "MISSING");
-            console.log("- username:", userData.username || "MISSING");
-            console.log("- companyName:", userData.companyName || "MISSING");
+            // Verify key fields exist in returned data
+            const missingReturnedFields = requiredFields.filter(field => !userData[field]);
+            if (missingReturnedFields.length > 0) {
+                Logger.warn(`UserProvider: Returned user data missing fields: ${missingReturnedFields.join(', ')}`);
+            }
             
             // Check for missing critical fields and use our original data if missing
-            if (!userData.firstName) {
-                console.warn("UserProvider: firstName is missing in returned data, using original value");
-                userData.firstName = registrationDataToSend.firstName;
-            }
+            const fieldsToCheck = ['firstName', 'lastName', 'Nickname', 'username', 'companyName'];
+            fieldsToCheck.forEach(field => {
+                if (!userData[field]) {
+                    Logger.warn(`UserProvider: ${field} is missing in returned data, using original value`);
+                    userData[field] = registrationDataToSend[field];
+                }
+            });
             
-            if (!userData.lastName) {
-                console.warn("UserProvider: lastName is missing in returned data, using original value");
-                userData.lastName = registrationDataToSend.lastName;
-            }
-            
-            if (!userData.Nickname) {
-                console.warn("UserProvider: Nickname is missing in returned data, using original value");
-                userData.Nickname = registrationDataToSend.Nickname;
-            }
-            
-            if (!userData.companyName) {
-                console.warn("UserProvider: companyName is missing in returned data, using original value");
-                userData.companyName = registrationDataToSend.companyName;
-            }
-            
-            // Create a full user object with display name
-            const displayName = getDisplayName(userData);
+            // Create a full user object for our app
             const fullUserDetails = {
                 uid: userData.uid,
                 email: userData.email,
                 ...userData,
-                displayName
+                displayName: getDisplayName(userData)
             };
             
-            console.log("UserProvider: Created fullUserDetails:", JSON.stringify(fullUserDetails));
+            Logger.log("UserProvider: Created user object with fields:", Object.keys(fullUserDetails).join(', '));
             
             // Update the user state
             setUser(fullUserDetails);
@@ -179,9 +146,8 @@ export const UserProvider = ({ children }) => {
             setRegistrationInProgress(false);
             return fullUserDetails;
         } catch (error) {
-            Logger.error("UserProvider: Error creating user:", error);
-            // Ensure registration state is reset even if there's an error
             setRegistrationInProgress(false);
+            Logger.error("UserProvider: Error during registration:", error);
             throw error;
         }
     };

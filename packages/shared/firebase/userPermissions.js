@@ -8,17 +8,10 @@ import * as overrides from './userPermissionsOverride';
 // SECURITY WARNING: Permission overrides should NEVER be enabled in production environments
 // These overrides bypass normal security checks and are intended ONLY for local development
 
-// Automatically determine if we're in a development environment
-// This ensures overrides can't be accidentally enabled in production
-const isDevelopmentEnvironment = 
-  typeof process !== 'undefined' && 
-  process.env && 
-  process.env.NODE_ENV === 'development' && 
-  (typeof window === 'undefined' || window.location.hostname === 'localhost');
-
-// OVERRIDE FLAG - Automatically set based on environment
-// This should NEVER be manually set to true
-const USE_PERMISSION_OVERRIDES = isDevelopmentEnvironment;
+// Call the improved environment detection from the overrides module
+const USE_PERMISSION_OVERRIDES = typeof overrides.isDevelopmentEnvironment === 'function' 
+  ? overrides.isDevelopmentEnvironment() 
+  : false;
 
 // Log warning if overrides are active
 if (USE_PERMISSION_OVERRIDES) {
@@ -70,31 +63,10 @@ export const isSpaceOwner = async (user, spaceId) => {
       }
     }
     
-    // Only use dev admin UIDs if explicitly in development mode
-    // This prevents incorrect role assignments in production
-    if (typeof window !== 'undefined' && 
-        window.ENABLE_DEV_ADMIN_OVERRIDE !== false && 
-        (process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost')) {
-      // For development/testing, allow specific users to have owner access
-      // This is a fallback when Firebase Auth custom claims are not set up
-      const devAdminUids = [
-        'lppDQiMb3hhloApQ7llOtk5tckY2', // neil@pursey.net
-        'XutdlDmDSncMBUw6vwlQGdkpjNr2', // tet@email.com
-        'aMhQYu0ArucoNCc6pJJtyfRbn8k2', // josh@disruptive.live
-        'fJVBogzjtTQqUHnYCYLhTt6jBW13', // andrew@andrew.com
-        '9NrbbBoc2rOYQC3xAkRBDkig8eg1'  // andrew@disruptive.live
-      ];
-      
-      const isDevAdmin = devAdminUids.includes(user.uid);
-      if (isDevAdmin) {
-        console.log(`User ${user.uid} is an owner via dev admin override`);
-        return true;
-      }
-    }
-    
     return false;
   } catch (error) {
     Logger.error('Error checking space owner permissions:', error);
+    // Fail closed - deny access when errors occur during security checks
     return false;
   }
 };
@@ -135,6 +107,7 @@ export const isSpaceHost = async (user, spaceId) => {
     return false;
   } catch (error) {
     Logger.error('Error checking space host permissions:', error);
+    // Fail closed - deny access when errors occur during security checks
     return false;
   }
 };
@@ -162,6 +135,7 @@ export const hasSpaceAccess = async (user, spaceId) => {
     return isHost;
   } catch (error) {
     Logger.error('Error checking space access permissions:', error);
+    // Fail closed - deny access when errors occur during security checks
     return false;
   }
 };

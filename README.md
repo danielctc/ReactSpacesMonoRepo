@@ -1,9 +1,31 @@
 ## Set Up
 
-Install dependencies
+### Environment Variables Setup
 
-Use terminal in the root of the project and run
-`npm i`
+The application can run with built-in fallback Firebase credentials, but it's recommended to use your own environment variables for better security:
+
+1. **Create the environment file**:
+   Run `npm run create-env` to create an `.env` file from the template.
+
+2. **Configure Firebase credentials**:
+   - Option A: Use the built-in fallback credentials (no action needed)
+   - Option B (recommended): Add your own Firebase credentials to the `.env` file
+
+   If you encounter a `Firebase: Error (auth/invalid-api-key)` error, the application might be trying to use environment variables that aren't properly set. Either:
+   - Make sure your `.env` file is properly configured with valid credentials
+   - Or remove the `.env` file entirely to use the fallback values
+
+### Install Dependencies
+
+Use terminal in the root of the project and run:
+```
+npm i
+```
+
+For a complete setup (create environment file and install dependencies):
+```
+npm run setup
+```
 
 ## Folder Tour
 

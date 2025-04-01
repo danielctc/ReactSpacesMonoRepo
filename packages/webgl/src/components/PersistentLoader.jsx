@@ -4,8 +4,8 @@ import PropTypes from 'prop-types';
 import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { useUnity } from '../providers/UnityProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
-// Import the loader logo image directly from the components directory
-import spacesLoaderLogo from './SpacesLogo_Loader.png';
+// Use direct URL instead of importing the image
+const SPACES_LOADER_LOGO_URL = 'https://www.spacesmetaverse.com/assets/images/SpacesLogo_Loader.png';
 
 /**
  * PersistentLoader - A component that displays loading progress within the Unity canvas container
@@ -233,11 +233,11 @@ const PersistentLoader = ({ containerRef }) => {
     logoElement.style.position = 'absolute';
     logoElement.style.top = '0';
     logoElement.style.left = '0';
-    logoElement.style.maskImage = `url(${spacesLoaderLogo})`;
+    logoElement.style.maskImage = `url(${SPACES_LOADER_LOGO_URL})`;
     logoElement.style.maskSize = 'contain';
     logoElement.style.maskPosition = 'center';
     logoElement.style.maskRepeat = 'no-repeat';
-    logoElement.style.webkitMaskImage = `url(${spacesLoaderLogo})`;
+    logoElement.style.webkitMaskImage = `url(${SPACES_LOADER_LOGO_URL})`;
     logoElement.style.webkitMaskSize = 'contain';
     logoElement.style.webkitMaskPosition = 'center';
     logoElement.style.webkitMaskRepeat = 'no-repeat';

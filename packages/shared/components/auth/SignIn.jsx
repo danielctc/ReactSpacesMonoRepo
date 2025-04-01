@@ -36,19 +36,14 @@ import {
 } from "@chakra-ui/react";
 import { EmailIcon, LockIcon } from "@chakra-ui/icons";
 
-// reCAPTCHA site key
-const RECAPTCHA_SITE_KEY = "6Le4oQUrAAAAAHe0GMH5Z0tpuqTV2qqDzK9Yk4Uv";
+// reCAPTCHA site key - should be moved to environment variables in production
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Le4oQUrAAAAAHe0GMH5Z0tpuqTV2qqDzK9Yk4Uv";
 
 function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialIsOpen = false }) {
     const { signIn } = useContext(UserContext);
     const { fullscreenRef } = useFullscreenContext();
     const toast = useToast();
-    const { register, handleSubmit, formState: { errors } } = useForm({
-        defaultValues: {
-            email: 'neil@pursey.net',
-            password: '123456',
-        }
-    });
+    const { register, handleSubmit, formState: { errors } } = useForm();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isOpen, setIsOpen] = useState(initialIsOpen);
     const [showRegister, setShowRegister] = useState(false);

@@ -107,12 +107,13 @@ const getUserProfileData = async (userID) => {
 // Function to register a new user and store profile data (public and private)
 const registerUser = async (email, password, additionalData) => {
     try {
-        console.log('userFirestore: Starting registerUser with additionalData:', JSON.stringify(additionalData));
-        console.log('userFirestore: Fields in additionalData:', Object.keys(additionalData).join(', '));
+        // Log operation start without exposing all data - only log field names, not values
+        Logger.log('userFirestore: Starting registerUser process');
+        Logger.log('userFirestore: Fields in additionalData:', Object.keys(additionalData || {}).join(', '));
         
         // Ensure we have valid additionalData
         if (!additionalData) {
-            console.error('userFirestore: additionalData is null or undefined');
+            Logger.error('userFirestore: additionalData is null or undefined');
             throw new Error('Registration data is missing');
         }
         
@@ -127,12 +128,8 @@ const registerUser = async (email, password, additionalData) => {
             rpmURL: additionalData.rpmURL || "https://models.readyplayer.me/67c8408d38f7924e15a8bd0a.glb",
         };
         
-        console.log('userFirestore: Captured critical values:');
-        console.log('- firstName:', capturedData.firstName);
-        console.log('- lastName:', capturedData.lastName);
-        console.log('- Nickname:', capturedData.Nickname);
-        console.log('- username:', capturedData.username);
-        console.log('- companyName:', capturedData.companyName);
+        // Log that data was captured without showing values
+        Logger.log('userFirestore: Critical fields captured for registration');
         
         // First step - create the Firebase Auth user
         Logger.log('userFirestore: Creating user auth record');
@@ -141,7 +138,8 @@ const registerUser = async (email, password, additionalData) => {
         
         // Send email verification
         await sendEmailVerification(user);
-        Logger.log('userFirestore: Verification email sent to:', email);
+        // Only log that email was sent, not the actual email address
+        Logger.log('userFirestore: Verification email sent');
         
         // Wait a moment to give the Cloud Function time to create the document
         Logger.log('userFirestore: Waiting for Cloud Function to create initial document...');
@@ -189,7 +187,6 @@ const registerUser = async (email, password, additionalData) => {
             // Only update if there are fields to update
             if (Object.keys(fieldsToUpdate).length > 0) {
                 Logger.log('userFirestore: Updating document with fields:', Object.keys(fieldsToUpdate).join(', '));
-                console.log('userFirestore: Field values being updated:', fieldsToUpdate);
                 
                 // Force update with our captured data
                 await updateDoc(userRef, {
@@ -237,7 +234,7 @@ const registerUser = async (email, password, additionalData) => {
         // Update the document if needed with the missing fields
         if (docNeedsUpdate) {
             Logger.log('userFirestore: Updating user document with missing fields');
-            console.log('userFirestore: Fields being updated:', Object.keys(updateData).join(', '));
+            Logger.log('userFirestore: Fields being updated:', Object.keys(updateData).join(', '));
             await updateDoc(userRef, updateData);
             
             // Refresh the user data after update
@@ -258,13 +255,7 @@ const registerUser = async (email, password, additionalData) => {
         };
         
         Logger.log('userFirestore: Registration complete, returning user data');
-        console.log('userFirestore: Final fields in returnData:', Object.keys(returnData).join(', '));
-        console.log('userFirestore: Final values:');
-        console.log('- firstName:', returnData.firstName);
-        console.log('- lastName:', returnData.lastName);
-        console.log('- Nickname:', returnData.Nickname);
-        console.log('- username:', returnData.username);
-        console.log('- companyName:', returnData.companyName);
+        Logger.log('userFirestore: Fields included in return data:', Object.keys(returnData).join(', '));
         
         return returnData;
     } catch (error) {

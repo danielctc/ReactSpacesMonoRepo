@@ -32,8 +32,8 @@ import { useUnityInputManager } from '@disruptive-spaces/webgl/src/hooks/useUnit
 import UsernameConfirmation from './UsernameConfirmation';
 import { generateUniqueUsername } from '@disruptive-spaces/shared/firebase/userFirestore';
 
-// reCAPTCHA site key
-const RECAPTCHA_SITE_KEY = "6Le4oQUrAAAAAHe0GMH5Z0tpuqTV2qqDzK9Yk4Uv";
+// reCAPTCHA site key - should be moved to environment variables in production
+const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Le4oQUrAAAAAHe0GMH5Z0tpuqTV2qqDzK9Yk4Uv";
 
 function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: propOnClose }) {
     const { register, handleSubmit, formState: { errors } } = useForm();
@@ -68,10 +68,9 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
     };
 
     const handleRegister = async (data) => {
-        console.log("Register.jsx: Form data received:", JSON.stringify(data));
+        Logger.log("Register.jsx: Processing registration form submission");
         const { email, password, confirmPassword, ...additionalData } = data;
-        console.log("Register.jsx: Additional data being sent:", JSON.stringify(additionalData));
-        console.log("Register.jsx: Fields in additional data:", Object.keys(additionalData).join(', '));
+        Logger.log("Register.jsx: Registration data fields:", Object.keys(additionalData).join(', '));
         
         if (!captchaToken) {
             toast({
@@ -111,17 +110,8 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
                 ? `${additionalData.firstName}${additionalData.lastName.charAt(0).toUpperCase()}`
                 : "";
             
-            console.log("Register.jsx: Generated Nickname:", Nickname);
+            Logger.log("Register.jsx: Generated username and nickname for new user");
             
-            // Log all field values for debugging
-            console.log("Register.jsx: Generating userData with these values:");
-            console.log("- firstName:", additionalData.firstName);
-            console.log("- lastName:", additionalData.lastName);
-            console.log("- companyName:", additionalData.companyName);
-            console.log("- linkedInProfile:", additionalData.linkedInProfile);
-            console.log("- Generated Nickname:", Nickname);
-            console.log("- Generated username:", suggestedUsername);
-                
             // Ensure all fields have proper values
             const userData = {
                 // Start with all the form data
@@ -139,14 +129,8 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
                 captchaToken, // Include the captcha token for verification
             };
             
-            console.log("Register.jsx: Final user data fields:", Object.keys(userData).join(', '));
-            console.log("Register.jsx: Critical values:"); 
-            console.log("- firstName:", userData.firstName);
-            console.log("- lastName:", userData.lastName);
-            console.log("- Nickname:", userData.Nickname);
-            console.log("- username:", userData.username);
-            console.log("- companyName:", userData.companyName);
-                
+            Logger.log("Register.jsx: Prepared registration data with fields:", Object.keys(userData).join(', '));
+            
             // Store pending user data for the confirmation step
             setPendingUserData(userData);
             
@@ -214,13 +198,7 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
         setIsSubmitting(true);
         
         try {
-            console.log("Register.jsx: CompleteRegistration with userData fields:", Object.keys(userData).join(', '));
-            console.log("Register.jsx: Critical values before final registration:"); 
-            console.log("- firstName:", userData.firstName);
-            console.log("- lastName:", userData.lastName);
-            console.log("- Nickname:", userData.Nickname);
-            console.log("- username:", userData.username);
-            console.log("- companyName:", userData.companyName);
+            Logger.log("Register.jsx: Completing registration with confirmed username");
             
             // Extract auth data
             const { email, password, ...additionalData } = userData;
@@ -238,77 +216,45 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
                 Nickname: additionalData.Nickname || ""
             };
             
-            console.log("Register.jsx: Final registration data fields:", Object.keys(finalData).join(', '));
-            console.log("Register.jsx: Final critical values:"); 
-            console.log("- firstName:", finalData.firstName);
-            console.log("- lastName:", finalData.lastName);
-            console.log("- Nickname:", finalData.Nickname);
-            console.log("- username:", finalData.username);
-            console.log("- companyName:", finalData.companyName);
+            Logger.log("Register.jsx: Final registration data includes fields:", Object.keys(finalData).join(', '));
             
             // Register user with Firebase (the global overlay will be shown by UserProvider)
             const registeredUserData = await userProviderRegister(email, password, finalData);
-            console.log("Register.jsx: User data returned after registration:", JSON.stringify(registeredUserData));
+            
+            // Success! The overlay will be shown by UserProvider
+            onClose();
+            setShowUsernameConfirmation(false);
             
             Logger.log('User: Registration process complete.');
             
-            // Show success toast
-            toast({
-                title: "Registration Successful",
-                description: "Your account has been created. Please check your email to verify your account before signing in.",
-                status: "success",
-                duration: 7000,
-                isClosable: true,
-                position: "top",
-            });
+            // Reset the state
+            setPendingUserData(null);
+            setRegistrationInProgress(false);
             
-            // Close both modals
-            setShowUsernameConfirmation(false);
-            onClose();
         } catch (error) {
-            Logger.error("User: Registration Error:", error);
+            Logger.error("User: Registration Error during final step:", error);
             
-            // Handle errors, same as in handleRegister
+            // Handle specific error scenarios
             let errorMessage = "An error occurred during registration. Please try again.";
-            let showSignInLink = false;
             
             if (error.code === 'auth/email-already-in-use') {
-                errorMessage = "This email address is already registered. Please sign in instead.";
-                showSignInLink = true;
-            } else if (error.code === 'auth/invalid-email') {
-                errorMessage = "The email address is not valid. Please check and try again.";
-            } else if (error.code === 'auth/weak-password') {
-                errorMessage = "The password is too weak. Please choose a stronger password.";
+                errorMessage = "This email address is already in use. Please try another one.";
             } else if (error.message) {
                 errorMessage = error.message;
             }
             
             toast({
                 title: "Registration Failed",
-                description: (
-                    <>
-                        {errorMessage}
-                        {showSignInLink && (
-                            <Text mt={2}>
-                                <Link 
-                                    color="blue.400" 
-                                    onClick={() => {
-                                        onClose();
-                                        // Dispatch a custom event to open the SignIn modal
-                                        window.dispatchEvent(new CustomEvent('openSignInModal'));
-                                    }}
-                                >
-                                    Go to Sign In
-                                </Link>
-                            </Text>
-                        )}
-                    </>
-                ),
+                description: errorMessage,
                 status: "error",
                 duration: 5000,
                 isClosable: true,
                 position: "top",
             });
+            
+            setShowUsernameConfirmation(false);
+            setPendingUserData(null);
+            setRegistrationInProgress(false);
         } finally {
             setIsSubmitting(false);
         }
