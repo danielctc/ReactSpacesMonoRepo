@@ -5,6 +5,7 @@ import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { useForm } from "react-hook-form";
 import ReCAPTCHA from "react-google-recaptcha";
+import { isUsernameSafe } from '@disruptive-spaces/shared/utils/profanityFilter';
 import {
     IconButton,
     Button,
@@ -95,6 +96,43 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
             });
             return;
         }
+        
+        // Check for profanity in name fields
+        if (!isUsernameSafe(additionalData.firstName)) {
+            toast({
+                title: "Registration Error",
+                description: "First name contains inappropriate content.",
+                status: "error",
+                duration: 3000,
+                isClosable: true,
+                position: "top",
+            });
+            return;
+        }
+        
+        if (!isUsernameSafe(additionalData.lastName)) {
+            toast({
+                title: "Registration Error",
+                description: "Last name contains inappropriate content.",
+                status: "error",
+                duration: 3000,
+                isClosable: true,
+                position: "top",
+            });
+            return;
+        }
+        
+        if (!isUsernameSafe(additionalData.companyName)) {
+            toast({
+                title: "Registration Error",
+                description: "Company name contains inappropriate content.",
+                status: "error",
+                duration: 3000,
+                isClosable: true,
+                position: "top",
+            });
+            return;
+        }
 
         setIsSubmitting(true);
 
@@ -109,6 +147,20 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
             const Nickname = additionalData.firstName && additionalData.lastName 
                 ? `${additionalData.firstName}${additionalData.lastName.charAt(0).toUpperCase()}`
                 : "";
+            
+            // Check if the generated Nickname contains profanity
+            if (Nickname && !isUsernameSafe(Nickname)) {
+                toast({
+                    title: "Registration Error",
+                    description: "The generated nickname contains inappropriate content. Please use different name values.",
+                    status: "error",
+                    duration: 5000,
+                    isClosable: true,
+                    position: "top",
+                });
+                setIsSubmitting(false);
+                return;
+            }
             
             Logger.log("Register.jsx: Generated username and nickname for new user");
             
@@ -226,6 +278,16 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
             setShowUsernameConfirmation(false);
             
             Logger.log('User: Registration process complete.');
+            
+            // Display email verification toast
+            toast({
+                title: "Registration Successful",
+                description: "Please check your email for a verification link. You'll need to verify your email before signing in.",
+                status: "success",
+                duration: 8000,
+                isClosable: true,
+                position: "top",
+            });
             
             // Reset the state
             setPendingUserData(null);

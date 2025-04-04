@@ -26,6 +26,7 @@ import {
     Spinner
 } from "@chakra-ui/react";
 import { isUsernameTaken } from "@disruptive-spaces/shared/firebase/userFirestore";
+import { isUsernameSafe } from "@disruptive-spaces/shared/utils/profanityFilter";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 const UsernameConfirmation = ({ 
@@ -44,13 +45,34 @@ const UsernameConfirmation = ({
 
     // Validate username format (alphanumeric, no spaces, max 15 chars)
     const isUsernameValid = (username) => {
-        return /^[a-z0-9]{1,15}$/.test(username);
+        if (!username || username.trim() === '') {
+            return false;
+        }
+        
+        // Check basic format requirements
+        if (!/^[a-z0-9]{1,15}$/.test(username)) {
+            return false;
+        }
+        
+        // Check for inappropriate content
+        if (!isUsernameSafe(username)) {
+            return false;
+        }
+        
+        return true;
     };
 
     // Check if username is available (not taken)
     const checkUsername = async (username) => {
+        // Check basic format and inappropriate content
         if (!isUsernameValid(username)) {
-            setError("Username must be 1-15 characters, lowercase letters and numbers only");
+            if (!username || username.trim() === '') {
+                setError("Username cannot be empty");
+            } else if (!isUsernameSafe(username)) {
+                setError("Username contains inappropriate content");
+            } else {
+                setError("Username must be 1-15 characters, lowercase letters and numbers only");
+            }
             return false;
         }
 
@@ -146,9 +168,16 @@ const UsernameConfirmation = ({
                 return;
             }
             
-            // Validate nickname (max 15 chars)
+            // Validate nickname (max 15 chars and no inappropriate content)
             if (nickname.length > 15) {
                 setError("Display Name must be at most 15 characters");
+                setIsSubmitting(false);
+                return;
+            }
+            
+            // Check for inappropriate content in nickname
+            if (!isUsernameSafe(nickname)) {
+                setError("Display Name contains inappropriate content");
                 setIsSubmitting(false);
                 return;
             }

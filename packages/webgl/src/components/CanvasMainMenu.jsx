@@ -38,7 +38,7 @@ import {
   Tooltip,
 } from "@chakra-ui/react";
 import { HamburgerIcon } from "@chakra-ui/icons";
-import { FaUsers, FaDesktop, FaEdit, FaCog, FaStar, FaCrown, FaShieldAlt, FaVideo } from 'react-icons/fa';
+import { FaUsers, FaDesktop, FaEdit, FaCog, FaStar, FaCrown, FaShieldAlt, FaVideo, FaCubes } from 'react-icons/fa';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
@@ -368,6 +368,8 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                   />
                 )}
                 
+                {/* Old prefab placer button - now removed as prefab placer opens automatically with edit mode */}
+                
                 <IconButton
                   icon={<Box w="4" h="4" />}
                   variant="ghost"
@@ -452,8 +454,15 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                 >
                   Controls
                 </Text>
-                <Text fontSize="md" cursor="pointer" _hover={{ bg: "whiteAlpha.200" }} p={2} borderRadius="md">
-                  Help
+                <Text 
+                  fontSize="md" 
+                  cursor="pointer" 
+                  _hover={{ bg: "whiteAlpha.200" }} 
+                  p={2} 
+                  borderRadius="md"
+                  onClick={() => window.open('https://support.spacesmetaverse.com/', '_blank')}
+                >
+                  Support
                 </Text>
                 <Text fontSize="md" cursor="pointer" _hover={{ bg: "whiteAlpha.200" }} p={2} borderRadius="md" color="red.300">
                   Leave

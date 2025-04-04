@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Box, Button, Text, Flex, NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper, Switch, FormControl, FormLabel, useToast } from "@chakra-ui/react";
 import { usePlacePrefab } from '../hooks/unityEvents';
 import { useSpaceObjects } from '../hooks/unityEvents/useSpaceObjects';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import PropTypes from 'prop-types';
+import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
+import { userBelongsToGroup } from '@disruptive-spaces/shared/firebase/userPermissions';
 
 const PrefabPlacer = ({ settings }) => {
   const { placePrefab, directPlacePrefab, isUnityLoaded } = usePlacePrefab();
@@ -14,12 +16,33 @@ const PrefabPlacer = ({ settings }) => {
   const [prefabName, setPrefabName] = useState("TestPrefab");
   const [useDirect, setUseDirect] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isDisruptiveAdmin, setIsDisruptiveAdmin] = useState(false);
+  
+  // Get the user from context
+  const { user } = useContext(UserContext);
   
   // Get spaceID from settings
   const spaceId = settings?.spaceID;
   
   // Use the space objects hook
   const { saveObject, isLoading } = useSpaceObjects(spaceId);
+  
+  // Check if user is a disruptiveAdmin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (user?.uid) {
+        try {
+          const isAdmin = await userBelongsToGroup(user.uid, 'disruptiveAdmin');
+          setIsDisruptiveAdmin(isAdmin);
+        } catch (error) {
+          console.error("Error checking admin status:", error);
+          setIsDisruptiveAdmin(false);
+        }
+      }
+    };
+    
+    checkAdmin();
+  }, [user?.uid]);
   
   // Listen for edit mode changes
   useEffect(() => {
@@ -130,8 +153,8 @@ const PrefabPlacer = ({ settings }) => {
     Logger.log("Set random position:", randomPos);
   };
   
-  // Only render if in edit mode
-  if (!isEditMode) return null;
+  // Only render if in edit mode AND user is a disruptiveAdmin
+  if (!isEditMode || !isDisruptiveAdmin) return null;
   
   return (
     <Box 
@@ -269,4 +292,4 @@ PrefabPlacer.propTypes = {
   }),
 };
 
-export default PrefabPlacer; 
+export default PrefabPlacer;

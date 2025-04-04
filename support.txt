@@ -1,0 +1,82 @@
+# SPACES METAVERSE - USER SUPPORT GUIDE
+
+## Creating an Account
+
+**Step 1: Access the Registration Form**
+Click the "Create Account" or "Register" button. The registration form will open in a modal window.
+
+**Step 2: Enter Your Information**
+• Company Name: Enter your company name (required)
+• First Name & Last Name: Enter your full name (both required)
+• Work Email Address: Provide a valid work email address
+• Password: Create a password (minimum 8 characters)
+• Confirm Password: Re-enter your password to confirm
+• LinkedIn Profile: Optional field to connect your professional profile
+
+**Step 3: Complete Security Verification**
+Check the reCAPTCHA box to verify you're not a robot. This security measure protects our platform from automated accounts.
+
+**Step 4: Set Up Your Username**
+After clicking "Next: Set Your Username", you'll see a second screen. Create a unique username (lowercase letters and numbers only, max 15 characters). Your username will appear with an "@" prefix (e.g., @username). The system will check if your chosen username is available.
+
+Note: Please select an appropriate, professional username. Your username represents you within the Spaces Metaverse community.
+
+**Step 5: Complete Registration**
+Click "Finish" to create your account. Once registration is complete, you'll be able to sign in using your email and password.
+
+**Step 6: Verify Your Email**
+After registering, check your email inbox for a verification link from Spaces Metaverse. Click the link to verify your email address. This step is required to ensure account security.
+
+Note: If you don't see the verification email, please check your spam or junk folder. You can request a new verification email by attempting to sign in with your credentials.
+
+## Resetting Your Password
+
+If you've forgotten your password, you can easily reset it:
+
+1. Click the "Sign In" button to open the login form
+2. Click the "Forgot Password?" link below the password field
+3. Enter the email address associated with your account
+4. Click the "Send Reset Link" button
+5. Check your email inbox for a password reset link from Spaces Metaverse
+6. Click the link in the email and follow the instructions to create a new password
+7. Once your password is reset, you can sign in with your new credentials
+
+Note: If you don't receive the reset email within a few minutes, check your spam or junk folder.
+
+## Updating Your Profile
+
+You can update your profile information at any time:
+
+1. Click on your profile avatar or username to open the profile menu
+2. Select "Profile" to open your profile settings
+3. Click the "Edit Profile" button to make changes
+4. You can update the following information:
+   • Display Name: Your visible name in the platform (max 15 characters)
+   • Username: Your unique identifier (lowercase letters and numbers only, max 15 characters)
+   • Company Name: Your organization's name
+   • First Name and Last Name: Your personal details
+   • LinkedIn Profile: Link to your professional profile
+5. Click "Save Changes" when you're done
+
+Note: If you change your username, the system will check if it's available before saving.
+
+## Customizing Your Avatar
+
+Spaces Metaverse uses Ready Player Me to help you create a personalized 3D avatar:
+
+1. Access the avatar creator by clicking on your profile menu and selecting the avatar option
+2. The Ready Player Me interface will open in a new window
+3. Create your avatar by:
+   • Taking a selfie to generate a look-alike avatar (requires camera permission)
+   • Choosing from pre-made options
+   • Customizing features including face shape, hairstyle, skin tone, and clothing
+4. After customizing your avatar, click "Done" or "Save" to export it
+5. Your new avatar will be automatically saved to your profile and appear in the Spaces Metaverse environment
+
+Note: Creating your avatar requires allowing camera access if you choose the selfie option. You can always skip this step and customize manually.
+
+## Need Additional Help?
+
+If you need further assistance, please visit our support site at https://support.spacesmetaverse.com or contact us at support@spacesmetaverse.com.
+
+Website: www.spacesmetaverse.com

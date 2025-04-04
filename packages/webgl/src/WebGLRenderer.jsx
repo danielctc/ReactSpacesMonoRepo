@@ -470,7 +470,8 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       {/* Add the PersistentBackground component with container ref */}
       {settings.urlLoadingBackground && (
         <PersistentBackground 
-          backgroundUrl={settings.urlLoadingBackground} 
+          backgroundUrl={settings.urlLoadingBackground}
+          videoBackgroundUrl={settings.videoBackgroundUrl}
           containerRef={unityContainerRef}
         />
       )}
@@ -599,7 +600,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
           
           {/* Bottom right controls */}
           <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} left={4} display="flex" alignItems="flex-start" gap={3}>
-            {/* Show PrefabPlacer only when user is logged in */}
+            {/* PrefabPlacer shows when user is logged in (visibility controlled by component itself) */}
             {user && <PrefabPlacer settings={settings} />}
           </Box>
           <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} right={4} display="flex" alignItems="flex-start" gap={3}>
@@ -639,6 +640,7 @@ WebGLRenderer.displayName = 'WebGLRenderer';
 WebGLRenderer.propTypes = {
   settings: PropTypes.shape({
     urlLoadingBackground: PropTypes.string,
+    videoBackgroundUrl: PropTypes.string,
     showAuthButton: PropTypes.bool,
     showDisruptiveLogo: PropTypes.bool,
     urlDisruptiveLogo: PropTypes.string,

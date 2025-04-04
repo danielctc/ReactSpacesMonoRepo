@@ -2,6 +2,7 @@ import { doc, getDoc, setDoc, updateDoc, onSnapshot, writeBatch, query, collecti
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth, db } from '@disruptive-spaces/shared/firebase/firebase';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { isUsernameSafe } from '@disruptive-spaces/shared/utils/profanityFilter';
 
 // Function to generate a username from first and last name with random numbers
 const generateUsername = (firstName, lastName) => {
@@ -62,10 +63,19 @@ const isUsernameTaken = async (username) => {
 const generateUniqueUsername = async (firstName, lastName) => {
     let username = generateUsername(firstName, lastName);
     let attempts = 0;
-    const maxAttempts = 5;
+    const maxAttempts = 10; // Increased max attempts to account for profanity filter rejections
     
-    // Keep trying until we find an available username or hit max attempts
+    // Keep trying until we find an available username that passes all checks
     while (attempts < maxAttempts) {
+        // Check if username contains profanity
+        if (!isUsernameSafe(username)) {
+            Logger.log(`userFirestore: Generated username "${username}" contains inappropriate content, trying again`);
+            username = generateUsername(firstName, lastName);
+            attempts++;
+            continue;
+        }
+        
+        // Check if username is already taken
         const isTaken = await isUsernameTaken(username);
         if (!isTaken) {
             return username;
@@ -77,7 +87,16 @@ const generateUniqueUsername = async (firstName, lastName) => {
     }
     
     // If we couldn't find a username after several attempts, add more random chars
-    return username + Math.floor(Math.random() * 100);
+    const finalUsername = username + Math.floor(Math.random() * 100);
+    
+    // One final check for profanity
+    if (!isUsernameSafe(finalUsername)) {
+        // If still contains profanity, use a safe fallback pattern with just initials and numbers
+        const initials = (firstName.charAt(0) + lastName.charAt(0)).toLowerCase();
+        return initials + Math.floor(10000 + Math.random() * 90000);
+    }
+    
+    return finalUsername;
 };
 
 // Function to get PUBLIC user profile data based on user ID
@@ -422,68 +441,29 @@ const addUserToGroup = async (userId, groupName, callerUserId) => {
     }
 };
 
-// Add a function to update a user's username
+// Function to update username in Firestore
 const updateUsername = async (userId, newUsername) => {
     try {
-        Logger.log(`userFirestore: Updating username for user ${userId} to ${newUsername}`);
-        
-        // Simple validation
-        if (!newUsername || newUsername.trim() === '') {
-            Logger.error('userFirestore: Cannot update to empty username');
-            throw new Error('Username cannot be empty');
+        // Validate the username for profanity before allowing update
+        if (!isUsernameSafe(newUsername)) {
+            throw new Error('Username contains inappropriate content');
         }
         
-        // Validate username format
-        if (!/^[a-z0-9]{1,15}$/.test(newUsername)) {
-            Logger.error('userFirestore: Invalid username format');
-            throw new Error('Username must be 1-15 characters, lowercase letters and numbers only');
-        }
-        
-        // Get current user data to verify changes
-        const userRef = doc(db, "users", userId);
-        const userDoc = await getDoc(userRef);
-        
-        if (!userDoc.exists()) {
-            Logger.error(`userFirestore: User ${userId} not found when updating username`);
-            throw new Error('User not found');
-        }
-        
-        const userData = userDoc.data();
-        
-        // If username is the same, no need to update
-        if (userData.username === newUsername) {
-            Logger.log(`userFirestore: Username is already set to ${newUsername}, no update needed`);
-            return true;
-        }
-        
-        // Check if username is taken first (double check even if UI already checked)
+        // Check if username is already taken
         const isTaken = await isUsernameTaken(newUsername);
         if (isTaken) {
-            Logger.error(`userFirestore: Username ${newUsername} is already taken`);
             throw new Error('Username is already taken');
         }
         
-        // Perform the update
-        await updateDoc(userRef, { 
+        // Update the username in Firestore
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, {
             username: newUsername,
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date()
         });
         
-        // Verify the update was successful
-        const updatedDoc = await getDoc(userRef);
-        if (updatedDoc.exists()) {
-            const updatedData = updatedDoc.data();
-            if (updatedData.username === newUsername) {
-                Logger.log(`userFirestore: Username successfully updated to ${newUsername} for user ${userId}`);
-                return true;
-            } else {
-                Logger.error(`userFirestore: Username verification failed after update for ${userId}`);
-                throw new Error('Username update verification failed');
-            }
-        } else {
-            Logger.error(`userFirestore: User document not found after username update for ${userId}`);
-            throw new Error('User document not found after update');
-        }
+        Logger.log(`userFirestore: Username updated for user ${userId}`);
+        return true;
     } catch (error) {
         Logger.error('userFirestore: Error updating username:', error);
         throw error;

@@ -709,3 +709,124 @@ export const getSpaceHLSStream = async (spaceId) => {
     throw error;
   }
 };
+
+/**
+ * Uploads a video background for a space to Firebase Storage and updates the space document in Firestore
+ * 
+ * @param {string} spaceId - The ID of the space
+ * @param {File} videoFile - The video file to upload
+ * @returns {Promise<string>} - The download URL of the uploaded video
+ */
+export const uploadSpaceVideoBackground = async (spaceId, videoFile) => {
+  try {
+    // Validate parameters
+    if (!spaceId || !videoFile) {
+      throw new Error('Missing required parameters: spaceId and videoFile');
+    }
+
+    // Validate file type
+    if (!videoFile.type.startsWith('video/')) {
+      throw new Error('File must be a video');
+    }
+
+    // Validate file size (5MB limit)
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB in bytes
+    if (videoFile.size > maxSizeBytes) {
+      throw new Error('Video file must be smaller than 5MB');
+    }
+
+    // Create a reference to Firebase Storage
+    const storage = getStorage();
+    const timestamp = Date.now();
+    const fileExtension = videoFile.name.split('.').pop();
+    const fileName = `video_bg_${timestamp}.${fileExtension}`;
+    const storageRef = ref(storage, `spaces/${spaceId}/video_background/${fileName}`);
+
+    // Upload the file
+    Logger.log(`Uploading video background for space ${spaceId}`);
+    const snapshot = await uploadBytes(storageRef, videoFile);
+    
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    
+    // Store the reference in Firestore
+    const spaceRef = doc(db, 'spaces', spaceId);
+    await updateDoc(spaceRef, {
+      videoBackgroundUrl: downloadURL,
+      videoBackgroundGsUrl: `gs://${snapshot.ref.bucket}/${snapshot.ref.fullPath}`,
+      videoBackgroundFileName: fileName,
+      updatedAt: new Date().toISOString()
+    });
+    
+    Logger.log(`Successfully uploaded video background for space ${spaceId}`);
+    return downloadURL;
+  } catch (error) {
+    Logger.error('Error uploading space video background:', error);
+    throw error;
+  }
+};
+
+/**
+ * Deletes the video background for a space from Firebase Storage and updates the space document in Firestore
+ * 
+ * @param {string} spaceId - The ID of the space
+ * @returns {Promise<void>}
+ */
+export const deleteSpaceVideoBackground = async (spaceId) => {
+  try {
+    // Validate parameter
+    if (!spaceId) {
+      throw new Error('Missing required parameter: spaceId');
+    }
+
+    // Reference to the space document
+    const spaceRef = doc(db, 'spaces', spaceId);
+    
+    // Get the current space data
+    const spaceSnapshot = await getDoc(spaceRef);
+    if (!spaceSnapshot.exists()) {
+      throw new Error(`Space with ID ${spaceId} not found`);
+    }
+    
+    const spaceData = spaceSnapshot.data();
+    
+    // Check if there's a video background to delete
+    if (!spaceData.videoBackgroundGsUrl) {
+      Logger.log(`No video background found for space ${spaceId}`);
+      return;
+    }
+    
+    // Reference to the file in Firebase Storage
+    const storage = getStorage();
+    
+    // Extract the path from the gsUrl
+    const gsUrl = spaceData.videoBackgroundGsUrl;
+    const gsPath = gsUrl.replace('gs://', '');
+    const [bucket, ...pathParts] = gsPath.split('/');
+    const path = pathParts.join('/');
+    
+    const storageRef = ref(storage, path);
+    
+    // Delete the file from Firebase Storage
+    try {
+      await deleteObject(storageRef);
+      Logger.log(`Deleted video background file from storage for space ${spaceId}`);
+    } catch (deleteError) {
+      Logger.error(`Failed to delete video background file, it may not exist: ${deleteError.message}`);
+      // Continue with updating Firestore even if the file deletion fails
+    }
+    
+    // Update the space document to remove references to the video background
+    await updateDoc(spaceRef, {
+      videoBackgroundUrl: null,
+      videoBackgroundGsUrl: null,
+      videoBackgroundFileName: null,
+      updatedAt: new Date().toISOString()
+    });
+    
+    Logger.log(`Successfully removed video background for space ${spaceId}`);
+  } catch (error) {
+    Logger.error('Error deleting space video background:', error);
+    throw error;
+  }
+};

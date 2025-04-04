@@ -25,6 +25,7 @@ import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { blockUnityKeyboardInput, focusUnity } from "@disruptive-spaces/webgl/src/utils/unityKeyboard";
 import { isUsernameTaken, updateUsername } from '@disruptive-spaces/shared/firebase/userFirestore';
+import { isUsernameSafe } from '@disruptive-spaces/shared/utils/profanityFilter';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
@@ -123,6 +124,13 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
                         return;
                     }
                     
+                    // Check for profanity in username
+                    if (!isUsernameSafe(formData.username)) {
+                        setUsernameError("Username contains inappropriate content");
+                        setCheckingUsername(false);
+                        return;
+                    }
+                    
                     const isTaken = await isUsernameTaken(formData.username);
                     if (isTaken) {
                         setUsernameError("Username is already taken");
@@ -176,6 +184,54 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
             return;
         }
 
+        // Check for profanity in Display Name
+        if (!isUsernameSafe(formData.Nickname)) {
+            toast({
+                title: "Error",
+                description: "Display Name contains inappropriate content",
+                status: "error",
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
+        
+        // Check for profanity in first name
+        if (formData.firstName && !isUsernameSafe(formData.firstName)) {
+            toast({
+                title: "Error",
+                description: "First name contains inappropriate content",
+                status: "error",
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
+        
+        // Check for profanity in last name
+        if (formData.lastName && !isUsernameSafe(formData.lastName)) {
+            toast({
+                title: "Error",
+                description: "Last name contains inappropriate content",
+                status: "error",
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
+        
+        // Check for profanity in company name
+        if (formData.companyName && !isUsernameSafe(formData.companyName)) {
+            toast({
+                title: "Error",
+                description: "Company name contains inappropriate content",
+                status: "error",
+                duration: 3000,
+                isClosable: true,
+            });
+            return;
+        }
+
         if (usernameError) {
             toast({
                 title: "Error",
@@ -192,6 +248,20 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
         try {
             // Always check username uniqueness again before updating
             if (formData.username !== user.username) {
+                // Check for profanity in username one more time
+                if (!isUsernameSafe(formData.username)) {
+                    setUsernameError("Username contains inappropriate content");
+                    toast({
+                        title: "Error",
+                        description: "Username contains inappropriate content",
+                        status: "error",
+                        duration: 3000,
+                        isClosable: true,
+                    });
+                    setIsLoading(false);
+                    return;
+                }
+                
                 const isTaken = await isUsernameTaken(formData.username);
                 if (isTaken) {
                     setUsernameError("Username is already taken");
@@ -555,6 +625,19 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
                             borderRadius="full"
                         />
                         {isEditing ? renderEditMode() : renderViewMode()}
+                        
+                        {/* Support Button */}
+                        {!isEditing && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                colorScheme="blue"
+                                width="100%"
+                                onClick={() => window.open('https://support.spacesmetaverse.com/', '_blank')}
+                            >
+                                Visit Support Site
+                            </Button>
+                        )}
                     </VStack>
                 </ModalBody>
             </ModalContent>

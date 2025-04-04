@@ -37,7 +37,7 @@ import {
   Switch,
   Textarea,
 } from '@chakra-ui/react';
-import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2, FiTag, FiVideo } from 'react-icons/fi';
+import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2, FiTag, FiVideo, FiFilm } from 'react-icons/fi';
 import { 
   uploadSpaceLogo, 
   deleteSpaceLogo, 
@@ -47,7 +47,9 @@ import {
   updateSpaceSettings,
   setSpaceAccessibleToAllUsers,
   updateSpaceHLSStream,
-  getSpaceHLSStream
+  getSpaceHLSStream,
+  uploadSpaceVideoBackground,
+  deleteSpaceVideoBackground
 } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { useUnity } from '../providers/UnityProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
@@ -80,6 +82,14 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   const [bgUploadProgress, setBgUploadProgress] = useState(0);
   const [existingBackground, setExistingBackground] = useState(null);
   const bgFileInputRef = useRef(null);
+  
+  // Video Background state
+  const [selectedVideoFile, setSelectedVideoFile] = useState(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState(null);
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0);
+  const [existingVideoBackground, setExistingVideoBackground] = useState(null);
+  const videoFileInputRef = useRef(null);
   
   // Users state
   const [spaceOwners, setSpaceOwners] = useState([]);
@@ -121,6 +131,11 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       // Set background if exists
       if (spaceData.backgroundUrl) {
         setExistingBackground(spaceData.backgroundUrl);
+      }
+      
+      // Set video background if exists
+      if (spaceData.videoBackgroundUrl) {
+        setExistingVideoBackground(spaceData.videoBackgroundUrl);
       }
       
       // Set settings
@@ -288,7 +303,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
 
   // Fetch space users when tab changes to Users tab
   useEffect(() => {
-    if (spaceID && isOpen && tabIndex === 4) { // Only fetch when users tab is active (index is now 4)
+    if (spaceID && isOpen && tabIndex === 4) { // Users tab is at index 4 now since we removed Video Bg tab
       fetchSpaceUsers({});
     }
   }, [spaceID, isOpen, tabIndex]);
@@ -342,6 +357,46 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setBgPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle video background file selection
+  const handleVideoFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('video/')) {
+        toast({
+          title: 'Invalid file type',
+          description: 'Please select a video file',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+      
+      // Validate file size (5MB limit)
+      const maxSizeBytes = 5 * 1024 * 1024; // 5MB in bytes
+      if (file.size > maxSizeBytes) {
+        toast({
+          title: 'File too large',
+          description: 'Video file must be smaller than 5MB',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      setSelectedVideoFile(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setVideoPreviewUrl(reader.result);
       };
       reader.readAsDataURL(file);
     }
@@ -571,6 +626,118 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
     }
   };
 
+  // Handle video background upload
+  const handleVideoUpload = async () => {
+    if (!selectedVideoFile) {
+      toast({
+        title: 'No file selected',
+        description: 'Please select a file to upload',
+        status: 'warning',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    try {
+      setIsVideoUploading(true);
+      
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setVideoUploadProgress(prev => {
+          const newProgress = prev + 10;
+          return newProgress >= 90 ? 90 : newProgress;
+        });
+      }, 300);
+      
+      // Upload the video background to Firebase
+      const uploadedUrl = await uploadSpaceVideoBackground(spaceID, selectedVideoFile);
+      
+      // Clear the interval and set progress to 100%
+      clearInterval(progressInterval);
+      setVideoUploadProgress(100);
+      
+      // Update the UI
+      setExistingVideoBackground(uploadedUrl);
+      
+      // Show success message
+      toast({
+        title: 'Upload successful',
+        description: 'Space video background has been updated',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      // Reset the form after a delay
+      setTimeout(() => {
+        setSelectedVideoFile(null);
+        setVideoPreviewUrl(null);
+        setVideoUploadProgress(0);
+        setIsVideoUploading(false);
+      }, 1000);
+      
+      // Dispatch an event to notify components to update the video background
+      window.dispatchEvent(new CustomEvent('SpaceVideoBackgroundUpdated', { 
+        detail: { videoBackgroundUrl: uploadedUrl } 
+      }));
+      
+    } catch (error) {
+      console.error('Error uploading video background:', error);
+      toast({
+        title: 'Upload failed',
+        description: error.message || 'An error occurred during upload',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      setIsVideoUploading(false);
+      setVideoUploadProgress(0);
+    }
+  };
+
+  // Handle video background deletion
+  const handleVideoDelete = async () => {
+    if (!existingVideoBackground) return;
+    
+    try {
+      setIsVideoUploading(true);
+      
+      // Delete the video background from Firebase
+      await deleteSpaceVideoBackground(spaceID);
+      
+      // Update the UI
+      setExistingVideoBackground(null);
+      
+      // Show success message
+      toast({
+        title: 'Video background removed',
+        description: 'Space video background has been removed',
+        status: 'info',
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      setIsVideoUploading(false);
+      
+      // Dispatch an event to notify components to remove the video background
+      window.dispatchEvent(new CustomEvent('SpaceVideoBackgroundUpdated', { 
+        detail: { videoBackgroundUrl: null } 
+      }));
+      
+    } catch (error) {
+      console.error('Error deleting video background:', error);
+      toast({
+        title: 'Deletion failed',
+        description: error.message || 'An error occurred during deletion',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      setIsVideoUploading(false);
+    }
+  };
+
   // Handle browse button click for logo
   const handleBrowseClick = () => {
     if (fileInputRef.current) {
@@ -582,6 +749,13 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   const handleBgBrowseClick = () => {
     if (bgFileInputRef.current) {
       bgFileInputRef.current.click();
+    }
+  };
+
+  // Handle video background browse button click
+  const handleVideoBrowseClick = () => {
+    if (videoFileInputRef.current) {
+      videoFileInputRef.current.click();
     }
   };
 
@@ -1078,116 +1252,265 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
               
               {/* Background Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
-                <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Loading Background</Text>
-                <Text fontSize="xs" mb={4}>Upload a background image for your space. This will be displayed during loading.</Text>
+                <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Background</Text>
+                <Text fontSize="xs" mb={4}>Upload a background for your space. This will be displayed during loading.</Text>
                 
-                {/* Display current background and preview side by side when both exist */}
-                {(existingBackground || bgPreviewUrl) && (
-                  <Flex direction={{ base: "column", md: "row" }} gap={4} mb={4}>
-                    {/* Current background display */}
-                    {existingBackground && (
-                      <Box 
-                        borderWidth="1px" 
-                        borderRadius="md" 
-                        p={3} 
-                        bg="whiteAlpha.50"
-                        borderColor="whiteAlpha.200"
-                        flex="1"
-                      >
-                        <Text fontSize="xs" fontWeight="medium" mb={2}>Current Background</Text>
-                        <Image 
-                          src={existingBackground} 
-                          alt="Space Background" 
-                          maxH="120px" 
-                          mx="auto"
-                          objectFit="contain"
+                <Tabs variant="enclosed" colorScheme="blue" size="md" mb={4} borderColor="blue.300">
+                  <TabList>
+                    <Tab 
+                      fontSize="sm" 
+                      fontWeight="medium" 
+                      _selected={{ color: "blue.300", bg: "whiteAlpha.200" }}
+                      p={3}
+                    >
+                      <Icon as={FiImage} mr={2} />
+                      Image
+                    </Tab>
+                    <Tab 
+                      fontSize="sm" 
+                      fontWeight="medium" 
+                      _selected={{ color: "blue.300", bg: "whiteAlpha.200" }}
+                      p={3}
+                    >
+                      <Icon as={FiFilm} mr={2} />
+                      Video (max 5MB)
+                    </Tab>
+                  </TabList>
+                  
+                  <TabPanels mt={4}>
+                    {/* Image Background Tab */}
+                    <TabPanel p={0}>
+                      {/* Display current background and preview side by side when both exist */}
+                      {(existingBackground || bgPreviewUrl) && (
+                        <Flex direction={{ base: "column", md: "row" }} gap={4} mb={4}>
+                          {/* Current background display */}
+                          {existingBackground && (
+                            <Box 
+                              borderWidth="1px" 
+                              borderRadius="md" 
+                              p={3} 
+                              bg="whiteAlpha.50"
+                              borderColor="whiteAlpha.200"
+                              flex="1"
+                            >
+                              <Text fontSize="xs" fontWeight="medium" mb={2}>Current Background</Text>
+                              <Image 
+                                src={existingBackground} 
+                                alt="Space Background" 
+                                maxH="120px" 
+                                mx="auto"
+                                objectFit="contain"
+                              />
+                              <Button
+                                mt={3}
+                                colorScheme="red"
+                                leftIcon={<Icon as={FiTrash2} />}
+                                onClick={handleBgDelete}
+                                isLoading={isBgUploading}
+                                loadingText="Removing..."
+                                size="xs"
+                                variant="ghost"
+                              >
+                                Remove Background
+                              </Button>
+                            </Box>
+                          )}
+                          
+                          {/* Preview of selected file */}
+                          {bgPreviewUrl && (
+                            <Box 
+                              borderWidth="1px" 
+                              borderRadius="md" 
+                              p={3} 
+                              bg="whiteAlpha.50"
+                              borderColor="whiteAlpha.200"
+                              flex="1"
+                            >
+                              <Text fontSize="xs" fontWeight="medium" mb={2}>Preview</Text>
+                              <Image 
+                                src={bgPreviewUrl} 
+                                alt="Preview" 
+                                maxH="120px" 
+                                mx="auto"
+                                objectFit="contain"
+                              />
+                            </Box>
+                          )}
+                        </Flex>
+                      )}
+                      
+                      {/* Background upload form */}
+                      <FormControl>
+                        <FormLabel fontSize="xs">Upload New Background Image</FormLabel>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleBgFileChange}
+                          ref={bgFileInputRef}
+                          display="none"
                         />
-                        <Button
-                          mt={3}
-                          colorScheme="red"
-                          leftIcon={<Icon as={FiTrash2} />}
-                          onClick={handleBgDelete}
-                          isLoading={isBgUploading}
-                          loadingText="Removing..."
-                          size="xs"
-                          variant="ghost"
-                        >
-                          Remove Background
-                        </Button>
-                      </Box>
-                    )}
+                        
+                        {/* Upload progress */}
+                        {isBgUploading && (
+                          <Box mt={3} mb={3}>
+                            <Text fontSize="xs" mb={1}>Uploading... {bgUploadProgress}%</Text>
+                            <Progress value={bgUploadProgress} size="xs" colorScheme="blue" borderRadius="full" />
+                          </Box>
+                        )}
+                        
+                        {/* Action buttons */}
+                        <HStack mt={3} spacing={3}>
+                          <Button
+                            colorScheme="blue"
+                            leftIcon={<Icon as={FiImage} />}
+                            onClick={handleBgBrowseClick}
+                            isDisabled={isBgUploading}
+                            size="sm"
+                            variant="outline"
+                          >
+                            Browse
+                          </Button>
+                          <Button
+                            colorScheme="green"
+                            leftIcon={<Icon as={FiUpload} />}
+                            onClick={handleBgUpload}
+                            isLoading={isBgUploading}
+                            loadingText="Uploading..."
+                            isDisabled={!selectedBgFile || isBgUploading}
+                            size="sm"
+                          >
+                            Upload
+                          </Button>
+                        </HStack>
+                        
+                        <FormHelperText fontSize="xs" color="whiteAlpha.700" mt={2}>
+                          Recommended: High-quality image (1920x1080 or higher) that works well with the frosted glass overlay.
+                        </FormHelperText>
+                      </FormControl>
+                    </TabPanel>
                     
-                    {/* Preview of selected file */}
-                    {bgPreviewUrl && (
-                      <Box 
-                        borderWidth="1px" 
-                        borderRadius="md" 
-                        p={3} 
-                        bg="whiteAlpha.50"
-                        borderColor="whiteAlpha.200"
-                        flex="1"
-                      >
-                        <Text fontSize="xs" fontWeight="medium" mb={2}>Preview</Text>
-                        <Image 
-                          src={bgPreviewUrl} 
-                          alt="Preview" 
-                          maxH="120px" 
-                          mx="auto"
-                          objectFit="contain"
+                    {/* Video Background Tab */}
+                    <TabPanel p={0}>
+                      {/* Display current video background and preview side by side when both exist */}
+                      {(existingVideoBackground || videoPreviewUrl) && (
+                        <Flex direction={{ base: "column", md: "row" }} gap={4} mb={4}>
+                          {/* Current video background display */}
+                          {existingVideoBackground && (
+                            <Box 
+                              borderWidth="1px" 
+                              borderRadius="md" 
+                              p={3} 
+                              bg="whiteAlpha.50"
+                              borderColor="whiteAlpha.200"
+                              flex="1"
+                            >
+                              <Text fontSize="xs" fontWeight="medium" mb={2}>Current Video Background</Text>
+                              <Box maxH="160px" overflow="hidden" position="relative">
+                                <video 
+                                  src={existingVideoBackground} 
+                                  controls
+                                  muted
+                                  style={{
+                                    width: '100%',
+                                    maxHeight: '120px',
+                                    objectFit: 'contain'
+                                  }}
+                                />
+                              </Box>
+                              <Button
+                                mt={3}
+                                colorScheme="red"
+                                leftIcon={<Icon as={FiTrash2} />}
+                                onClick={handleVideoDelete}
+                                isLoading={isVideoUploading}
+                                loadingText="Removing..."
+                                size="xs"
+                                variant="ghost"
+                              >
+                                Remove Video
+                              </Button>
+                            </Box>
+                          )}
+                          
+                          {/* Preview of selected file */}
+                          {videoPreviewUrl && (
+                            <Box 
+                              borderWidth="1px" 
+                              borderRadius="md" 
+                              p={3} 
+                              bg="whiteAlpha.50"
+                              borderColor="whiteAlpha.200"
+                              flex="1"
+                            >
+                              <Text fontSize="xs" fontWeight="medium" mb={2}>Preview</Text>
+                              <Box maxH="160px" overflow="hidden">
+                                <video 
+                                  src={videoPreviewUrl} 
+                                  controls
+                                  muted
+                                  style={{
+                                    width: '100%',
+                                    maxHeight: '120px',
+                                    objectFit: 'contain'
+                                  }}
+                                />
+                              </Box>
+                            </Box>
+                          )}
+                        </Flex>
+                      )}
+                      
+                      {/* Video upload form */}
+                      <FormControl>
+                        <FormLabel fontSize="xs">Upload New Video Background</FormLabel>
+                        <Input
+                          type="file"
+                          accept="video/*"
+                          onChange={handleVideoFileChange}
+                          ref={videoFileInputRef}
+                          display="none"
                         />
-                      </Box>
-                    )}
-                  </Flex>
-                )}
-                
-                {/* Background upload form */}
-                <FormControl>
-                  <FormLabel fontSize="xs">Upload New Background</FormLabel>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleBgFileChange}
-                    ref={bgFileInputRef}
-                    display="none"
-                  />
-                  
-                  {/* Upload progress */}
-                  {isBgUploading && (
-                    <Box mt={3} mb={3}>
-                      <Text fontSize="xs" mb={1}>Uploading... {bgUploadProgress}%</Text>
-                      <Progress value={bgUploadProgress} size="xs" colorScheme="blue" borderRadius="full" />
-                    </Box>
-                  )}
-                  
-                  {/* Action buttons */}
-                  <HStack mt={3} spacing={3}>
-                    <Button
-                      colorScheme="blue"
-                      leftIcon={<Icon as={FiImage} />}
-                      onClick={handleBgBrowseClick}
-                      isDisabled={isBgUploading}
-                      size="sm"
-                      variant="outline"
-                    >
-                      Browse
-                    </Button>
-                    <Button
-                      colorScheme="green"
-                      leftIcon={<Icon as={FiUpload} />}
-                      onClick={handleBgUpload}
-                      isLoading={isBgUploading}
-                      loadingText="Uploading..."
-                      isDisabled={!selectedBgFile || isBgUploading}
-                      size="sm"
-                    >
-                      Upload
-                    </Button>
-                  </HStack>
-                  
-                  <FormHelperText fontSize="xs" color="whiteAlpha.700" mt={2}>
-                    Recommended: High-quality image (1920x1080 or higher) that works well with the frosted glass overlay.
-                  </FormHelperText>
-                </FormControl>
+                        
+                        {/* Upload progress */}
+                        {isVideoUploading && (
+                          <Box mt={3} mb={3}>
+                            <Text fontSize="xs" mb={1}>Uploading... {videoUploadProgress}%</Text>
+                            <Progress value={videoUploadProgress} size="xs" colorScheme="blue" borderRadius="full" />
+                          </Box>
+                        )}
+                        
+                        {/* Action buttons */}
+                        <HStack mt={3} spacing={3}>
+                          <Button
+                            colorScheme="blue"
+                            leftIcon={<Icon as={FiFilm} />}
+                            onClick={handleVideoBrowseClick}
+                            isDisabled={isVideoUploading}
+                            size="sm"
+                            variant="outline"
+                          >
+                            Browse
+                          </Button>
+                          <Button
+                            colorScheme="green"
+                            leftIcon={<Icon as={FiUpload} />}
+                            onClick={handleVideoUpload}
+                            isLoading={isVideoUploading}
+                            loadingText="Uploading..."
+                            isDisabled={!selectedVideoFile || isVideoUploading}
+                            size="sm"
+                          >
+                            Upload
+                          </Button>
+                        </HStack>
+                        
+                        <FormHelperText fontSize="xs" color="whiteAlpha.700" mt={2}>
+                          Recommended: MP4 format. Maximum file size: 5MB. Short looping videos work best.
+                        </FormHelperText>
+                      </FormControl>
+                    </TabPanel>
+                  </TabPanels>
+                </Tabs>
               </TabPanel>
               
               {/* Settings Tab */}

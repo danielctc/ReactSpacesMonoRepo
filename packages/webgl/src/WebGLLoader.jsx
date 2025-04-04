@@ -224,6 +224,7 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
     const [spaceSettings, setSpaceSettings] = useState({
         urlDisruptiveLogo: 'gs://disruptive-metaverse.appspot.com/common/images/Disruptive-logo-white-p-500.png',
         urlLoadingBackground: '',
+        videoBackgroundUrl: '', // Add video background URL state
         showDisruptiveLogo: null,
         showAuthButton: null,
         showHelpButton: null,
@@ -246,6 +247,7 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
                 const itemData = await getSpaceItem(spaceID);
 
                 if (itemData) {
+                    console.log("Space data: ", itemData);
 
                     // Update unityConfig with relevant fetched data
                     setUnityConfig(prevConfig => ({
@@ -280,10 +282,18 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
                         }
                     }
 
+                    // Get video background URL if available
+                    let videoBackgroundUrl = '';
+                    if (itemData.videoBackgroundUrl) {
+                        videoBackgroundUrl = itemData.videoBackgroundUrl;
+                        console.log("WebGLLoader: Found video background URL:", videoBackgroundUrl);
+                    }
+
                     // Update settings with relevant fetched data
                     setSpaceSettings(prevSettings => ({
                         ...prevSettings,
                         urlLoadingBackground: backgroundUrl,
+                        videoBackgroundUrl: videoBackgroundUrl, // Add video background URL
                         showAuthButton: itemData.showAuthButton !== undefined ? itemData.showAuthButton : true,
                         showDisruptiveLogo: itemData.showDisruptiveLogo !== undefined ? itemData.showDisruptiveLogo : true,
                         showHelpButton: itemData.showHelpButton !== undefined ? itemData.showHelpButton : true,
@@ -293,6 +303,14 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
                         // Apply any override settings
                         ...(overrideSettings || {})
                     }));
+
+                    // Manually dispatch event for video background
+                    if (videoBackgroundUrl) {
+                        console.log("WebGLLoader: Dispatching video background event with URL:", videoBackgroundUrl);
+                        window.dispatchEvent(new CustomEvent('SpaceVideoBackgroundUpdated', {
+                            detail: { videoBackgroundUrl: videoBackgroundUrl }
+                        }));
+                    }
 
                     setIsLoading(false);
 
