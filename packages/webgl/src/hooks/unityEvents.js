@@ -15,5 +15,6 @@ export {
   useUnityThumbnails,
   useUnityOnNameplateClick,
   useUnityPlayerList,
-  useHLSStream
+  useHLSStream,
+  useUnityKickPlayer
 } from './unityEvents/index.js'; 

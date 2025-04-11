@@ -20,3 +20,4 @@ export { useUnityOnStoreUserData } from './useUnityOnStoreUserData';
 export { useUnityOnPlayerInstantiated } from './useUnityOnPlayerInstantiated';
 export { useSpaceObjects } from './useSpaceObjects';
 export { useUnityOnRequestForMedia } from './useUnityOnRequestForMedia';
+export { default as useUnityKickPlayer } from './useUnityKickPlayer';

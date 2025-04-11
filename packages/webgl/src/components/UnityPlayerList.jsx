@@ -22,13 +22,24 @@ import {
   MenuItem,
   MenuDivider,
   useToast,
-  useMediaQuery
+  useMediaQuery,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  Button,
+  useDisclosure
 } from "@chakra-ui/react";
 import { CloseIcon, ChevronDownIcon, SettingsIcon } from "@chakra-ui/icons";
-import { FaLinkedin, FaGlobe, FaMicrophone, FaMicrophoneSlash, FaStar, FaCrown, FaEllipsisV, FaBan, FaUserPlus, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
+import { FaLinkedin, FaGlobe, FaMicrophone, FaMicrophoneSlash, FaStar, FaCrown, FaEllipsisV, FaBan, FaUserPlus, FaVolumeUp, FaVolumeMute, FaUserMinus } from 'react-icons/fa';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
 import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
+import { userBelongsToGroup } from '@disruptive-spaces/shared/firebase/userPermissions';
+import { useUnityKickPlayer } from '../hooks/unityEvents';
 
 // Accept spaceID as a prop
 const UnityPlayerList = ({ isVisible, onToggleVisibility, spaceID: propSpaceID }) => {
@@ -64,11 +75,50 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility, spaceID: propSpaceID }
   const [activeMics, setActiveMics] = useState({});
   const [playerUidMap, setPlayerUidMap] = useState({});
   const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [isDisruptiveAdmin, setIsDisruptiveAdmin] = useState(false);
   const [voiceDisabled, setVoiceDisabled] = useState(false);
   const toast = useToast();
+  const [processingKickPlayerName, setProcessingKickPlayerName] = useState(null);
+  const { isOpen: isKickModalOpen, onOpen: onKickModalOpen, onClose: onKickModalClose } = useDisclosure();
+  const [playerToKick, setPlayerToKick] = useState(null);
   
   // Get the current user from the window object if available
   const currentUser = window.currentUser || {};
+  
+  // Log current user info for debugging
+  useEffect(() => {
+    Logger.log("Current user info:", {
+      uid: currentUser?.uid,
+      groups: currentUser?.groups,
+      isAdmin: currentUser?.groups?.includes('disruptiveAdmin')
+    });
+  }, [currentUser]);
+  
+  // Check if current user is a disruptiveAdmin - directly from window.currentUser first for simplicity
+  useEffect(() => {
+    // First check if it's available in currentUser object (faster)
+    if (currentUser && currentUser.groups && currentUser.groups.includes('disruptiveAdmin')) {
+      Logger.log("Current user is disruptiveAdmin (from groups)");
+      setIsDisruptiveAdmin(true);
+      return;
+    }
+
+    // Otherwise check using the proper API
+    const checkDisruptiveAdmin = async () => {
+      if (currentUser && currentUser.uid) {
+        try {
+          const isAdmin = await userBelongsToGroup(currentUser.uid, 'disruptiveAdmin');
+          Logger.log("Current user disruptiveAdmin status:", isAdmin);
+          setIsDisruptiveAdmin(isAdmin);
+        } catch (error) {
+          console.error("UnityPlayerList: Error checking disruptiveAdmin status:", error);
+          setIsDisruptiveAdmin(false);
+        }
+      }
+    };
+    
+    checkDisruptiveAdmin();
+  }, [currentUser]);
   
   // Get the current space ID from various sources
   const getSpaceId = () => {
@@ -346,9 +396,13 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility, spaceID: propSpaceID }
       return true;
     }
     
-    // Then check if player UID matches current user UID
-    if (currentUser && currentUser.uid && player.uid === currentUser.uid) {
-      return true;
+    // Then check if player UID matches current user UID or ID
+    if (currentUser) {
+      // Check both uid and id fields
+      if ((currentUser.uid && player.uid === currentUser.uid) || 
+          (currentUser.uid && player.id === currentUser.uid)) {
+        return true;
+      }
     }
     
     return false;
@@ -439,298 +493,385 @@ const UnityPlayerList = ({ isVisible, onToggleVisibility, spaceID: propSpaceID }
     return null;
   };
 
-  // Handle player action
+  // Add the useUnityKickPlayer hook without passing navigate
+  const { kickPlayer, isKicking, kickResult, error: kickError, resetKickState } = useUnityKickPlayer();
+  
+  // Watch for changes in kick results
+  useEffect(() => {
+    if (kickResult?.success && processingKickPlayerName) {
+      toast({
+        title: "Remove Successful",
+        description: `${processingKickPlayerName} has been removed from the space.`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      setProcessingKickPlayerName(null);
+      resetKickState();
+    }
+  }, [kickResult, processingKickPlayerName, toast, resetKickState]);
+  
+  // Watch for kick errors (network errors, etc.)
+  useEffect(() => {
+    if (kickError) {
+      toast({
+        title: "Error Removing Player",
+        description: kickError,
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      setProcessingKickPlayerName(null);
+      resetKickState();
+    }
+  }, [kickError, toast, resetKickState]);
+
+  // Function to handle the actual kick after confirmation
+  const confirmKick = () => {
+    if (playerToKick) {
+      setProcessingKickPlayerName(playerToKick.playerName);
+      kickPlayer(playerToKick.uid, currentUser?.uid);
+      
+      // Show processing state toast immediately
+      toast({
+        title: "Processing",
+        description: `Removing ${playerToKick.playerName}...`,
+        status: "info",
+        duration: 2000,
+        isClosable: true,
+      });
+      
+      setPlayerToKick(null);
+      onKickModalClose();
+    }
+  };
+
+  // Update the handlePlayerAction function to open the modal
   const handlePlayerAction = (action, player) => {
-    console.log(`Action "${action}" performed on player: ${player.playerName}`);
+    console.log(`Action "${action}" triggered for player: ${player.playerName}`);
     
-    // Example actions
+    // Get the local player to check permissions
+    const localPlayer = sortedPlayers.find(p => p.isLocalPlayer);
+    const isLocalPlayerOwner = localPlayer?.role === 'owner';
+    
+    // Security check - only allow actions if the local user is an owner
+    if (!isLocalPlayerOwner) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to perform this action.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      console.error("Permission denied: User attempted to perform action without proper permissions");
+      return;
+    }
+    
+    // Set the player to kick and open the modal for 'remove' action
     switch(action) {
-      case 'mute':
-        toast({
-          title: "Player Muted",
-          description: `${player.playerName} has been muted.`,
-          status: "info",
-          duration: 3000,
-          isClosable: true,
-        });
+      case 'remove':
+        setPlayerToKick(player);
+        onKickModalOpen();
         break;
-      case 'kick':
-        toast({
-          title: "Player Kicked",
-          description: `${player.playerName} has been kicked from the space.`,
-          status: "warning",
-          duration: 3000,
-          isClosable: true,
-        });
-        break;
-      case 'promote':
-        toast({
-          title: "Player Promoted",
-          description: `${player.playerName} has been promoted to host.`,
-          status: "success",
-          duration: 3000,
-          isClosable: true,
-        });
-        break;
+      
       default:
+        console.log(`Unhandled action: ${action}`);
         break;
     }
   };
 
   return (
-    <Box 
-      position="absolute" 
-      top="100px" 
-      right="20px" 
-      zIndex="1"
-      bg="rgba(0,0,0,0.4)" 
-      p={4} 
-      borderRadius="md"
-      color="white"
-      minWidth="200px"
-      maxHeight="300px"
-      visibility={(isReady && isVisible && !shouldHideOnMobile) ? "visible" : "hidden"}
-      role="group"
-    >
-      <Box
-        position="absolute"
-        top={2}
-        right={2}
-        opacity={0}
-        _groupHover={{ opacity: 1 }}
-        transition="opacity 0.2s"
+    <>
+      <Box 
+        position="absolute" 
+        top="100px" 
+        right="20px" 
+        zIndex="1"
+        bg="rgba(0,0,0,0.4)" 
+        p={4} 
+        borderRadius="md"
+        color="white"
+        minWidth="200px"
+        maxHeight="300px"
+        visibility={(isReady && isVisible && !shouldHideOnMobile) ? "visible" : "hidden"}
+        role="group"
       >
-        <IconButton
-          icon={<CloseIcon boxSize={3} />}
-          size="xs"
-          aria-label="Close list"
-          variant="unstyled"
-          color="white"
-          onClick={handleToggleVisibility}
-          _hover={{ opacity: 0.8 }}
-        />
-      </Box>
+        <Box
+          position="absolute"
+          top={2}
+          right={2}
+          opacity={0}
+          _groupHover={{ opacity: 1 }}
+          transition="opacity 0.2s"
+        >
+          <IconButton
+            icon={<CloseIcon boxSize={3} />}
+            size="xs"
+            aria-label="Close list"
+            variant="unstyled"
+            color="white"
+            onClick={handleToggleVisibility}
+            _hover={{ opacity: 0.8 }}
+          />
+        </Box>
 
-      <Text fontWeight="bold" mb={2} fontSize="sm">
-        People Online: {players.length}
-      </Text>
-      
-      <Box maxHeight="200px" overflowY="auto" css={{
-        '&::-webkit-scrollbar': {
-          width: '4px',
-        },
-        '&::-webkit-scrollbar-track': {
-          background: 'rgba(0,0,0,0.1)',
-        },
-        '&::-webkit-scrollbar-thumb': {
-          background: 'rgba(255,255,255,0.3)',
-          borderRadius: '2px',
-        },
-      }}>
-        <VStack align="stretch" spacing={1} width="100%">
-          {sortedPlayers.map((player, index) => {
-            const isLocal = isLocalUser(player);
-            const hasMic = !voiceDisabled && hasActiveMic(player);
-            const isCurrentUserOwner = currentUserRole === 'owner';
-            
-            return (
-              <Box key={index}>
-                <Popover placement="left" trigger="hover">
-                  <PopoverTrigger>
-                    <HStack 
-                      width="100%" 
-                      spacing={2}
-                      p={1}
-                      borderRadius="md"
-                      _hover={{ bg: "whiteAlpha.200" }}
-                      transition="background 0.2s"
-                    >
-                      <Avatar 
-                        size="xs" 
-                        src={player.rpmURL}
-                        bg="whiteAlpha.400"
-                        name=" "
-                        borderWidth="1px"
-                        borderColor="whiteAlpha.300"
-                      />
-                      <Text fontSize="xs">{player.playerName}</Text>
-                      
-                      {/* Show role indicator in the main list */}
-                      {player.role === 'owner' && (
-                        <Icon as={FaCrown} color="green.400" boxSize={2.5} />
-                      )}
-                      {player.role === 'host' && (
-                        <Icon as={FaStar} color="purple.400" boxSize={2.5} />
-                      )}
-                      
-                      <Spacer />
-                      
-                      {/* Show ellipsis menu for all players when current user is an owner */}
-                      {currentUserRole === 'owner' && (
-                        <Menu closeOnSelect placement="bottom-end">
-                          <MenuButton
-                            as={IconButton}
-                            aria-label="Options"
-                            icon={<FaEllipsisV />}
-                            variant="ghost"
-                            size="xs"
-                            color="whiteAlpha.700"
-                            _hover={{ color: "white", bg: "whiteAlpha.300" }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <MenuList 
-                            bg="rgba(0,0,0,0.8)" 
-                            borderColor="whiteAlpha.300"
-                            minW="120px"
-                            zIndex={10001}
-                          >
-                            <MenuItem 
-                              icon={<FaVolumeUp />} 
-                              onClick={() => handlePlayerAction('mute', player)}
-                              _hover={{ bg: "whiteAlpha.200" }}
-                              fontSize="sm"
-                              isDisabled={voiceDisabled}
-                            >
-                              Mute Player
-                            </MenuItem>
-                            <MenuItem 
-                              icon={<FaUserPlus />} 
-                              onClick={() => handlePlayerAction('promote', player)}
-                              _hover={{ bg: "whiteAlpha.200" }}
-                              fontSize="sm"
-                            >
-                              Promote to Host
-                            </MenuItem>
-                            <MenuDivider borderColor="whiteAlpha.300" />
-                            <MenuItem 
-                              icon={<FaBan />} 
-                              onClick={() => handlePlayerAction('kick', player)}
-                              _hover={{ bg: "red.800" }}
-                              color="red.300"
-                              fontSize="sm"
-                            >
-                              Kick from Space
-                            </MenuItem>
-                          </MenuList>
-                        </Menu>
-                      )}
-                      
-                      {/* Show microphone status for all players if voice is not disabled */}
-                      {!voiceDisabled && (
-                        hasMic ? (
-                          <Box color="green.400">
-                            <FaMicrophone />
-                          </Box>
-                        ) : (
-                          <Box color="red.400">
-                            <FaMicrophoneSlash />
-                          </Box>
-                        )
-                      )}
-                      
-                      {isLocal && (
-                        <Text fontSize="xs" color="gray.300" ml={1}>(you)</Text>
-                      )}
-                    </HStack>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    bg="rgba(0,0,0,0.8)" 
-                    border="none" 
-                    boxShadow="dark-lg"
-                    color="white"
-                    p={4}
-                    width="auto"
-                    minWidth="250px"
-                    ml="-20px"
-                    position="absolute"
-                    left="-250px"
-                    top="-100px"
-                    transform="none !important"
-                    zIndex={10000}
-                  >
-                    <PopoverBody>
-                      <VStack align="center" spacing={3}>
+        <Text fontWeight="bold" mb={2} fontSize="sm">
+          People Online: {players.length}
+        </Text>
+        
+        <Box maxHeight="200px" overflowY="auto" css={{
+          '&::-webkit-scrollbar': {
+            width: '4px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0,0,0,0.1)',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(255,255,255,0.3)',
+            borderRadius: '2px',
+          },
+        }}>
+          <VStack align="stretch" spacing={1} width="100%">
+            {sortedPlayers.map((player, index) => {
+              const isLocal = isLocalUser(player);
+              const hasMic = !voiceDisabled && hasActiveMic(player);
+              
+              // Get player identifiers
+              const playerID = player.uid || player.id;
+              
+              // Find the local player in sortedPlayers for reference
+              const localPlayer = sortedPlayers.find(p => p.isLocalPlayer);
+              const localPlayerID = localPlayer?.uid || localPlayer?.id;
+              
+              // Check if player is owner
+              const isPlayerOwner = player.role === 'owner';
+              
+              // Check if current user (local player) is an owner
+              const isLocalPlayerOwner = localPlayer?.role === 'owner';
+              
+              // UPDATED LOGIC:
+              // 1. Only owners can see ellipses
+              // 2. Owners don't see ellipses next to themselves
+              // 3. Owners don't see ellipses next to other owners
+              
+              // Show ellipses ONLY if:
+              // - You are an owner, AND
+              // - The player is not you, AND
+              // - The player is not an owner
+              const showEllipsis = isLocalPlayerOwner && !isLocal && !isPlayerOwner;
+              
+              return (
+                <Box key={index}>
+                  <Popover placement="left" trigger="hover">
+                    <PopoverTrigger>
+                      <HStack 
+                        width="100%" 
+                        spacing={2}
+                        p={1}
+                        borderRadius="md"
+                        _hover={{ bg: "whiteAlpha.200" }}
+                        transition="background 0.2s"
+                      >
                         <Avatar 
-                          size="xl" 
+                          size="xs" 
                           src={player.rpmURL}
                           bg="whiteAlpha.400"
                           name=" "
-                          borderWidth="2px"
+                          borderWidth="1px"
                           borderColor="whiteAlpha.300"
                         />
-                        <Text fontSize="xl" fontWeight="bold">
-                          {player.playerName}
-                        </Text>
+                        <Text fontSize="xs">{player.playerName}</Text>
                         
-                        {/* Display role badge */}
-                        <RoleBadge player={player} />
-                        
-                        {player.firstName && (
-                          <Text fontSize="sm" color="gray.300">
-                            {player.firstName} {player.lastName}
-                          </Text>
+                        {/* Show role indicator in the main list */}
+                        {player.role === 'owner' && (
+                          <Icon as={FaCrown} color="green.400" boxSize={2.5} />
                         )}
-                        <HStack spacing={4} pt={2}>
-                          {player.linkedInProfile && (
-                            <Link href={player.linkedInProfile} isExternal>
-                              <IconButton
-                                icon={<FaLinkedin />}
-                                variant="ghost"
-                                colorScheme="whiteAlpha"
-                                size="md"
-                                aria-label="LinkedIn profile"
-                                _hover={{ bg: 'whiteAlpha.200' }}
-                              />
-                            </Link>
-                          )}
-                          {player.websiteUrl && (
-                            <Link href={player.websiteUrl} isExternal>
-                              <IconButton
-                                icon={<FaGlobe />}
-                                variant="ghost"
-                                colorScheme="whiteAlpha"
-                                size="md"
-                                aria-label="Personal website"
-                                _hover={{ bg: 'whiteAlpha.200' }}
-                              />
-                            </Link>
-                          )}
-                          
-                          {/* Show microphone status in popover if voice is not disabled */}
-                          {!voiceDisabled && (
-                            <IconButton
-                              icon={hasMic ? <FaMicrophone /> : <FaMicrophoneSlash />}
+                        {player.role === 'host' && (
+                          <Icon as={FaStar} color="purple.400" boxSize={2.5} />
+                        )}
+                        
+                        <Spacer />
+                        
+                        {/* Show microphone status for all players if voice is not disabled */}
+                        {!voiceDisabled && (
+                          hasMic ? (
+                            <Box color="green.400">
+                              <FaMicrophone />
+                            </Box>
+                          ) : (
+                            <Box color="red.400">
+                              <FaMicrophoneSlash />
+                            </Box>
+                          )
+                        )}
+                        
+                        {/* Show (you) for local user or ellipsis for players based on permissions */}
+                        {isLocal ? (
+                          <Text fontSize="xs" color="gray.300" ml={1}>(you)</Text>
+                        ) : showEllipsis ? (
+                          <Menu>
+                            <MenuButton
+                              as={IconButton}
+                              aria-label="Options"
+                              icon={<FaEllipsisV />}
                               variant="ghost"
-                              colorScheme={hasMic ? "green" : "red"}
-                              size="md"
-                              aria-label="Microphone status"
-                              isDisabled={true}
+                              size="xs"
+                              color="gray.300"
+                              ml={1}
+                              minW="16px"
+                              h="16px"
+                              p={0}
                             />
-                          )}
+                            <MenuList 
+                              bg="rgba(0,0,0,0.8)" 
+                              borderColor="whiteAlpha.300"
+                              minW="120px"
+                              zIndex={10001}
+                            >
+                              <MenuItem 
+                                icon={<FaUserMinus />} 
+                                onClick={() => handlePlayerAction('remove', player)}
+                                bg="black"
+                                color="white"
+                                _hover={{ bg: "gray.800" }}
+                                fontSize="sm"
+                              >
+                                Remove
+                              </MenuItem>
+                            </MenuList>
+                          </Menu>
+                        ) : null}
+                      </HStack>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      bg="rgba(0,0,0,0.8)" 
+                      border="none" 
+                      boxShadow="dark-lg"
+                      color="white"
+                      p={4}
+                      width="auto"
+                      minWidth="250px"
+                      ml="-20px"
+                      position="absolute"
+                      left="-250px"
+                      top="-100px"
+                      transform="none !important"
+                      zIndex={10000}
+                    >
+                      <PopoverBody>
+                        <VStack align="center" spacing={3}>
+                          <Avatar 
+                            size="xl" 
+                            src={player.rpmURL}
+                            bg="whiteAlpha.400"
+                            name=" "
+                            borderWidth="2px"
+                            borderColor="whiteAlpha.300"
+                          />
+                          <Text fontSize="xl" fontWeight="bold">
+                            {player.playerName}
+                          </Text>
                           
-                          {/* Show voice disabled icon if voice is disabled */}
-                          {voiceDisabled && (
-                            <IconButton
-                              icon={<FaVolumeMute />}
-                              variant="ghost"
-                              colorScheme="red"
-                              size="md"
-                              aria-label="Voice chat disabled"
-                              isDisabled={true}
-                              title="Voice chat is disabled for this space"
-                            />
+                          {/* Display role badge */}
+                          <RoleBadge player={player} />
+                          
+                          {player.firstName && (
+                            <Text fontSize="sm" color="gray.300">
+                              {player.firstName} {player.lastName}
+                            </Text>
                           )}
-                        </HStack>
-                      </VStack>
-                    </PopoverBody>
-                  </PopoverContent>
-                </Popover>
-              </Box>
-            );
-          })}
-        </VStack>
+                          <HStack spacing={4} pt={2}>
+                            {player.linkedInProfile && (
+                              <Link href={player.linkedInProfile} isExternal>
+                                <IconButton
+                                  icon={<FaLinkedin />}
+                                  variant="ghost"
+                                  colorScheme="whiteAlpha"
+                                  size="md"
+                                  aria-label="LinkedIn profile"
+                                  _hover={{ bg: 'whiteAlpha.200' }}
+                                />
+                              </Link>
+                            )}
+                            {player.websiteUrl && (
+                              <Link href={player.websiteUrl} isExternal>
+                                <IconButton
+                                  icon={<FaGlobe />}
+                                  variant="ghost"
+                                  colorScheme="whiteAlpha"
+                                  size="md"
+                                  aria-label="Personal website"
+                                  _hover={{ bg: 'whiteAlpha.200' }}
+                                />
+                              </Link>
+                            )}
+                            
+                            {/* Show microphone status in popover if voice is not disabled */}
+                            {!voiceDisabled && (
+                              <IconButton
+                                icon={hasMic ? <FaMicrophone /> : <FaMicrophoneSlash />}
+                                variant="ghost"
+                                colorScheme={hasMic ? "green" : "red"}
+                                size="md"
+                                aria-label="Microphone status"
+                                isDisabled={true}
+                              />
+                            )}
+                            
+                            {/* Show voice disabled icon if voice is disabled */}
+                            {voiceDisabled && (
+                              <IconButton
+                                icon={<FaVolumeMute />}
+                                variant="ghost"
+                                colorScheme="red"
+                                size="md"
+                                aria-label="Voice chat disabled"
+                                isDisabled={true}
+                                title="Voice chat is disabled for this space"
+                              />
+                            )}
+                          </HStack>
+                        </VStack>
+                      </PopoverBody>
+                    </PopoverContent>
+                  </Popover>
+                </Box>
+              );
+            })}
+          </VStack>
+        </Box>
       </Box>
-    </Box>
+
+      {/* Kick Confirmation Modal */}
+      <Modal isOpen={isKickModalOpen} onClose={onKickModalClose} isCentered>
+        <ModalOverlay />
+        <ModalContent bg="gray.800" color="white">
+          <ModalHeader>Confirm Removal</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text>Remove {playerToKick?.playerName} from the room?</Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button 
+              colorScheme="red" 
+              onClick={confirmKick} 
+              isLoading={isKicking} 
+              mr={3}
+            >
+              Remove
+            </Button>
+            <Button 
+              bg="white"
+              color="gray.800"
+              onClick={onKickModalClose} 
+              _hover={{ bg: "gray.200" }}
+            >
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </>
   );
 };
 
