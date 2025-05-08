@@ -9,6 +9,7 @@ Events sent from React to Unity via `ReactIncomingEvent.HandleEvent` or similar 
 | Event Name | Description | Data Structure |
 |------------|-------------|----------------|
 | `PlacePrefab` | Place a prefab in the Unity scene | `{ prefabName: string, position: {x,y,z}, rotation: {x,y,z}, scale: {x,y,z}, objectId: string }` |
+| `PlacePortalPrefab` | Place a portal prefab in the Unity scene | `{ portalId: string, prefabName: string, position: {x,y,z}, rotation: {x,y,z}, scale: {x,y,z} }` |
 | `UpdateObjectTransform` | Update an object's transform | `{ objectId: string, position?: {x,y,z}, rotation?: {x,y,z}, scale?: {x,y,z} }` |
 | `DeleteObject` | Delete an object | `{ objectId: string }` |
 | `SetHLSStream` | Set an HLS stream URL | `{ identifier: string, playerIndex: string, streamUrl: string }` |

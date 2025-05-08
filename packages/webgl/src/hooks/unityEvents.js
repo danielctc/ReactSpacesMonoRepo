@@ -16,5 +16,6 @@ export {
   useUnityOnNameplateClick,
   useUnityPlayerList,
   useHLSStream,
-  useUnityKickPlayer
+  useUnityKickPlayer,
+  usePlacePortal
 } from './unityEvents/index.js'; 

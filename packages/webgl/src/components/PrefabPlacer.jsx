@@ -292,4 +292,4 @@ PrefabPlacer.propTypes = {
   }),
 };
 
-export default PrefabPlacer;
+export default PrefabPlacer; 

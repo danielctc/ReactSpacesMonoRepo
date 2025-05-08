@@ -30,6 +30,7 @@ import SignIn from '@disruptive-spaces/shared/components/auth/SignIn';
 import { initUnityKeyboard, focusUnity, setUnityKeyboardCapture, blockUnityKeyboardInput } from './utils/unityKeyboard';
 import LiveStreamButton from './components/LiveStreamButton';
 import PrefabPlacer from './components/PrefabPlacer';
+import { useSpacePortals } from './hooks/unityEvents/index';
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -461,6 +462,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   // Use the hook to load media screen images
   useUnityMediaScreenImages();
   useUnityThumbnails();
+  useSpacePortals(spaceID);
   
   // Create a ref for the Unity container
   const unityContainerRef = useRef(null);

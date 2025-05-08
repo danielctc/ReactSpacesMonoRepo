@@ -17,20 +17,37 @@ export const useSpaceObjects = (spaceId) => {
   // Load objects when spaceId changes
   useEffect(() => {
     const loadObjects = async () => {
-      if (!spaceId) return;
+      Logger.log(`useSpaceObjects: loadObjects called for spaceId: ${spaceId}`);
+      if (!spaceId) {
+        Logger.log('useSpaceObjects: No spaceId provided, skipping loadObjects.');
+        setIsLoading(false); // Ensure loading is false if no spaceId
+        return;
+      }
       
+      Logger.log(`useSpaceObjects: Setting isLoading to true for spaceId: ${spaceId}`);
       setIsLoading(true);
       try {
+        Logger.log(`useSpaceObjects: Attempting to getSpaceObjects for spaceId: ${spaceId}`);
         const spaceObjects = await getSpaceObjects(spaceId);
+        Logger.log(`useSpaceObjects: Got ${spaceObjects?.length || 0} objects for spaceId: ${spaceId}`, spaceObjects);
         setObjects(spaceObjects);
         
-        // Place all objects in Unity
-        spaceObjects.forEach(obj => {
-          placePrefab(obj.prefabName, obj.position, obj.rotation, obj.scale);
-        });
+        Logger.log(`useSpaceObjects: Attempting to place ${spaceObjects?.length || 0} objects in Unity for spaceId: ${spaceId}`);
+        if (spaceObjects && spaceObjects.length > 0) {
+          spaceObjects.forEach((obj, index) => {
+            Logger.log(`useSpaceObjects: Placing object ${index + 1}/${spaceObjects.length}: ${obj.prefabName} (ID: ${obj.id || obj.objectId})`, obj);
+            // Ensure placePrefab is robust or consider if this step is truly needed here for PortalAdminModal
+            placePrefab(obj.prefabName, obj.position, obj.rotation, obj.scale); 
+          });
+          Logger.log(`useSpaceObjects: Finished placing objects in Unity for spaceId: ${spaceId}`);
+        } else {
+          Logger.log(`useSpaceObjects: No objects to place in Unity for spaceId: ${spaceId}`);
+        }
+
       } catch (error) {
-        Logger.error('Error loading space objects:', error);
+        Logger.error(`useSpaceObjects: Error in loadObjects for spaceId: ${spaceId}:`, error);
       } finally {
+        Logger.log(`useSpaceObjects: Setting isLoading to false in finally block for spaceId: ${spaceId}`);
         setIsLoading(false);
       }
     };
@@ -39,7 +56,7 @@ export const useSpaceObjects = (spaceId) => {
   }, [spaceId, placePrefab]);
 
   // Save a new object
-  const saveObject = useCallback(async (prefabName, position, rotation, scale) => {
+  const saveObject = useCallback(async (prefabName, position, rotation, scale, customData = {}) => {
     if (!spaceId) return false;
 
     const objectId = uuidv4();
@@ -48,20 +65,24 @@ export const useSpaceObjects = (spaceId) => {
       position,
       rotation,
       scale,
-      objectId
+      objectId,
+      ...customData
     };
+
+    Logger.log('useSpaceObjects: Saving object with data:', objectData);
 
     const success = await saveSpaceObject(spaceId, objectId, objectData);
     if (success) {
       // Update local state
       setObjects(prev => [...prev, { id: objectId, ...objectData }]);
       
-      // Place in Unity
-      placePrefab(prefabName, position, rotation, scale);
+      Logger.log('useSpaceObjects: Object saved successfully, local state updated.', { objectId });
+    } else {
+      Logger.error('useSpaceObjects: Failed to save object to Firestore.', { spaceId, objectId, prefabName });
     }
 
     return success;
-  }, [spaceId, placePrefab]);
+  }, [spaceId]);
 
   // Delete an object
   const deleteObject = useCallback(async (objectId) => {

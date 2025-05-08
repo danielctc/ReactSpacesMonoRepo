@@ -12,6 +12,7 @@ export { useUnityMediaScreenImages } from './useUnityMediaScreenImages';
 export { useUnityThumbnails } from './useUnityThumbnails';
 export { useUnityPlayerList } from './useUnityPlayerList';
 export { usePlacePrefab } from './usePlacePrefab';
+export { usePlacePortal } from './usePlacePortal';
 
 // Event Specific Hooks
 export { useFetchVideoUrl } from './useFetchVideoUrl';
@@ -21,3 +22,4 @@ export { useUnityOnPlayerInstantiated } from './useUnityOnPlayerInstantiated';
 export { useSpaceObjects } from './useSpaceObjects';
 export { useUnityOnRequestForMedia } from './useUnityOnRequestForMedia';
 export { default as useUnityKickPlayer } from './useUnityKickPlayer';
+export { useSpacePortals } from './useSpacePortals';

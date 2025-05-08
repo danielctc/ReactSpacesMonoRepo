@@ -51,6 +51,7 @@ import SpacesSettingsModal from './SpacesSettingsModal';
 import SpaceManageModal from './SpaceManageModal';
 import ReadyPlayerMeModal from './ReadyPlayerMeModal';
 import AuthenticationButton from './AuthenticationButton';
+import ContentAdminModal from './ContentAdminModal';
 
 export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
   const { fullscreenRef } = useFullscreenContext();
@@ -60,6 +61,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
   const [openControlsModal, setOpenControlsModal] = useState(false);
   const [openAvatarModal, setOpenAvatarModal] = useState(false);
   const [openManageSpaceModal, setOpenManageSpaceModal] = useState(false); // New state for Manage Space modal
+  const [isContentAdminOpen, setIsContentAdminOpen] = useState(false); // State for ContentAdminModal
   const [profileData, setProfileData] = useState(null);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
   const [canEditSpace, setCanEditSpace] = useState(false); // Permission check for Edit Mode
@@ -193,6 +195,17 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
     setOpenAvatarModal(false);
     // Fetch new profile data when modal closes
     fetchProfileData();
+  };
+
+  // Handler to close the Content Admin modal and ensure edit mode is off
+  const handleCloseContentAdmin = () => {
+    setIsContentAdminOpen(false);
+  };
+
+  // Function to open the Content Admin modal
+  const handleOpenContentAdminModal = () => {
+    setIsContentAdminOpen(true);
+    handleCloseMenu(); // Close the main menu
   };
 
   const handleTogglePlayerList = (e) => {
@@ -368,16 +381,32 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                   />
                 )}
                 
-                {/* Old prefab placer button - now removed as prefab placer opens automatically with edit mode */}
-                
-                <IconButton
-                  icon={<Box w="4" h="4" />}
-                  variant="ghost"
-                  colorScheme="whiteAlpha"
-                  size="sm"
-                  aria-label="Action 3"
-                  _hover={{ bg: 'whiteAlpha.200' }}
-                />
+                {/* Placeholder Button 3 - Show only when edit mode is OFF */}
+                {!editModeEnabled && (
+                  <IconButton
+                    icon={<Box w="4" h="4" />} // Placeholder icon
+                    variant="ghost"
+                    colorScheme="whiteAlpha"
+                    size="sm"
+                    aria-label="Action 3" // Kept for consistency, but represents empty slot
+                    _hover={{ bg: 'whiteAlpha.200' }}
+                    isDisabled // Disable it as it does nothing when edit mode is off
+                  />
+                )}
+
+                {/* Catalogue Button - Show only when edit mode is ON */}
+                {editModeEnabled && (
+                  <IconButton
+                    icon={<FaCubes />} // Catalogue icon
+                    variant="ghost"
+                    colorScheme="whiteAlpha"
+                    size="sm"
+                    aria-label="Catalogue"
+                    _hover={{ bg: 'whiteAlpha.200' }}
+                    onClick={handleOpenContentAdminModal} // Open modal
+                  />
+                )}
+
                 <IconButton
                   icon={<Box w="4" h="4" />}
                   variant="ghost"
@@ -397,7 +426,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                     p={2} 
                     borderRadius="md" 
                     _hover={{ bg: "whiteAlpha.200" }}
-                    onClick={(e) => e.stopPropagation()}
+                    // onClick={(e) => e.stopPropagation()} // Removed: Allow menu to close or let switch handle propagation
                     justify="space-between"
                   >
                     <Text fontSize="md">Edit Mode</Text>
@@ -480,6 +509,12 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
       
       {/* Manage Space Modal */}
       <SpaceManageModal isOpen={openManageSpaceModal} onClose={handleManageSpaceToggle} />
+      {/* Content Admin Modal */}
+      <ContentAdminModal 
+        isOpen={isContentAdminOpen} 
+        onClose={handleCloseContentAdmin} 
+        settings={{ spaceID }}
+      />
     </>
   );
 };
