@@ -23,3 +23,5 @@ export { useSpaceObjects } from './useSpaceObjects';
 export { useUnityOnRequestForMedia } from './useUnityOnRequestForMedia';
 export { default as useUnityKickPlayer } from './useUnityKickPlayer';
 export { useSpacePortals } from './useSpacePortals';
+export { useUnityOnPortalClick } from './useUnityOnPortalClick';
+export { useUnityOnPortalNavigate } from './useUnityOnPortalNavigate';

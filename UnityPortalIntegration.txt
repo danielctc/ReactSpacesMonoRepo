@@ -1,0 +1,198 @@
+Unity Portal Integration Guide
+===========================
+
+This guide explains how to implement portal interaction in Unity to work with the React web application.
+
+1. Portal Click Detection
+------------------------
+When a portal is clicked in edit mode, Unity should send a 'PortalClicked' event with the portal's data:
+
+```csharp
+// In your Portal script
+public void OnPortalClick()
+{
+    // Get the portal data
+    var portalData = new
+    {
+        portalId = this.portalId,
+        position = new { x = transform.position.x, y = transform.position.y, z = transform.position.z },
+        rotation = new { x = transform.rotation.eulerAngles.x, y = transform.rotation.eulerAngles.y, z = transform.rotation.eulerAngles.z },
+        scale = new { x = transform.localScale.x, y = transform.localScale.y, z = transform.localScale.z }
+    };
+
+    string jsonData = JsonUtility.ToJson(portalData);
+    
+    if (isEditMode)
+    {
+        // In edit mode, send the portal data for editing
+        #if UNITY_WEBGL && !UNITY_EDITOR
+        SendMessage("PortalClicked", jsonData);
+        #endif
+    }
+    else
+    {
+        // In normal mode, send the portal data for navigation
+        #if UNITY_WEBGL && !UNITY_EDITOR
+        SendMessage("PortalNavigate", jsonData);
+        #endif
+    }
+}
+```
+
+2. Portal Transform Updates
+--------------------------
+Unity should listen for the 'UpdatePortalTransform' event to update portal properties:
+
+```csharp
+// In your PortalManager script
+public void UpdatePortalTransform(string jsonData)
+{
+    var data = JsonUtility.FromJson<PortalTransformData>(jsonData);
+    
+    // Find portal by ID
+    var portal = FindPortalById(data.portalId);
+    if (portal != null)
+    {
+        // Update transform
+        portal.transform.position = new Vector3(data.position.x, data.position.y, data.position.z);
+        portal.transform.rotation = Quaternion.Euler(data.rotation.x, data.rotation.y, data.rotation.z);
+        portal.transform.localScale = new Vector3(data.scale.x, data.scale.y, data.scale.z);
+    }
+}
+
+[System.Serializable]
+public class PortalTransformData
+{
+    public string portalId;
+    public Vector3Data position;
+    public Vector3Data rotation;
+    public Vector3Data scale;
+}
+
+[System.Serializable]
+public class Vector3Data
+{
+    public float x;
+    public float y;
+    public float z;
+}
+```
+
+3. Portal Deletion
+-----------------
+Unity should listen for the 'DeletePortal' event to remove portals:
+
+```csharp
+// In your PortalManager script
+public void DeletePortal(string jsonData)
+{
+    var data = JsonUtility.FromJson<PortalDeleteData>(jsonData);
+    
+    // Find portal by ID
+    var portal = FindPortalById(data.portalId);
+    if (portal != null)
+    {
+        Destroy(portal.gameObject);
+    }
+}
+
+[System.Serializable]
+public class PortalDeleteData
+{
+    public string portalId;
+}
+```
+
+4. Portal Loading
+----------------
+When Unity is ready, it should load all portals from Firebase. The React app will handle this through the useSpacePortals hook.
+
+5. Edit Mode Detection
+---------------------
+Unity should track edit mode state and only allow portal editing when in edit mode:
+
+```csharp
+private bool isEditMode = false;
+
+public void SetEditMode(bool enabled)
+{
+    isEditMode = enabled;
+    // Update UI or visual indicators for edit mode
+}
+```
+
+6. Event Registration
+--------------------
+Register these events in your Unity WebGL build using the EventSystem:
+
+```csharp
+void Start()
+{
+    // Register event handlers with the EventSystem
+    EventSystem.Instance.RegisterEvent("PortalClicked");
+    EventSystem.Instance.RegisterEvent("UpdatePortalTransform");
+    EventSystem.Instance.RegisterEvent("DeletePortal");
+}
+```
+
+7. Portal Prefab Requirements
+---------------------------
+Your portal prefab should:
+- Have a unique portalId
+- Be clickable (have a collider)
+- Have a visual indicator for edit mode
+- Support transform updates (position, rotation, scale)
+
+8. Testing
+---------
+To test the integration:
+1. Enter edit mode in the web app
+2. Click a portal - should open the editor modal
+3. Modify portal properties - should update in Unity
+4. Delete portal - should remove from scene
+5. Refresh page - portals should reload from Firebase
+
+Note: All coordinates should use Unity's coordinate system (right-handed, Y-up).
+
+9. Event System Integration
+-------------------------
+Make sure your Unity project has the EventSystem properly set up:
+
+```csharp
+// In your EventSystem class
+public class EventSystem : MonoBehaviour
+{
+    public static EventSystem Instance { get; private set; }
+    
+    private Dictionary<string, Action<string>> eventHandlers = new Dictionary<string, Action<string>>();
+    
+    void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+    
+    public void RegisterEvent(string eventName)
+    {
+        if (!eventHandlers.ContainsKey(eventName))
+        {
+            eventHandlers[eventName] = null;
+        }
+    }
+    
+    public void DispatchEvent(string eventName, string data)
+    {
+        if (eventHandlers.ContainsKey(eventName))
+        {
+            eventHandlers[eventName]?.Invoke(data);
+        }
+    }
+}
+``` 

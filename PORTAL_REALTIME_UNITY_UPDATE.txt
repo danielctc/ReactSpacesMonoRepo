@@ -1,0 +1,62 @@
+Unity Integration: Real-Time Portal Transform Updates
+====================================================
+
+React now sends portal transform updates in real time as the user edits position, rotation, or scale in the Portal Editor panel.
+
+**What you need to support in Unity:**
+
+1. **Listen for the event:**
+   - Event name: `UpdatePortalTransform`
+   - Data: JSON string with the following structure:
+     ```json
+     {
+       "portalId": "portal_SpaceId_TargetSpaceId_1234567890",
+       "position": { "x": 1.0, "y": 2.0, "z": 3.0 },
+       "rotation": { "x": 0.0, "y": 0.0, "z": 0.0 },
+       "scale": { "x": 1.0, "y": 1.0, "z": 1.0 }
+     }
+     ```
+
+2. **On receiving the event:**
+   - Find the portal object by `portalId`.
+   - Update its transform (position, rotation, scale) immediately in the Unity scene.
+
+3. **Best practices:**
+   - Make sure the update is smooth and does not cause flicker.
+   - If you want to avoid excessive updates, you can implement throttling/debouncing on the Unity side, but React already debounces Firebase writes.
+
+**Example Unity handler:**
+```csharp
+public void UpdatePortalTransform(string jsonData)
+{
+    var data = JsonUtility.FromJson<PortalTransformData>(jsonData);
+    var portal = FindPortalById(data.portalId);
+    if (portal != null)
+    {
+        portal.transform.position = new Vector3(data.position.x, data.position.y, data.position.z);
+        portal.transform.rotation = Quaternion.Euler(data.rotation.x, data.rotation.y, data.rotation.z);
+        portal.transform.localScale = new Vector3(data.scale.x, data.scale.y, data.scale.z);
+    }
+}
+
+[System.Serializable]
+public class PortalTransformData
+{
+    public string portalId;
+    public Vector3Data position;
+    public Vector3Data rotation;
+    public Vector3Data scale;
+}
+
+[System.Serializable]
+public class Vector3Data
+{
+    public float x;
+    public float y;
+    public float z;
+}
+```
+
+**No further changes are needed if you already have this handler.**
+
+If you want to support additional features (like visual feedback while dragging), you can add them as needed. 

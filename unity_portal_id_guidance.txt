@@ -1,0 +1,85 @@
+# Portal ID Guidance for Unity Integration
+
+- Every portal created in React is assigned a unique `portalId` (e.g., portal_SpaceA_SpaceB_1234567890).
+- This `portalId` is sent to Unity in all relevant events:
+  - When a portal is placed/instantiated, the event includes the `portalId`.
+  - When an image is set for a portal, the event includes the same `portalId`.
+
+## What Unity Should Do
+
+1. When you receive a portal placement event from React, store the mapping:
+   - `portalId` → the instantiated portal prefab (e.g., in a dictionary)
+2. When you receive a `SetPortalImage` event, use the `portalId` from the event to find the correct prefab and assign the image.
+
+## Example
+
+- React sends:
+  ```json
+  { "event": "PlacePortal", "data": { "portalId": "portal_abc123", ... } }
+  ```
+- Unity creates prefab and stores:
+  ```csharp
+  portalIdToPrefab["portal_abc123"] = thisPrefab;
+  ```
+- React sends image update:
+  ```json
+  { "event": "SetPortalImage", "data": { "portalId": "portal_abc123", "imageUrl": "..." } }
+  ```
+- Unity finds prefab and sets image:
+  ```csharp
+  var prefab = portalIdToPrefab["portal_abc123"];
+  // Set image on prefab
+  ```
+
+**Always use the `portalId` from React as the key to identify and update the correct portal prefab in Unity.**
+
+---
+
+## Where React Sends `portalId` to Unity (Code Reference)
+
+### 1. Portal Placement
+- **File:** `packages/webgl/src/hooks/unityEvents/usePlacePortal.js`
+- **How:**
+  ```js
+  const portalData = {
+    portalId: portalId, // <-- This is the unique ID
+    prefabName: prefabName || "PortalObjectPrefab",
+    position: pos,
+    rotation: rot,
+    scale: scl
+  };
+  sendUnityEvent("PlacePortalPrefab", portalData);
+  ```
+- **Usage Example:**
+  In `PortalAdminModal.jsx`:
+  ```js
+  placePortal(
+    uniquePortalId, // <-- This is the portalId
+    portalPrefabIdentifier,
+    defaultPosition,
+    defaultRotation,
+    defaultScale
+  );
+  ```
+
+### 2. Portal Image Update
+- **File:** `packages/webgl/src/hooks/unityEvents/useUnityPortalImages.js`
+- **How:**
+  ```js
+  queueMessage("SetPortalImage", JSON.stringify({ 
+    portalId: portalId, // <-- This is the same unique ID
+    imageUrl: cleanedImageUrl
+  }));
+  ```
+
+### 3. Portal Transform Updates
+- **File:** `packages/webgl/src/components/PortalEditor.jsx`
+- **How:**
+  ```js
+  sendUnityEvent('UpdatePortalTransform', {
+    portalId: portal.portalId, // <-- This is the unique ID
+    position,
+    rotation,
+    scale
+  });
+  ``` 

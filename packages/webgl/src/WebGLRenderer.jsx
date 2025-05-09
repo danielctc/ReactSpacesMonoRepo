@@ -4,6 +4,8 @@ import { Box, Image, PortalManager, Text, Heading } from "@chakra-ui/react";
 import { Unity } from "react-unity-webgl";
 import { useUnity } from "./providers/UnityProvider";
 import { useSendUnityEvent, useUnityOnFirstSceneLoaded, useUnityOnRequestUser, useUnityOnNameplateClick } from "./hooks/unityEvents";
+import { useUnityOnPortalClick } from "./hooks/unityEvents/useUnityOnPortalClick";
+import { useUnityOnPortalNavigate } from "./hooks/unityEvents/useUnityOnPortalNavigate";
 import { useUnityMediaScreenImages } from "./hooks/unityEvents/useUnityMediaScreenImages";
 import { useUnityThumbnails } from "./hooks/unityEvents/useUnityThumbnails";
 import { useFadeStyles } from "./hooks/useFadeStyles";
@@ -31,6 +33,8 @@ import { initUnityKeyboard, focusUnity, setUnityKeyboardCapture, blockUnityKeybo
 import LiveStreamButton from './components/LiveStreamButton';
 import PrefabPlacer from './components/PrefabPlacer';
 import { useSpacePortals } from './hooks/unityEvents/index';
+import PortalEditor from './components/PortalEditor';
+import PortalController from './components/PortalController';
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -55,6 +59,13 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   const [isPlayerListVisible, setIsPlayerListVisible] = useState(true);
   const [isPlayerInstantiated, setIsPlayerInstantiated] = useState(true); // Default to true to ensure voice chat works
   
+  // Get spaceID from settings or default
+  const spaceID = settings.spaceID || 'default';
+  
+  // Add portal hooks
+  useUnityOnPortalNavigate();
+  useSpacePortals(spaceID);
+  
   // State to track if Edit Mode is active
   const [isEditMode, setIsEditMode] = useState(false);
   
@@ -63,28 +74,6 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   
   // State to track if a modal is open (for keyboard focus management)
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // When modal state changes, update Unity keyboard capture
-  useEffect(() => {
-    if (isModalOpen) {
-      console.log('WebGLRenderer: Modal opened, disabling Unity keyboard capture');
-      // Use the enhanced blockUnityKeyboardInput for more reliable focus management
-      blockUnityKeyboardInput(true);
-    } else {
-      console.log('WebGLRenderer: Modal closed, enabling Unity keyboard capture');
-      if (isLoaded && !showSignInModal) {
-        // Unblock Unity keyboard input and then focus Unity
-        blockUnityKeyboardInput(false).then(() => {
-          setTimeout(() => {
-            focusUnity(true);
-          }, 100);
-        });
-      }
-    }
-  }, [isModalOpen, isLoaded, showSignInModal]);
-  
-  // Get spaceID from settings or default
-  const spaceID = settings.spaceID || 'default';
   
   // Get sessionId from URL or default to spaceID
   const sessionId = useMemo(() => {
@@ -113,7 +102,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   useEffect(() => {
     // If there's an error with Unity or user isn't logged in, show sign-in modal
     if (error || !user) {
-      Logger.log("WebGLRenderer: User not logged in or Unity error, showing sign-in modal");
+      console.log("WebGLRenderer: User not logged in or Unity error, showing sign-in modal");
       // Add a small delay to ensure the UI is ready
       const timer = setTimeout(() => {
         setShowSignInModal(true);
@@ -201,10 +190,10 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       // Wait for 5 seconds before setting Unity ready state
       setTimeout(() => {
         setIsUnityReady(true);
-        Logger.log("WebGLRenderer: Unity is ready to receive messages.");
+        console.log("WebGLRenderer: Unity is ready to receive messages.");
       }, 5000);
     } else {
-      Logger.warn("WebGLRenderer: Unity is NOT ready yet.");
+      console.warn("WebGLRenderer: Unity is NOT ready yet.");
     }
   }, [isLoaded, isFirstSceneLoaded]);
   
@@ -411,7 +400,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   // Handle user data sending to Unity
   useEffect(() => {
     const handleSendUserToUnity = (userData) => {
-      Logger.log("WebGLRenderer: Received 'sendUserToUnity' event");
+      console.log("WebGLRenderer: Received 'sendUserToUnity' event");
       sendUnityEvent('FirebaseUserFromReact', userData);
     };
     
@@ -428,6 +417,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   
   // Handle edit mode toggle
   const handleEditModeToggle = (editMode) => {
+    console.log('Edit mode toggled:', editMode);
     setIsEditMode(editMode);
   };
   
@@ -450,6 +440,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   // Listen for Edit Mode changes
   useEffect(() => {
     const handleEditModeChange = (event) => {
+      console.log('Edit mode changed event:', event.detail);
       setIsEditMode(event.detail.enabled);
     };
 
@@ -462,10 +453,33 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   // Use the hook to load media screen images
   useUnityMediaScreenImages();
   useUnityThumbnails();
-  useSpacePortals(spaceID);
   
   // Create a ref for the Unity container
   const unityContainerRef = useRef(null);
+  
+  const { clickedPortal, clearClickedPortal } = useUnityOnPortalClick();
+  const [isPortalEditorOpen, setIsPortalEditorOpen] = useState(false);
+  
+  useEffect(() => {
+    console.log('Portal click state updated:', { clickedPortal, isEditMode });
+    if (clickedPortal && isEditMode) {
+      console.log('Opening portal editor for portal:', clickedPortal);
+      setIsPortalEditorOpen(true);
+    }
+  }, [clickedPortal, isEditMode]);
+
+  const handleClosePortalEditor = () => {
+    console.log('Closing portal editor');
+    setIsPortalEditorOpen(false);
+    clearClickedPortal();
+  };
+
+  // Add debug logging for render
+  console.log('WebGLRenderer render state:', {
+    isPortalEditorOpen,
+    clickedPortal,
+    isEditMode
+  });
   
   return (
     <Box className="webgl-renderer">
@@ -631,6 +645,21 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
 
           {/* Media Screen Controller */}
           <MediaScreenController />
+          
+          {/* Portal Editor - Positioned in top right */}
+          <Box position="absolute" top={4} right={4} zIndex={1000}>
+            {isPortalEditorOpen && clickedPortal && (
+              <PortalEditor
+                isOpen={isPortalEditorOpen}
+                onClose={handleClosePortalEditor}
+                portal={clickedPortal}
+                spaceId={spaceID}
+              />
+            )}
+          </Box>
+
+          {/* Portal Controller */}
+          <PortalController />
         </div>
       </PortalManager>
     </Box>
