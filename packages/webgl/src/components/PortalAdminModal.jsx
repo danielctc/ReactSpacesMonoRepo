@@ -19,6 +19,7 @@ import {
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import { savePortal } from '@disruptive-spaces/shared/firebase/portalsFirestore';
+import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { usePlacePortal } from '../hooks/unityEvents';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
@@ -76,25 +77,38 @@ const PortalAdminModal = ({ isOpen, onClose, currentSpaceId }) => {
     setIsPlacingPortal(true);
     Logger.log(`PortalAdminModal: Attempting to place portal to ${targetSpaceName} (${targetSpaceId}) in space ${currentSpaceId}`);
 
-    const portalPrefabIdentifier = "PortalObjectPrefab";
-    const defaultPosition = { x: 0, y: 1.5, z: 0 };
-    const defaultRotation = { x: 0, y: 0, z: 0 };
-    const defaultScale = { x: 1, y: 1, z: 1 };
-    
-    const uniquePortalId = `portal_${currentSpaceId}_${targetSpaceId}_${Date.now()}`;
-
-    const portalDataForFirebase = {
-      type: 'portal',
-      targetSpaceId: targetSpaceId,
-      targetSpaceName: targetSpaceName,
-      portalId: uniquePortalId,
-      position: defaultPosition,
-      rotation: defaultRotation,
-      scale: defaultScale,
-      prefabName: portalPrefabIdentifier
-    };
-
     try {
+      // First, fetch the target space data to get the background image URL
+      const targetSpaceData = await getSpaceItem(targetSpaceId);
+      if (!targetSpaceData) {
+        throw new Error(`Failed to fetch target space data for ${targetSpaceId}`);
+      }
+
+      // Get the background image URL (prefer backgroundUrl if available)
+      const backgroundImageUrl = targetSpaceData.backgroundUrl || targetSpaceData.backgroundGsUrl;
+      if (!backgroundImageUrl) {
+        Logger.warn(`PortalAdminModal: No background image URL found for target space: ${targetSpaceId}`);
+      }
+
+      const portalPrefabIdentifier = "PortalObjectPrefab";
+      const defaultPosition = { x: 0, y: 1.5, z: 0 };
+      const defaultRotation = { x: 0, y: 0, z: 0 };
+      const defaultScale = { x: 1, y: 1, z: 1 };
+      
+      const uniquePortalId = `portal_${currentSpaceId}_${targetSpaceId}_${Date.now()}`;
+
+      const portalDataForFirebase = {
+        type: 'portal',
+        targetSpaceId: targetSpaceId,
+        targetSpaceName: targetSpaceName,
+        portalId: uniquePortalId,
+        position: defaultPosition,
+        rotation: defaultRotation,
+        scale: defaultScale,
+        prefabName: portalPrefabIdentifier,
+        initialImageUrl: backgroundImageUrl // Add the image URL to Firebase data
+      };
+
       // Save to Firebase first
       const savedSuccessfully = await savePortal(
         currentSpaceId,
@@ -117,16 +131,27 @@ const PortalAdminModal = ({ isOpen, onClose, currentSpaceId }) => {
 
       Logger.log(`PortalAdminModal: Portal data saved to Firebase for space ${currentSpaceId}.`);
 
-      // Now try to place in Unity
+      // Now try to place in Unity with the initial image URL
       let unityPlacementSuccess = false;
       try {
+        // Create portal data with initial image URL for Unity
+        const portalDataForUnity = {
+          portalId: uniquePortalId,
+          prefabName: portalPrefabIdentifier,
+          position: defaultPosition,
+          rotation: defaultRotation,
+          scale: defaultScale,
+          initialImageUrl: backgroundImageUrl // Include the initial image URL
+        };
+
         // Use the placePortal hook to place the portal in Unity
         unityPlacementSuccess = placePortal(
           uniquePortalId,
           portalPrefabIdentifier,
           defaultPosition,
           defaultRotation,
-          defaultScale
+          defaultScale,
+          backgroundImageUrl // Add the image URL as a new parameter
         );
 
         if (!unityPlacementSuccess) {
@@ -136,7 +161,8 @@ const PortalAdminModal = ({ isOpen, onClose, currentSpaceId }) => {
             portalPrefabIdentifier,
             defaultPosition,
             defaultRotation,
-            defaultScale
+            defaultScale,
+            backgroundImageUrl // Add the image URL as a new parameter
           );
         }
 
@@ -144,7 +170,6 @@ const PortalAdminModal = ({ isOpen, onClose, currentSpaceId }) => {
 
       } catch (unityError) {
         Logger.error("PortalAdminModal: Error placing portal in Unity:", unityError);
-        // Don't show error toast here since the portal is already saved
       }
 
       if (unityPlacementSuccess) {
@@ -168,18 +193,18 @@ const PortalAdminModal = ({ isOpen, onClose, currentSpaceId }) => {
         onClose();
       }
 
-    } catch (firebaseError) {
-      Logger.error("PortalAdminModal: Error saving portal data to Firebase:", firebaseError);
+    } catch (error) {
+      Logger.error("PortalAdminModal: Error creating portal:", error);
       toast({
-        title: "Firebase Save Error",
-        description: "Failed to save portal data to the database.",
+        title: "Error",
+        description: "Failed to create portal. Please try again.",
         status: "error",
         duration: 5000,
         isClosable: true,
       });
+    } finally {
+      setIsPlacingPortal(false);
     }
-    
-    setIsPlacingPortal(false);
   };
 
   const isLoading = isFetchingSpaces || isPlacingPortal;

@@ -10,7 +10,7 @@ export const usePlacePortal = () => {
   const sendUnityEvent = useSendUnityEvent();
 
   // Standard method using the useSendUnityEvent hook
-  const placePortal = useCallback((portalId, prefabName, position, rotation, scale) => {
+  const placePortal = useCallback((portalId, prefabName, position, rotation, scale, initialImageUrl) => {
     // Default values
     const pos = position || { x: 0, y: 1.5, z: 0 };
     const rot = rotation || { x: 0, y: 0, z: 0 };
@@ -23,7 +23,8 @@ export const usePlacePortal = () => {
         prefabName: prefabName || "PortalObjectPrefab",
         position: pos,
         rotation: rot,
-        scale: scl
+        scale: scl,
+        initialImageUrl: initialImageUrl
       };
       
       Logger.log("Sending portal placement to Unity:", portalData);
@@ -39,7 +40,7 @@ export const usePlacePortal = () => {
   }, [sendUnityEvent]);
 
   // Fallback method using direct window.unityInstance access
-  const directPlacePortal = useCallback((portalId, prefabName, position, rotation, scale) => {
+  const directPlacePortal = useCallback((portalId, prefabName, position, rotation, scale, initialImageUrl) => {
     // Default values
     const pos = position || { x: 0, y: 1.5, z: 0 };
     const rot = rotation || { x: 0, y: 0, z: 0 };
@@ -52,7 +53,8 @@ export const usePlacePortal = () => {
         prefabName: prefabName || "PortalObjectPrefab",
         position: pos,
         rotation: rot,
-        scale: scl
+        scale: scl,
+        initialImageUrl: initialImageUrl
       };
       
       // Create the event data
