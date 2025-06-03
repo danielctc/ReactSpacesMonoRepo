@@ -13,6 +13,7 @@ export { useUnityThumbnails } from './useUnityThumbnails';
 export { useUnityPlayerList } from './useUnityPlayerList';
 export { usePlacePrefab } from './usePlacePrefab';
 export { usePlacePortal } from './usePlacePortal';
+export { usePlaceCatalogueItem } from './usePlaceCatalogueItem';
 
 // Event Specific Hooks
 export { useFetchVideoUrl } from './useFetchVideoUrl';
@@ -25,3 +26,5 @@ export { default as useUnityKickPlayer } from './useUnityKickPlayer';
 export { useSpacePortals } from './useSpacePortals';
 export { useUnityOnPortalClick } from './useUnityOnPortalClick';
 export { useUnityOnPortalNavigate } from './useUnityOnPortalNavigate';
+export { useSpaceCatalogueItems } from './useSpaceCatalogueItems';
+export { useUnityOnCatalogueItemClick } from './useUnityOnCatalogueItemClick';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -18,27 +18,20 @@ import {
   Divider,
   useColorModeValue,
 } from '@chakra-ui/react';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import PortalAdminModal from './PortalAdminModal';
+import { usePlaceCatalogueItem } from '../hooks/unityEvents/usePlaceCatalogueItem';
 
-// Updated categories
+// Updated categories to include Objects (Misc group)
 const categories = [
-  "Recent", "Furniture", "Upload", "Portals"
+  "Recent", "Furniture", "Objects", "Upload", "Portals"
 ];
 
-// Updated placeholder item data
-const items = {
-  Recent: [
-    { id: 'rec1', name: 'Recent Item 1', thumbnail: 'https://via.placeholder.com/150' },
-    { id: 'rec2', name: 'Recent Item 2', thumbnail: 'https://via.placeholder.com/150' },
-  ],
-  Furniture: [
-    { id: 'furn1', name: 'Chair', thumbnail: 'https://via.placeholder.com/150' },
-    { id: 'furn2', name: 'Table', thumbnail: 'https://via.placeholder.com/150' },
-    { id: 'furn3', name: 'Lamp', thumbnail: 'https://via.placeholder.com/150' },
-  ],
-  Upload: [], // Placeholder
-  Portals: [], // Placeholder
-  // Removed other categories
+// Map UI categories to Firebase category keys
+const CATEGORY_KEY_MAP = {
+  Furniture: "chair",
+  Objects: "misc"
 };
 
 const ContentAdminModal = ({ isOpen, onClose, settings }) => {
@@ -46,11 +39,52 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreatePortalView, setShowCreatePortalView] = useState(false);
   const [isPortalAdminModalOpen, setIsPortalAdminModalOpen] = useState(false);
+  const [catalogueItems, setCatalogueItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
+  const { placeCatalogueItem } = usePlaceCatalogueItem();
 
   // Style for active/inactive tabs
   const activeTabColor = useColorModeValue("blue.500", "blue.300");
   const inactiveTabColor = useColorModeValue("gray.500", "gray.400");
   const activeTabBg = useColorModeValue("whiteAlpha.200", "whiteAlpha.200");
+
+  useEffect(() => {
+    if (isOpen) {
+      const fetchCatalogueItems = async () => {
+        setIsLoading(true);
+        setFetchError(null);
+        setCatalogueItems([]);
+        try {
+          const catalogueRef = collection(db, 'catalogue');
+          const querySnapshot = await getDocs(catalogueRef);
+          const items = [];
+          
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            // Only include items that have a GLB URL and belong to recognised categories
+            const allowedCategories = ["chair", "misc"];
+            if (data.glbUrl && data.categories?.some(cat => allowedCategories.includes(cat))) {
+              items.push({
+                id: doc.id,
+                name: data.name || 'Unnamed Item',
+                thumbnail: data.thumbnail?.src || 'https://via.placeholder.com/150',
+                glbUrl: data.glbUrl,
+                categories: data.categories
+              });
+            }
+          });
+          
+          setCatalogueItems(items);
+        } catch (err) {
+          console.error("Error fetching catalogue items:", err);
+          setFetchError("Failed to load catalogue items. Please check your connection and try again.");
+        }
+        setIsLoading(false);
+      };
+      fetchCatalogueItems();
+    }
+  }, [isOpen]);
 
   const handleCategoryClick = (category) => {
     setSelectedCategory(category);
@@ -62,14 +96,86 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
     }
   };
 
-  const filteredItems = (items[selectedCategory] || []).filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Helper to filter items based on selected category and search term
+  const filterByCategory = (items, category) => {
+    // If we have a mapped key, filter by that key; otherwise return all for non-mapped categories
+    const key = CATEGORY_KEY_MAP[category];
+    let filtered = items;
 
-  const handlePlaceItem = (item) => {
+    if (key) {
+      filtered = filtered.filter(item => item.categories?.includes(key));
+    }
+
+    // Apply search term
+    if (searchTerm) {
+      filtered = filtered.filter(item =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return filtered;
+  };
+
+  const filteredItems = ["Furniture", "Objects"].includes(selectedCategory)
+    ? filterByCategory(catalogueItems, selectedCategory)
+    : [];
+
+  const handlePlaceItem = async (item) => {
     console.log(`Placing item: ${item.name}`);
-    // TODO: Implement actual item placement logic (e.g., call Unity function)
-    onClose(); // Close modal after placing (optional)
+    
+    try {
+      // Validate required fields
+      if (!item.glbUrl) {
+        console.error('Item is missing GLB URL');
+        return;
+      }
+
+      // Generate a unique ID for the item
+      const itemId = `item_${settings.spaceID}_${Date.now()}`;
+      
+      // Default position, rotation, and scale
+      const position = { x: 0, y: 0, z: 0 };
+      const rotation = { x: 0, y: 0, z: 0 };
+      const scale = { x: 1, y: 1, z: 1 };
+
+      // Save to Firebase first
+      const itemData = {
+        itemId,
+        name: item.name || 'Unnamed Item',
+        glbUrl: item.glbUrl,
+        thumbnail: item.thumbnail || 'https://via.placeholder.com/150',
+        position,
+        rotation,
+        scale,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        categories: item.categories || []
+      };
+
+      // Validate the data before saving
+      if (!itemData.glbUrl) {
+        throw new Error('GLB URL is required');
+      }
+
+      await setDoc(doc(db, 'spaces', settings.spaceID, 'catalogue', itemId), itemData);
+
+      // Place in Unity
+      const success = placeCatalogueItem(
+        itemId,
+        itemData.glbUrl,
+        position,
+        rotation,
+        scale
+      );
+
+      if (success) {
+        onClose(); // Close modal after placing
+      } else {
+        console.error('Failed to place item in Unity');
+      }
+    } catch (error) {
+      console.error('Error placing item:', error);
+    }
   };
 
   const handleOpenPortalAdminModal = () => {
@@ -184,7 +290,9 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
                   templateColumns="repeat(auto-fill, minmax(140px, 1fr))"
                   gap={4}
                 >
-                  {filteredItems.length > 0 ? (
+                  {isLoading ? (
+                    <Text color="whiteAlpha.700">Loading items...</Text>
+                  ) : filteredItems.length > 0 ? (
                     filteredItems.map(item => (
                       <Box 
                         key={item.id} 
@@ -222,7 +330,12 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
                       </Box>
                     ))
                   ) : (
-                    <Text color="whiteAlpha.700">No items found in "{selectedCategory}"{searchTerm && ` matching "${searchTerm}"`}.</Text>
+                    <Text color="whiteAlpha.700">
+                      {selectedCategory === "Furniture" && "No chairs found in the catalogue."}
+                      {selectedCategory === "Objects" && "No miscellaneous objects found in the catalogue."}
+                      {!["Furniture", "Objects"].includes(selectedCategory) &&
+                        `No items found in "${selectedCategory}"${searchTerm && ` matching "${searchTerm}"`}.`}
+                    </Text>
                   )}
                 </Grid>
               </Box>

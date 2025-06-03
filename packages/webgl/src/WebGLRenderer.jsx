@@ -1,6 +1,6 @@
 import React, { forwardRef, useEffect, useState, useContext, useMemo, useRef, useCallback, createContext } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Image, PortalManager, Text, Heading } from "@chakra-ui/react";
+import { Box, Image, PortalManager, Text, Heading, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Button, Flex } from "@chakra-ui/react";
 import { Unity } from "react-unity-webgl";
 import { useUnity } from "./providers/UnityProvider";
 import { useSendUnityEvent, useUnityOnFirstSceneLoaded, useUnityOnRequestUser, useUnityOnNameplateClick } from "./hooks/unityEvents";
@@ -31,10 +31,15 @@ import PersistentLoader from "./components/PersistentLoader";
 import SignIn from '@disruptive-spaces/shared/components/auth/SignIn';
 import { initUnityKeyboard, focusUnity, setUnityKeyboardCapture, blockUnityKeyboardInput } from './utils/unityKeyboard';
 import LiveStreamButton from './components/LiveStreamButton';
-import PrefabPlacer from './components/PrefabPlacer';
 import { useSpacePortals } from './hooks/unityEvents/index';
 import PortalEditor from './components/PortalEditor';
 import PortalController from './components/PortalController';
+import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
+import { db } from '@disruptive-spaces/shared/firebase/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useSpaceCatalogueItems } from './hooks/unityEvents/useSpaceCatalogueItems';
+import { useUnityOnCatalogueItemClick } from './hooks/unityEvents/useUnityOnCatalogueItemClick';
+import CatalogueItemModalHandler from './components/CatalogueItemModalHandler';
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -459,14 +464,54 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   
   const { clickedPortal, clearClickedPortal } = useUnityOnPortalClick();
   const [isPortalEditorOpen, setIsPortalEditorOpen] = useState(false);
+  const [showPortalPrompt, setShowPortalPrompt] = useState(false);
+  const [targetSpaceName, setTargetSpaceName] = useState('');
+  const [targetSpaceSlug, setTargetSpaceSlug] = useState('');
   
   useEffect(() => {
-    console.log('Portal click state updated:', { clickedPortal, isEditMode });
+    async function resolveTargetSpaceName() {
+      setTargetSpaceName('');
+      setTargetSpaceSlug('');
+      if (clickedPortal && !isEditMode) {
+        let targetSpaceId = clickedPortal.targetSpaceId;
+        // If targetSpaceId is missing, look up the portal in Firestore by portalId
+        if (!targetSpaceId && clickedPortal.portalId) {
+          try {
+            const portalDocRef = doc(db, 'spaces', spaceID, 'portals', clickedPortal.portalId);
+            const portalDocSnap = await getDoc(portalDocRef);
+            if (portalDocSnap.exists()) {
+              const portalData = portalDocSnap.data();
+              targetSpaceId = portalData.targetSpaceId;
+            }
+          } catch (err) {
+            // fallback: leave targetSpaceId undefined
+          }
+        }
+        if (targetSpaceId) {
+          try {
+            const spaceData = await getSpaceItem(targetSpaceId);
+            setTargetSpaceName(spaceData?.name || targetSpaceId);
+            setTargetSpaceSlug(spaceData?.slug || '');
+            setShowPortalPrompt(true); // Only show after name is ready
+          } catch (err) {
+            setTargetSpaceName(targetSpaceId);
+            setTargetSpaceSlug('');
+            setShowPortalPrompt(true); // Show with fallback
+          }
+        } else {
+          setTargetSpaceName('');
+          setTargetSpaceSlug('');
+          setShowPortalPrompt(true); // Show with fallback
+        }
+      }
+    }
     if (clickedPortal && isEditMode) {
-      console.log('Opening portal editor for portal:', clickedPortal);
       setIsPortalEditorOpen(true);
     }
-  }, [clickedPortal, isEditMode]);
+    if (clickedPortal && !isEditMode) {
+      resolveTargetSpaceName();
+    }
+  }, [clickedPortal, isEditMode, spaceID]);
 
   const handleClosePortalEditor = () => {
     console.log('Closing portal editor');
@@ -480,6 +525,10 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     clickedPortal,
     isEditMode
   });
+  
+  // Add catalogue hooks
+  useSpaceCatalogueItems(spaceID);
+  const { clickedItem, clearClickedItem } = useUnityOnCatalogueItemClick();
   
   return (
     <Box className="webgl-renderer">
@@ -523,6 +572,9 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
         </Box>
       )}
       
+      {/* Add the CatalogueItemModalHandler (only active during edit mode) */}
+      <CatalogueItemModalHandler spaceId={spaceID} isEditMode={isEditMode} />
+
       <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
         <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "auto", position: "absolute" }}>
           {/* Top right buttons - Moved inside the fullscreen container - also changed aspact ratio from 16/9 and position to absolute from relative */}
@@ -615,10 +667,6 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
           </Box>
           
           {/* Bottom right controls */}
-          <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} left={4} display="flex" alignItems="flex-start" gap={3}>
-            {/* PrefabPlacer shows when user is logged in (visibility controlled by component itself) */}
-            {user && <PrefabPlacer settings={settings} />}
-          </Box>
           <Box {...fadeStyles} position="absolute" zIndex="2" bottom={4} right={4} display="flex" alignItems="flex-start" gap={3}>
             {settings.showHelpButton && <HelpButton />}
             <FullScreenButton />
@@ -657,6 +705,72 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
               />
             )}
           </Box>
+
+          {/* Stylish Portal Prompt Popup for non-edit mode */}
+          {!isEditMode && showPortalPrompt && (
+            <Modal isOpen={showPortalPrompt} onClose={() => { setShowPortalPrompt(false); clearClickedPortal(); setTargetSpaceName(''); setTargetSpaceSlug(''); }} isCentered>
+              <ModalOverlay />
+              <ModalContent
+                bg="#181818"
+                borderRadius="2xl"
+                boxShadow="2xl"
+                maxW="420px"
+                p={0}
+              >
+                <ModalHeader
+                  textAlign="center"
+                  fontWeight="extrabold"
+                  fontSize="2xl"
+                  color="white"
+                  pt={8}
+                  pb={4}
+                >
+                  {targetSpaceName ? `Visit ${targetSpaceName}?` : 'Visit Space?'}
+                </ModalHeader>
+                <ModalCloseButton color="white" top={4} right={4} />
+                <ModalBody pb={8} pt={2} px={8}>
+                  <Flex mt={4} gap={6} justify="center">
+                    <Button
+                      variant="outline"
+                      borderColor="whiteAlpha.400"
+                      color="white"
+                      fontWeight="bold"
+                      borderRadius="2xl"
+                      px={10}
+                      py={6}
+                      fontSize="lg"
+                      onClick={() => { setShowPortalPrompt(false); clearClickedPortal(); setTargetSpaceName(''); setTargetSpaceSlug(''); }}
+                      _hover={{ bg: 'whiteAlpha.100' }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      colorScheme="whiteAlpha"
+                      bg="white"
+                      color="#181818"
+                      fontWeight="bold"
+                      borderRadius="2xl"
+                      px={10}
+                      py={6}
+                      fontSize="lg"
+                      onClick={() => {
+                        if (targetSpaceSlug) {
+                          window.open(`https://www.spacesmetaverse.com/w/${targetSpaceSlug}`, '_blank', 'noopener');
+                        }
+                        setShowPortalPrompt(false);
+                        clearClickedPortal();
+                        setTargetSpaceName('');
+                        setTargetSpaceSlug('');
+                      }}
+                      _hover={{ bg: 'gray.100' }}
+                    >
+                      Visit
+                    </Button>
+                  </Flex>
+                </ModalBody>
+              </ModalContent>
+            </Modal>
+          )}
 
           {/* Portal Controller */}
           <PortalController />

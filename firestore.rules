@@ -80,6 +80,14 @@ service cloud.firestore {
         // Allow write access only to space owners, hosts, or admins
         allow write: if isSpaceOwnerOrHost(spaceId) || isDisruptiveAdmin();
       }
+      
+      // Allow access to catalogue items within spaces
+      match /catalogue/{itemId} {
+        // Allow any authenticated user to read catalogue items
+        allow read: if request.auth != null;
+        // Allow write access only to space owners or admins
+        allow write: if isSpaceOwner(spaceId) || isDisruptiveAdmin();
+      }
     }
     
     // Allow website components read (PUBLIC)
