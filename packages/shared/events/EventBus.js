@@ -2,6 +2,8 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 export const EventNames = {
     sendUserToUnity: 'sendUserToUnity', // used by UserProvider to communicate with webgl renderer.
+    playerInstantiated: 'playerInstantiated',
+    firstSceneLoaded: 'firstSceneLoaded',
     // userSignedIn: 'userSignedIn',
     // userSignedOut: 'userSignedOut',
     // Add more event names as needed

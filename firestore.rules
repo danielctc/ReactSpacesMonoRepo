@@ -88,6 +88,20 @@ service cloud.firestore {
         // Allow write access only to space owners or admins
         allow write: if isSpaceOwner(spaceId) || isDisruptiveAdmin();
       }
+      
+      // Allow access to analytics collections
+      match /analyticsEvents/{eventId} {
+        // Only allow server-side (Cloud Functions) access for analytics events
+        allow read, write: if false;
+      }
+      
+      match /analyticsSessions/{sessionId} {
+        // Only allow server-side (Cloud Functions) access for analytics sessions
+        allow read, write: if false;
+      }
+      
+      // Note: dedup collection is accessed only by Cloud Functions (admin privileges)
+      // No client access rules needed
     }
     
     // Allow website components read (PUBLIC)

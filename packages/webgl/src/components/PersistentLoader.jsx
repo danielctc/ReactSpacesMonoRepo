@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useContext } from 'react';
 import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus';
 import PropTypes from 'prop-types';
 import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { useUnity } from '../providers/UnityProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 // Use direct URL instead of importing the image
 const SPACES_LOADER_LOGO_URL = 'https://www.spacesmetaverse.com/assets/images/SpacesLogo_Loader.png';
 
@@ -13,6 +14,8 @@ const SPACES_LOADER_LOGO_URL = 'https://www.spacesmetaverse.com/assets/images/Sp
  */
 const PersistentLoader = ({ containerRef }) => {
   const { spaceID } = useUnity();
+  const { isUserBannedFromSpace } = useContext(UserContext);
+  const [isBanned, setIsBanned] = useState(false);
   const [isFirstSceneLoaded, setIsFirstSceneLoaded] = useState(false);
   const [isPlayerInstantiated, setIsPlayerInstantiated] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -111,11 +114,54 @@ const PersistentLoader = ({ containerRef }) => {
     };
   }, []);
 
+  // Check ban status on mount
+  useEffect(() => {
+    const checkBan = async () => {
+      if (spaceID && isUserBannedFromSpace) {
+        try {
+          const banned = await isUserBannedFromSpace(spaceID);
+          if (banned) {
+            Logger.warn(`PersistentLoader: user banned from space ${spaceID}`);
+            setIsBanned(true);
+          }
+        } catch (e) {
+          Logger.error('PersistentLoader: error checking ban status', e);
+        }
+      }
+    };
+    checkBan();
+  }, [spaceID, isUserBannedFromSpace]);
+
   useEffect(() => {
     // Wait for the container ref to be available
     if (!containerRef || !containerRef.current) {
-      Logger.error('PersistentLoader: Container ref is null or has no current property');
+      Logger.error('PersistentLoader: Container ref missing');
       return;
+    }
+
+    // If banned, show static message and stop further processing
+    if (isBanned) {
+      const bannedEl = document.createElement('div');
+      Object.assign(bannedEl.style, {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        color: 'red',
+        background: 'rgba(0,0,0,0.7)',
+        padding: '20px',
+        borderRadius: '8px',
+        zIndex: '100',
+        fontSize: '18px',
+        fontWeight: 'bold',
+        textAlign: 'center',
+      });
+      bannedEl.textContent = 'Access Denied: You have been banned from this space.';
+      containerRef.current.appendChild(bannedEl);
+
+      return () => {
+        containerRef.current.removeChild(bannedEl);
+      };
     }
 
     Logger.log('PersistentLoader: Creating loader elements');

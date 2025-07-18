@@ -54,7 +54,7 @@ import {
 import { useUnity } from '../providers/UnityProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc, deleteDoc, arrayRemove } from 'firebase/firestore';
 import SpaceTagsManager from './SpaceTagsManager';
 import { useHLSStream } from '../hooks/unityEvents';
 
@@ -95,6 +95,8 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   const [spaceOwners, setSpaceOwners] = useState([]);
   const [spaceHosts, setSpaceHosts] = useState([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [bannedUsers, setBannedUsers] = useState([]);
+  const [unbanningUid, setUnbanningUid] = useState(null);
   
   // Settings state
   const [voiceDisabled, setVoiceDisabled] = useState(false);
@@ -285,6 +287,27 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
         }
         
         setSpaceHosts(hostsData);
+        
+        // Fetch banned users from sub-collection
+        const bannedColRef = collection(db, `spaces/${spaceID}/BannedUsers`);
+        const bannedSnap = await getDocs(bannedColRef);
+        const bannedArr = [];
+        for (const bannedDoc of bannedSnap.docs) {
+          const uid = bannedDoc.id;
+          try {
+            const userProfile = await getUserProfileData(uid);
+            bannedArr.push({
+              uid,
+              displayName: userProfile?.Nickname || uid,
+              firstName: userProfile?.firstName,
+              lastName: userProfile?.lastName,
+              photoURL: userProfile?.photoURL,
+            });
+          } catch (e) {
+            bannedArr.push({ uid, displayName: uid });
+          }
+        }
+        setBannedUsers(bannedArr);
         
       } catch (error) {
         Logger.error('Error fetching space users:', error);
@@ -926,6 +949,31 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       });
     } finally {
       setIsSavingStream(false);
+    }
+  };
+
+  // Handle unban action
+  const handleUnbanUser = async (uid) => {
+    try {
+      setUnbanningUid(uid);
+      const dbInstance = getFirestore();
+      // Remove doc in banned collection
+      await deleteDoc(doc(dbInstance, `spaces/${spaceID}/BannedUsers`, uid));
+
+      // Remove banned group from user document if present
+      const userRef = doc(dbInstance, 'users', uid);
+      const bannedGroup = `space_${spaceID}_banned`;
+      await updateDoc(userRef, { groups: arrayRemove(bannedGroup) });
+
+      // update state list
+      setBannedUsers(prev => prev.filter(u => u.uid !== uid));
+
+      toast({ title: 'User Unbanned', description: 'User can now re-enter this space.', status: 'success', duration: 3000, isClosable: true });
+    } catch (e) {
+      Logger.error('Error unbanning user:', e);
+      toast({ title: 'Error', description: 'Failed to unban user', status: 'error', duration: 3000, isClosable: true });
+    } finally {
+      setUnbanningUid(null);
     }
   };
 
@@ -1737,26 +1785,51 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                       </Box>
                     </Box>
                     
-                    <Divider borderColor="whiteAlpha.200" />
-                    
-                    <Alert 
-                      status="info" 
-                      variant="subtle" 
-                      bg="whiteAlpha.100" 
-                      borderRadius="md"
-                      borderWidth="1px"
-                      borderColor="blue.800"
-                      py={2}
-                      fontSize="xs"
-                    >
-                      <AlertIcon color="blue.300" boxSize={4} />
-                      <Box>
-                        <AlertTitle fontSize="xs" fontWeight="medium">Coming Soon</AlertTitle>
-                        <AlertDescription fontSize="xs">
-                          User management features like adding/removing hosts and owners will be available in a future update.
-                        </AlertDescription>
+                    {/* Banned Users Section */}
+                    <Box>
+                      <HStack mb={2}>
+                        <Icon as={FiUserMinus} color="red.400" />
+                        <Text fontSize="sm" fontWeight="600">Banned Users</Text>
+                        <Badge colorScheme="red" ml={2}>{bannedUsers.length}</Badge>
+                      </HStack>
+
+                      <Box 
+                        borderWidth="1px" 
+                        borderRadius="md" 
+                        p={2} 
+                        bg="whiteAlpha.50"
+                        borderColor="whiteAlpha.200"
+                        maxH="120px"
+                        overflowY="auto"
+                        css={{
+                          '&::-webkit-scrollbar': { width: '4px' },
+                          '&::-webkit-scrollbar-thumb': { background: 'rgba(255,255,255,0.3)', borderRadius: '2px' },
+                        }}
+                      >
+                        {bannedUsers.length === 0 ? (
+                          <Text fontSize="xs" color="whiteAlpha.600">No banned users</Text>
+                        ) : (
+                          <VStack spacing={1} align="stretch">
+                            {bannedUsers.map(u => (
+                              <HStack key={u.uid} spacing={2} p={1} borderRadius="md" _hover={{ bg: "whiteAlpha.100" }}>
+                                <Avatar size="xs" src={u.photoURL} name={u.displayName} />
+                                <Box>
+                                  <Text fontSize="xs">{u.displayName}</Text>
+                                  {u.firstName && (
+                                    <Text fontSize="xs" color="whiteAlpha.600">{u.firstName} {u.lastName}</Text>
+                                  )}
+                                </Box>
+                                <Spacer />
+                                <HStack spacing={2}>
+                                  <Button size="xs" colorScheme="green" isLoading={unbanningUid===u.uid} onClick={() => handleUnbanUser(u.uid)} leftIcon={<Icon as={FiUserPlus}/>}>Unban</Button>
+                                  <Badge colorScheme="red" variant="solid" fontSize="2xs">Banned</Badge>
+                                </HStack>
+                              </HStack>
+                            ))}
+                          </VStack>
+                        )}
                       </Box>
-                    </Alert>
+                    </Box>
                   </VStack>
                 )}
               </TabPanel>

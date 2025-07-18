@@ -4,6 +4,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from 'firebase/auth'; // Import Firebase Auth
 import { getFirestore } from "firebase/firestore"; // Import Firestore
+import { getFunctions } from 'firebase/functions'; // Import Firebase Functions
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 // TODO: Add SDKs for Firebase products that you want to use
@@ -43,7 +44,7 @@ const isUsingFallback = missingEnvVars.length > 0;
 Logger.log(`Firebase initializing with ${isUsingFallback ? 'fallback' : 'environment'} configuration`);
 
 // Initialize Firebase
-let app, auth, db;
+let app, auth, db, functions;
 
 try {
   app = initializeApp(firebaseConfig);
@@ -53,6 +54,9 @@ try {
   
   // Initialize Firestore
   db = getFirestore(app);
+  
+  // Initialize Firebase Functions
+  functions = getFunctions(app);
   
   Logger.log('Firebase initialized successfully');
 } catch (error) {
@@ -66,4 +70,4 @@ try {
 }
 
 export default app;
-export { auth, db };
+export { auth, db, functions };

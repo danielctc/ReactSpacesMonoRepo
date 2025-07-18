@@ -1,6 +1,7 @@
 // @jsxImportSource react
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import PropTypes from 'prop-types';
+import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 
 import { UnityProvider } from "./providers/UnityProvider";
 
@@ -210,6 +211,8 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
 
     const fullscreenRef = useRef(null);
     const [isLoading, setIsLoading] = useState(true); // Initial loading state set to true
+    const { loading: userLoading, isUserBannedFromSpace, user } = useContext(UserContext);
+    const [banned, setBanned] = useState(false);
 
     // Setup Unity configuration
     const [unityConfig, setUnityConfig] = useState({
@@ -231,13 +234,6 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
         enableVoiceChat: true, // Enable voice chat by default
         spaceID: spaceID, // Pass spaceID to WebGLRenderer
     })
-
-
-
-    // const [userHasAccess, setUserHasAccess] = useState(false);
-    // const { userHasAccessToSpace } = useContext(UserProvider);
-
-
 
     // Get Space details from Firestore.
     useEffect(() => {
@@ -314,12 +310,6 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
 
                     setIsLoading(false);
 
-                    // Once we have the space data, check if the user has access to it
-                    // if (userHasAccessToSpace) {
-                    //     const hasAccess = await userHasAccessToSpace(spaceID);
-                    //     setUserHasAccess(hasAccess);
-                    // }
-
                 } else {
                     Logger.error(`WebGLLoader: No configuration found for spaceID: ${spaceID}`);
                 }
@@ -333,6 +323,19 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
         fetchData();
     }, [spaceID, spaceSettings.urlDisruptiveLogo, overrideSettings]);
 
+    useEffect(() => {
+        const checkBan = async () => {
+            if (!userLoading && user && isUserBannedFromSpace) {
+                try {
+                    const isB = await isUserBannedFromSpace(spaceID);
+                    setBanned(isB);
+                } catch (e) {
+                    Logger.error('WebGLLoader: ban check error', e);
+                }
+            }
+        };
+        checkBan();
+    }, [userLoading, user, spaceID, isUserBannedFromSpace]);
 
     // Debug: Log the config state to console
     useEffect(() => {
@@ -342,13 +345,17 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
         }
     }, [isLoading]);
 
+    if (userLoading) {
+        return <div className="flex justify-center items-center h-full mt-12">Loading user…</div>;
+    }
 
+    if (banned) {
+        return <div className="flex justify-center items-center h-full mt-12 text-red-500">Access Denied: You have been banned from this space.</div>;
+    }
 
-    // If user doesn't have access to space, show access denied message.
-    // if (!userHasAccess) {
-    //     return <div>You do not have access to this space.</div>; // Show access denied message if user doesn't have access
-    // }
-
+    if (!spaceID) {
+        return null;
+    }
 
     return (
         <>
@@ -363,7 +370,6 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
         </>
     );
 };
-
 
 WebGLLoader.propTypes = {
     spaceID: PropTypes.string.isRequired,

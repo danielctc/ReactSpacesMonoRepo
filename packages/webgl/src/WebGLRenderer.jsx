@@ -40,6 +40,9 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useSpaceCatalogueItems } from './hooks/unityEvents/useSpaceCatalogueItems';
 import { useUnityOnCatalogueItemClick } from './hooks/unityEvents/useUnityOnCatalogueItemClick';
 import CatalogueItemModalHandler from './components/CatalogueItemModalHandler';
+import { useUnityAnalytics } from './hooks/unityEvents/useUnityAnalytics';
+import { useAnalytics } from '@disruptive-spaces/shared/hooks/useAnalytics';
+import { ANALYTICS_EVENT_TYPES, ANALYTICS_CATEGORIES } from '@disruptive-spaces/shared/firebase/analyticsFirestore';
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -70,6 +73,16 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   // Add portal hooks
   useUnityOnPortalNavigate();
   useSpacePortals(spaceID);
+  
+  // Add analytics tracking
+  useUnityAnalytics(spaceID, {
+    enableDebugLogs: true
+  });
+  
+  // Analytics hook for tracking portal navigation
+  const { trackUnityEvent } = useAnalytics(spaceID, {
+    enableDebugLogs: true
+  });
   
   // State to track if Edit Mode is active
   const [isEditMode, setIsEditMode] = useState(false);
@@ -753,10 +766,39 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
                       px={10}
                       py={6}
                       fontSize="lg"
-                      onClick={() => {
+                      onClick={async () => {
+                        // Track portal navigation analytics before navigating
+                        if (clickedPortal && user) {
+                          // Extract target space ID from portal ID if available
+                          let targetSpaceId = null;
+                          if (clickedPortal.portalId) {
+                            const parts = clickedPortal.portalId.split('_');
+                            if (parts.length >= 3) {
+                              targetSpaceId = parts[2];
+                            }
+                          }
+                          
+                          await trackUnityEvent(ANALYTICS_EVENT_TYPES.UNITY.PORTAL_NAVIGATE, {
+                            category: ANALYTICS_CATEGORIES.NAVIGATION,
+                            portalId: clickedPortal.portalId,
+                            targetSpaceId: targetSpaceId,
+                            sourceSpaceId: spaceID,
+                            targetSpaceName: targetSpaceName,
+                            targetSpaceSlug: targetSpaceSlug,
+                            isEditMode: false, // Portal navigation is in play mode
+                            navigationType: 'confirmed', // This is modal-confirmed navigation
+                            timestamp: new Date().toISOString()
+                          });
+                          
+                          console.log('🎯 Analytics: Portal navigation event tracked for:', clickedPortal.portalId, '→', targetSpaceId);
+                        }
+                        
+                        // Navigate to the target space
                         if (targetSpaceSlug) {
                           window.open(`https://www.spacesmetaverse.com/w/${targetSpaceSlug}`, '_blank', 'noopener');
                         }
+                        
+                        // Clean up state
                         setShowPortalPrompt(false);
                         clearClickedPortal();
                         setTargetSpaceName('');

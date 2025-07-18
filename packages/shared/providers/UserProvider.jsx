@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useRef, useContext } from 'react';
 import { onAuthStateChanged, getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, sendEmailVerification } from 'firebase/auth';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore'; // Import onSnapshot for real-time updates
+import { doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore'; // Import onSnapshot for real-time updates
 import { auth, db } from '@disruptive-spaces/shared/firebase/firebase'; // Ensure db is your Firestore instance
 import { getUserProfileData, registerUser } from '@disruptive-spaces/shared/firebase/userFirestore';
 import { userBelongsToGroup } from '@disruptive-spaces/shared/firebase/userPermissions';
@@ -217,12 +217,36 @@ export const UserProvider = ({ children }) => {
         return await userBelongsToGroup(user.uid, groupName);
     };
 
+    // Quick helper: check banned collection
+    const isUserBannedFromSpace = async (spaceId) => {
+        try {
+            if (!user || !user.uid) return false;
+            // quick check on user groups first
+            if (user.groups && user.groups.includes(`space_${spaceId}_banned`)) {
+                return true;
+            }
+            const bannedDoc = await getDoc(doc(db, `spaces/${spaceId}/BannedUsers`, user.uid));
+            return bannedDoc.exists();
+        } catch (e) {
+            // If we get permission-denied we assume not banned
+            if (e.code !== 'permission-denied') {
+                Logger.error('UserProvider: isUserBannedFromSpace error:', e);
+            }
+            return false;
+        }
+    };
+
     // Checks if the current user has access to a specific space
     const userHasAccessToSpace = async (spaceId) => {
         if (!user || !user.uid) return false; // Ensure there's a logged-in user
 
         try {
-            const spaceData = await getSpaceItem(spaceId); // Fetch space data from Firestore
+            if (await isUserBannedFromSpace(spaceId)) {
+                Logger.warn(`UserProvider: User ${user.uid} banned from ${spaceId}`);
+                return false;
+            }
+
+            const spaceData = await getSpaceItem(spaceId); // Fetch space data
             
             // Check if user is allowed in the space, is an admin, or is a moderator
             const hasDirectAccess = spaceData.usersAllowed.includes(user.uid) ||
@@ -354,6 +378,7 @@ export const UserProvider = ({ children }) => {
                 userIsModeratorOfSpace,
                 resendVerificationEmail,
                 updateUser,
+                isUserBannedFromSpace,
             }}>
                 {children}
             </UserContext.Provider>
