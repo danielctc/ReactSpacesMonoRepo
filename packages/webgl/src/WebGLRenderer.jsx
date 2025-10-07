@@ -625,6 +625,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
               <CanvasMainMenu 
                 onTogglePlayerList={handlePlayerListToggle}
                 spaceID={spaceID}
+                containerRef={unityContainerRef}
               />
             </Box>
           </Box>
@@ -722,25 +723,34 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
           {/* Stylish Portal Prompt Popup for non-edit mode */}
           {!isEditMode && showPortalPrompt && (
             <Modal isOpen={showPortalPrompt} onClose={() => { setShowPortalPrompt(false); clearClickedPortal(); setTargetSpaceName(''); setTargetSpaceSlug(''); }} isCentered>
-              <ModalOverlay />
+              <ModalOverlay bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(8px)" />
               <ModalContent
-                bg="#181818"
-                borderRadius="2xl"
-                boxShadow="2xl"
+                bg="#1a1a1a"
+                borderRadius="xl"
+                border="1px solid #333"
                 maxW="420px"
                 p={0}
               >
                 <ModalHeader
-                  textAlign="center"
-                  fontWeight="extrabold"
-                  fontSize="2xl"
+                  fontSize="md"
+                  fontWeight="600"
+                  pb={1}
+                  pt={3}
+                  px={4}
                   color="white"
-                  pt={8}
-                  pb={4}
+                  textAlign="center"
                 >
                   {targetSpaceName ? `Visit ${targetSpaceName}?` : 'Visit Space?'}
                 </ModalHeader>
-                <ModalCloseButton color="white" top={4} right={4} />
+                <ModalCloseButton
+                  color="white"
+                  bg="rgba(255,255,255,0.1)"
+                  _hover={{ color: "gray.400", bg: "transparent" }}
+                  borderRadius="full"
+                  size="sm"
+                  top={2}
+                  right={3}
+                />
                 <ModalBody pb={8} pt={2} px={8}>
                   <Flex mt={4} gap={6} justify="center">
                     <Button

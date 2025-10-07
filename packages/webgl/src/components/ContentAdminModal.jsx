@@ -188,12 +188,12 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="5xl" isCentered>
-      <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(5px)" />
+      <ModalOverlay bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(8px)" />
       <ModalContent 
-        bg="rgba(30, 30, 30, 0.85)"
-        backdropFilter="blur(15px)"
+        bg="#1a1a1a"
         color="white" 
         borderRadius="xl"
+        border="1px solid #333"
         height="85vh"
         maxHeight="750px" 
         width="85vw" 
@@ -201,13 +201,26 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
         overflow="hidden"
       >
         <ModalHeader 
-          pb={2}
+          fontSize="md"
+          fontWeight="600"
+          pb={1}
+          pt={3}
+          px={4}
+          color="white"
           borderBottom="1px solid" 
           borderColor="whiteAlpha.300"
         >
           {showCreatePortalView ? "Create New Portal" : "Content Catalogue"}
         </ModalHeader>
-        <ModalCloseButton top="14px" />
+        <ModalCloseButton
+          color="white"
+          bg="rgba(255,255,255,0.1)"
+          _hover={{ color: "gray.400", bg: "transparent" }}
+          borderRadius="full"
+          size="sm"
+          top={2}
+          right={3}
+        />
         <ModalBody p={0} display="flex" flexDirection="column" height="calc(100% - 60px)">
           
           <HStack 

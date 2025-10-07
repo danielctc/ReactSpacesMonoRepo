@@ -79,6 +79,17 @@ export const endAnalyticsSessionSecure = async (spaceId, sessionId) => {
   try {
     Logger.log(`Ending secure analytics session: ${sessionId} in space ${spaceId}`);
     
+    // Add validation and debug logging
+    if (!spaceId || !sessionId) {
+      Logger.error('endAnalyticsSessionSecure: Missing required parameters', {
+        spaceId,
+        sessionId,
+        spaceIdType: typeof spaceId,
+        sessionIdType: typeof sessionId
+      });
+      throw new Error(`Missing required parameters: spaceId=${spaceId}, sessionId=${sessionId}`);
+    }
+    
     await endAnalyticsSessionFunction({
       spaceId,
       sessionId

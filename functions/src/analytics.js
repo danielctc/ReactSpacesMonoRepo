@@ -44,7 +44,12 @@ exports.trackAnalytics = functions.https.onCall(async (data, context) => {
     'react_user_logout',
     'react_space_enter',
     'react_space_exit',
-    'react_chat_message'
+    'react_chat_message',
+    'react_video_click',
+    'react_video_close',
+    'react_button_click',
+    'react_form_submit',
+    'react_error_occurred'
   ];
 
   if (!validEventTypes.includes(eventType)) {

@@ -53,7 +53,7 @@ import ReadyPlayerMeModal from './ReadyPlayerMeModal';
 import AuthenticationButton from './AuthenticationButton';
 import ContentAdminModal from './ContentAdminModal';
 
-export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
+export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) => {
   const { fullscreenRef } = useFullscreenContext();
   const [isPlayerInstantiated, setIsPlayerInstantiated] = useState(true); // Default to true to enable screen sharing
   const [isOpen, setIsOpen] = useState(false);
@@ -185,7 +185,13 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
     };
   }, []);
 
-  const handleSettingsToggle = () => setIsSettingsOpen(!isSettingsOpen);
+  const handleSettingsToggle = () => {
+    setIsSettingsOpen(!isSettingsOpen);
+    if (!isSettingsOpen) {
+      // Close the main menu when opening settings
+      handleCloseMenu();
+    }
+  };
   const handleControlsModalToggle = () => setOpenControlsModal(!openControlsModal);
   const handleManageSpaceToggle = () => {
     setOpenManageSpaceModal(!openManageSpaceModal);
@@ -284,16 +290,16 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
             boxShadow="lg"
             color="white"
             width="300px"
-            p={4}
-            borderRadius="xl"
+            p={3}
+            borderRadius="lg"
             zIndex={9999}
             transform="none !important"
           >
-            <VStack align="stretch" spacing={4}>
+            <VStack align="stretch" spacing={3}>
               {/* Header */}
-              <HStack>
+              <HStack spacing={3}>
                 <Avatar 
-                  size="md"
+                  size="sm"
                   src={profileData?.rpmURL}
                   bg="white"
                   name=" "
@@ -302,7 +308,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                 />
                 <VStack align="start" spacing={0}>
                   <HStack>
-                    <Text fontWeight="bold">{userNickname}</Text>
+                    <Text fontWeight="bold" fontSize="sm">{userNickname}</Text>
                     {/* Show owner icon only if user is an owner and not a disruptiveAdmin */}
                     {canEditSpace && !isDisruptiveAdmin && (
                       <Tooltip 
@@ -315,7 +321,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                         portalProps={{ containerRef: fullscreenRef }}
                       >
                         <Box display="inline-block">
-                          <Icon as={FaCrown} color="green.400" boxSize={3} />
+                          <Icon as={FaCrown} color="green.400" boxSize={2.5} />
                         </Box>
                       </Tooltip>
                     )}
@@ -331,7 +337,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                         portalProps={{ containerRef: fullscreenRef }}
                       >
                         <Box display="inline-block">
-                          <Icon as={FaStar} color="purple.400" boxSize={3} />
+                          <Icon as={FaStar} color="purple.400" boxSize={2.5} />
                         </Box>
                       </Tooltip>
                     )}
@@ -347,17 +353,17 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                         portalProps={{ containerRef: fullscreenRef }}
                       >
                         <Box display="inline-block">
-                          <Icon as={FaShieldAlt} color="blue.400" boxSize={3} />
+                          <Icon as={FaShieldAlt} color="blue.400" boxSize={2.5} />
                         </Box>
                       </Tooltip>
                     )}
                   </HStack>
-                  <Text fontSize="sm" color="whiteAlpha.800">Spaces Metaverse</Text>
+                  <Text fontSize="xs" color="whiteAlpha.800">Spaces Metaverse</Text>
                 </VStack>
               </HStack>
 
               {/* Rest of the menu content */}
-              <HStack spacing={4} justify="center">
+              <HStack spacing={3} justify="center">
                 <IconButton
                   icon={<FaUsers />}
                   variant="ghost"
@@ -419,17 +425,17 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
 
               <Divider borderColor="whiteAlpha.300" />
 
-              <VStack align="stretch" spacing={2}>
+              <VStack align="stretch" spacing={1}>
                 {/* Edit Mode Toggle - Show for space owners and disruptiveAdmins */}
                 {canEditSpace && (
                   <HStack 
-                    p={2} 
+                    p={1.5} 
                     borderRadius="md" 
                     _hover={{ bg: "whiteAlpha.200" }}
                     // onClick={(e) => e.stopPropagation()} // Removed: Allow menu to close or let switch handle propagation
                     justify="space-between"
                   >
-                    <Text fontSize="md">Edit Mode</Text>
+                    <Text fontSize="sm">Edit Mode</Text>
                     <Switch 
                       id="edit-mode-toggle" 
                       isChecked={editModeEnabled}
@@ -446,16 +452,16 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                 
                 {/* Manage Space option - Show for space owners and disruptiveAdmins */}
                 {canEditSpace && (
-                  <Text 
-                    fontSize="md" 
-                    cursor="pointer" 
-                    _hover={{ bg: "whiteAlpha.200" }} 
-                    p={2} 
-                    borderRadius="md"
-                    onClick={handleManageSpaceToggle}
-                  >
-                    Manage Space
-                  </Text>
+                <Text 
+                  fontSize="sm" 
+                  cursor="pointer" 
+                  _hover={{ bg: "whiteAlpha.200" }} 
+                  p={1.5} 
+                  borderRadius="md"
+                  onClick={handleManageSpaceToggle}
+                >
+                  Manage Space
+                </Text>
                 )}
                 
                 {/* Screen Share option - Only show if voice is not disabled */}
@@ -464,36 +470,36 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
                 )}
                 
                 <Text 
-                  fontSize="md" 
+                  fontSize="sm" 
                   cursor="pointer" 
                   _hover={{ bg: "whiteAlpha.200" }} 
-                  p={2} 
+                  p={1.5} 
                   borderRadius="md"
                   onClick={handleSettingsToggle}
                 >
                   Settings
                 </Text>
                 <Text 
-                  fontSize="md" 
+                  fontSize="sm" 
                   cursor="pointer" 
                   _hover={{ bg: "whiteAlpha.200" }} 
-                  p={2} 
+                  p={1.5} 
                   borderRadius="md"
                   onClick={handleControlsModalToggle}
                 >
                   Controls
                 </Text>
                 <Text 
-                  fontSize="md" 
+                  fontSize="sm" 
                   cursor="pointer" 
                   _hover={{ bg: "whiteAlpha.200" }} 
-                  p={2} 
+                  p={1.5} 
                   borderRadius="md"
                   onClick={() => window.open('https://support.spacesmetaverse.com/', '_blank')}
                 >
                   Support
                 </Text>
-                <Text fontSize="md" cursor="pointer" _hover={{ bg: "whiteAlpha.200" }} p={2} borderRadius="md" color="red.300">
+                <Text fontSize="sm" cursor="pointer" _hover={{ bg: "whiteAlpha.200" }} p={1.5} borderRadius="md" color="red.300">
                   Leave
                 </Text>
               </VStack>
@@ -504,7 +510,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID }) => {
 
       {/* Modals */}
       {openControlsModal && <SpacesControlsModal open={openControlsModal} onClose={handleControlsModalToggle} />}
-      {isSettingsOpen && <SpacesSettingsModal open={isSettingsOpen} onClose={handleSettingsToggle} />}
+      {isSettingsOpen && <SpacesSettingsModal open={isSettingsOpen} onClose={handleSettingsToggle} containerRef={containerRef} />}
       {openAvatarModal && <ReadyPlayerMeModal open={openAvatarModal} onClose={handleModalClose} />}
       
       {/* Manage Space Modal */}

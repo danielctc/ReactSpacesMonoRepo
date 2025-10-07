@@ -47,7 +47,12 @@ export const ANALYTICS_EVENT_TYPES = {
     CHAT_MESSAGE: 'react_chat_message',
     UPLOAD_START: 'react_upload_start',
     UPLOAD_COMPLETE: 'react_upload_complete',
-    SETTINGS_CHANGE: 'react_settings_change'
+    SETTINGS_CHANGE: 'react_settings_change',
+    VIDEO_CLICK: 'react_video_click',
+    VIDEO_CLOSE: 'react_video_close',
+    BUTTON_CLICK: 'react_button_click',
+    FORM_SUBMIT: 'react_form_submit',
+    ERROR_OCCURRED: 'react_error_occurred'
   }
 };
 

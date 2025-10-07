@@ -160,8 +160,9 @@ export const useMediaScreenVideoPlayer = (isEditMode) => {
               // Convert to embed URL before setting state
               const embedUrl = getEmbedUrl(mediaScreen.videoUrl);
               console.log(`Setting video URL to: ${embedUrl} (original: ${mediaScreen.videoUrl})`);
+              const videoTitle = mediaScreen.title || `Media Screen ${mediaScreenId}`;
               setVideoUrl(embedUrl);
-              setVideoTitle(mediaScreen.title || `Media Screen ${mediaScreenId}`);
+              setVideoTitle(videoTitle);
               setCurrentMediaScreenId(mediaScreenId);
               Logger.log("Media screen video URL set to:", embedUrl);
             } catch (error) {

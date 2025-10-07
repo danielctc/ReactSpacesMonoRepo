@@ -390,12 +390,20 @@ function Register({ mode, label, buttonProps = {}, isOpen: propIsOpen, onClose: 
                     }}
                 >
                     <ModalHeader p={8} textAlign="center">
-                        <Heading size="lg" mb={2}>Create Account</Heading>
+                        <Heading size="lg" mb={2} color="white">Create Account</Heading>
                         <Text fontSize="sm" color="gray.400">
                             Fill in your details to get started
                         </Text>
                     </ModalHeader>
-                    <ModalCloseButton color="gray.400" />
+                    <ModalCloseButton
+                        color="white"
+                        bg="rgba(255,255,255,0.1)"
+                        _hover={{ color: "gray.400", bg: "transparent" }}
+                        borderRadius="full"
+                        size="sm"
+                        top={2}
+                        right={3}
+                    />
                     <ModalBody px={8}>
                         <form onSubmit={handleSubmit(handleRegister)}>
                             <VStack spacing={4}>

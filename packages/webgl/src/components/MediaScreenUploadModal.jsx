@@ -480,83 +480,113 @@ const MediaScreenUploadModal = ({ isOpen, onClose, mediaScreenId, onImageChange 
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={handleClose} size="xl">
-        <ModalOverlay backdropFilter="blur(10px)" />
-        <ModalContent bg="gray.800" color="white" maxW="900px">
-          <ModalHeader>Media Screen Content</ModalHeader>
-          <ModalCloseButton isDisabled={isUploading} />
+      <Modal isOpen={isOpen} onClose={handleClose} size="lg">
+        <ModalOverlay bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(8px)" />
+        <ModalContent bg="#1a1a1a" color="white" maxW="650px" borderRadius="xl" border="1px solid #333">
+          <ModalHeader fontSize="md" fontWeight="600" pb={1} pt={3} px={4} color="white">
+            Media Screen
+          </ModalHeader>
+          <ModalCloseButton 
+            isDisabled={isUploading}
+            color="gray.400"
+            _hover={{ color: "white", bg: "rgba(255,255,255,0.1)" }}
+            borderRadius="full"
+            size="sm"
+            top={3}
+            right={3}
+          />
           
           {/* Media Type Toggle */}
-          <Box px={6} pb={2}>
+          <Box px={4} pb={1}>
             <Flex 
               justify="space-between" 
               align="center" 
-              bg="gray.700" 
-              p={4} 
-              borderRadius="md"
-              mb={4}
+              bg="rgba(255,255,255,0.03)" 
+              p={2} 
+              borderRadius="lg"
+              mb={1}
+              border="1px solid rgba(255,255,255,0.08)"
             >
-              <HStack spacing={4}>
-                <Text fontWeight="medium">Display as:</Text>
+              <HStack spacing={2}>
+                <Text fontWeight="500" fontSize="xs" color="gray.300">Display:</Text>
                 <HStack spacing={2}>
-                  <Icon as={FiImage} color={!displayAsVideo ? "green.300" : "gray.400"} />
+                  <Icon as={FiImage} color={!displayAsVideo ? "white" : "gray.500"} size="sm" />
                   <Switch 
-                    colorScheme="purple" 
-                    size="md" 
+                    colorScheme="gray" 
+                    size="sm" 
                     isChecked={displayAsVideo}
                     onChange={handleDisplayToggle}
                   />
-                  <Icon as={FiVideo} color={displayAsVideo ? "purple.300" : "gray.400"} />
+                  <Icon as={FiVideo} color={displayAsVideo ? "white" : "gray.500"} size="sm" />
                 </HStack>
               </HStack>
               
               <Badge 
-                colorScheme={displayAsVideo ? "purple" : "green"}
-                fontSize="sm"
+                bg="rgba(255,255,255,0.1)"
+                color="gray.300"
+                fontSize="xs"
                 px={2}
                 py={1}
                 borderRadius="md"
+                fontWeight="500"
               >
-                {displayAsVideo ? 'Video Output' : 'Image Output'}
+                {displayAsVideo ? 'Video' : 'Image'}
               </Badge>
             </Flex>
-            <Text fontSize="sm" color="gray.400" mb={1}>
-              Media Screen ID: <strong>{mediaScreenId}</strong>
+            <Text fontSize="xs" color="gray.500">
+              ID: {mediaScreenId}
             </Text>
-            <Text fontSize="xs" color="gray.500" mb={2}>
-              The toggle above controls how the content will be displayed in the 3D space, regardless of the content type you upload.
-            </Text>
-            <Divider mb={4} />
           </Box>
           
-          <ModalBody>
+          <ModalBody px={4} py={1}>
             <Flex>
               {/* Side Tabs */}
               <Tabs 
                 orientation="vertical" 
-                variant="solid-rounded" 
-                colorScheme="blue" 
+                variant="unstyled" 
                 index={activeTab} 
                 onChange={handleTabChange}
                 h="100%"
-                minW="120px"
-                mr={4}
+                minW="75px"
+                mr={3}
               >
-                <TabList>
+                <TabList spacing={1}>
                   <Tab 
-                    _selected={{ color: 'white', bg: 'blue.500' }} 
-                    mb={2}
-                    py={6}
+                    _selected={{ 
+                      color: 'white', 
+                      bg: 'rgba(255,255,255,0.1)',
+                      borderRadius: 'lg'
+                    }}
+                    _hover={{ bg: 'rgba(255,255,255,0.05)' }}
+                    mb={1}
+                    py={1.5}
+                    px={2.5}
                     justifyContent="flex-start"
+                    borderRadius="lg"
+                    fontSize="xs"
+                    fontWeight="500"
+                    color="gray.400"
+                    w="full"
                   >
-                    <Icon as={FiImage} mr={2} /> Image
+                    <Icon as={FiImage} mr={1.5} size="sm" /> Image
                   </Tab>
                   <Tab 
-                    _selected={{ color: 'white', bg: 'blue.500' }} 
-                    py={6}
+                    _selected={{ 
+                      color: 'white', 
+                      bg: 'rgba(255,255,255,0.1)',
+                      borderRadius: 'lg'
+                    }}
+                    _hover={{ bg: 'rgba(255,255,255,0.05)' }}
+                    py={1.5}
+                    px={2.5}
                     justifyContent="flex-start"
+                    borderRadius="lg"
+                    fontSize="xs"
+                    fontWeight="500"
+                    color="gray.400"
+                    w="full"
                   >
-                    <Icon as={FiVideo} mr={2} /> Video
+                    <Icon as={FiVideo} mr={1.5} size="sm" /> Video
                   </Tab>
                 </TabList>
               </Tabs>
@@ -564,8 +594,8 @@ const MediaScreenUploadModal = ({ isOpen, onClose, mediaScreenId, onImageChange 
               {/* Content Area */}
               <Box flex="1">
                 {isLoading ? (
-                  <Flex justify="center" align="center" h="150px">
-                    <Spinner size="xl" color="blue.400" />
+                  <Flex justify="center" align="center" h="120px">
+                    <Spinner size="lg" color="white" />
                   </Flex>
                 ) : (
                   <>
@@ -630,12 +660,12 @@ const MediaScreenUploadModal = ({ isOpen, onClose, mediaScreenId, onImageChange 
                             borderWidth="2px"
                             borderRadius="md"
                             borderStyle="dashed"
-                            borderColor={isDragging ? "blue.400" : "gray.500"}
-                            bg={isDragging ? "blue.900" : "gray.700"}
-                            p={6}
+                            borderColor={isDragging ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.15)"}
+                            bg={isDragging ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)"}
+                            p={4}
                             textAlign="center"
-                            transition="all 0.2s"
-                            _hover={{ borderColor: "blue.400", bg: "gray.600" }}
+                            transition="all 0.2s ease"
+                            _hover={{ borderColor: "rgba(255,255,255,0.3)", bg: "rgba(255,255,255,0.06)" }}
                             cursor="pointer"
                             onClick={() => fileInputRef.current.click()}
                           >
@@ -651,11 +681,13 @@ const MediaScreenUploadModal = ({ isOpen, onClose, mediaScreenId, onImageChange 
                               </Box>
                             ) : (
                               <VStack spacing={2}>
-                                <Icon as={FiUpload} boxSize="24px" color="gray.400" />
-                                <Text>Drag and drop an image here, or click to browse</Text>
-                                <Text fontSize="xs" color="gray.400">
-                                  Supports PNG, JPG, JPEG, GIF
-                                </Text>
+                                <Icon as={FiUpload} boxSize="20px" color="gray.400" />
+                                <VStack spacing={0}>
+                                  <Text fontSize="xs" fontWeight="500" color="white">Drop image or click to browse</Text>
+                                  <Text fontSize="xs" color="gray.500">
+                                    PNG, JPG, JPEG, GIF
+                                  </Text>
+                                </VStack>
                               </VStack>
                             )}
                             <Input
@@ -668,8 +700,8 @@ const MediaScreenUploadModal = ({ isOpen, onClose, mediaScreenId, onImageChange 
                           </Box>
                           
                           {selectedFile && (
-                            <Text fontSize="sm">
-                              Selected file: {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
+                            <Text fontSize="xs" color="gray.400" bg="rgba(255,255,255,0.05)" p={2} borderRadius="md" border="1px solid rgba(255,255,255,0.1)">
+                              {selectedFile.name} ({Math.round(selectedFile.size / 1024)} KB)
                             </Text>
                           )}
                         </VStack>
@@ -679,7 +711,7 @@ const MediaScreenUploadModal = ({ isOpen, onClose, mediaScreenId, onImageChange 
                           {/* Existing Video Section */}
                           {existingImage && existingImage.videoUrl && mediaType === 'video' && (
                             <Box>
-                              <Text fontWeight="semibold" mb={2}>Current Video URL:</Text>
+                              <Text fontWeight="500" mb={1} fontSize="xs" color="gray.400">Current Video URL:</Text>
                               <Flex>
                                 <Box 
                                   borderWidth="1px" 
@@ -715,69 +747,35 @@ const MediaScreenUploadModal = ({ isOpen, onClose, mediaScreenId, onImageChange 
                             </Box>
                           )}
                           
-                          <Text fontWeight="semibold" mb={2}>
-                            {existingImage && existingImage.videoUrl && mediaType === 'video' 
-                              ? 'Replace with new video:' 
-                              : 'Add video URL:'}
-                          </Text>
                           
-                          <Box 
-                            p={3} 
-                            bg="blue.900" 
-                            borderRadius="md" 
-                            mb={4}
-                            borderLeftWidth="4px"
-                            borderLeftColor="blue.400"
-                          >
-                            <HStack>
-                              <Icon as={FiInfo} color="blue.300" />
-                              <Text fontSize="sm" fontWeight="medium">
-                                After entering a URL, click the "Save Video URL" button at the bottom to save your changes.
-                              </Text>
-                            </HStack>
-                          </Box>
                           
                           <FormControl>
-                            <FormLabel fontSize="sm">Video URL</FormLabel>
+                            <FormLabel fontSize="xs" fontWeight="500" color="white" mb={1.5}>Video URL</FormLabel>
                             <Input
-                              placeholder="Enter video URL (YouTube, Vimeo, etc.)"
+                              placeholder="https://youtube.com/watch?v=..."
                               value={videoUrl}
                               onChange={(e) => setVideoUrl(e.target.value)}
-                              bg="gray.700"
-                              borderColor="gray.600"
-                              _hover={{ borderColor: "blue.400" }}
-                              _focus={{ borderColor: "blue.400", boxShadow: "0 0 0 1px var(--chakra-colors-blue-400)" }}
-                              size="lg"
+                              bg="rgba(255,255,255,0.05)"
+                              borderColor="rgba(255,255,255,0.15)"
+                              _hover={{ borderColor: "rgba(255,255,255,0.3)" }}
+                              _focus={{ borderColor: "rgba(255,255,255,0.5)", boxShadow: "0 0 0 1px rgba(255,255,255,0.3)" }}
+                              size="sm"
+                              borderRadius="lg"
+                              color="white"
+                              fontSize="xs"
+                              _placeholder={{ color: "gray.500", fontSize: "xs" }}
                             />
-                            <Text fontSize="xs" color="gray.400" mt={1}>
-                              Enter a URL from YouTube, Vimeo, or other video hosting services
-                            </Text>
                           </FormControl>
                           
-                          <Box mt={4} p={4} bg="gray.700" borderRadius="md">
-                            <HStack>
-                              <Icon as={FiVideo} color="blue.300" />
-                              <Text fontWeight="medium">Video Support</Text>
-                            </HStack>
-                            <Text fontSize="sm" mt={2} color="gray.300">
-                              Video playback will be implemented in a future update. For now, you can add the URL which will be stored with the media screen.
-                            </Text>
-                            <Text fontSize="sm" mt={2} color="yellow.300" fontWeight="medium">
-                              Important: Click the "Upload" button at the bottom to save your video URL.
-                            </Text>
-                          </Box>
                           
                           {videoUrl && (
-                            <Box mt={4} p={4} bg="gray.900" borderRadius="md" borderWidth="1px" borderColor="blue.500">
-                              <HStack mb={2}>
-                                <Icon as={FiLink} color="blue.300" />
-                                <Text fontWeight="medium">URL Preview</Text>
+                            <Box mt={2} p={2} bg="rgba(255,255,255,0.05)" borderRadius="lg" border="1px solid rgba(255,255,255,0.1)">
+                              <HStack mb={1}>
+                                <Icon as={FiLink} color="gray.400" size="sm" />
+                                <Text fontWeight="500" fontSize="xs" color="white">Preview</Text>
                               </HStack>
-                              <Text fontSize="sm" wordBreak="break-all" color="gray.300">
+                              <Text fontSize="xs" wordBreak="break-all" color="gray.400">
                                 {videoUrl}
-                              </Text>
-                              <Text fontSize="xs" color="gray.400" mt={2}>
-                                This URL will be saved when you click the Upload button below
                               </Text>
                             </Box>
                           )}
@@ -786,9 +784,9 @@ const MediaScreenUploadModal = ({ isOpen, onClose, mediaScreenId, onImageChange 
                     </Box>
                     
                     {isUploading && (
-                      <Box mt={4}>
-                        <Text mb={2}>Uploading: {uploadProgress}%</Text>
-                        <Progress value={uploadProgress} colorScheme="blue" size="sm" borderRadius="md" />
+                      <Box mt={3}>
+                        <Text mb={2} fontSize="sm" fontWeight="500" color="white">Uploading: {uploadProgress}%</Text>
+                        <Progress value={uploadProgress} colorScheme="gray" size="sm" borderRadius="full" bg="rgba(255,255,255,0.1)" />
                       </Box>
                     )}
                   </>
@@ -797,32 +795,48 @@ const MediaScreenUploadModal = ({ isOpen, onClose, mediaScreenId, onImageChange 
             </Flex>
           </ModalBody>
 
-          <ModalFooter>
-            <Button 
-              variant="ghost" 
-              mr={3} 
-              onClick={handleClose}
-              isDisabled={isUploading}
-            >
-              Cancel
-            </Button>
-            <Button 
-              colorScheme="blue" 
-              onClick={handleUpload}
-              isLoading={isUploading}
-              loadingText="Uploading"
-              isDisabled={
-                (mediaType === 'image' && !selectedFile) || 
-                (mediaType === 'video' && !videoUrl) || 
-                isUploading || 
-                isLoading
-              }
-              leftIcon={<Icon as={mediaType === 'image' ? FiImage : FiVideo} />}
-              size="lg"
-              px={6}
-            >
-              {mediaType === 'image' ? 'Upload Image' : 'Save Video URL'}
-            </Button>
+          <ModalFooter pt={2} pb={3} px={4}>
+            <Flex w="full" gap={3}>
+              <Button 
+                variant="outline"
+                flex={1}
+                onClick={handleClose}
+                isDisabled={isUploading}
+                color="gray.400"
+                borderColor="rgba(255,255,255,0.2)"
+                _hover={{ bg: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.3)" }}
+                borderRadius="lg"
+                size="sm"
+                fontSize="xs"
+                fontWeight="500"
+              >
+                Cancel
+              </Button>
+              <Button 
+                bg="#6b7280"
+                color="white"
+                flex={2}
+                onClick={handleUpload}
+                isLoading={isUploading}
+                loadingText="Saving"
+                isDisabled={
+                  (mediaType === 'image' && !selectedFile) || 
+                  (mediaType === 'video' && !videoUrl) || 
+                  isUploading || 
+                  isLoading
+                }
+                leftIcon={<Icon as={mediaType === 'image' ? FiImage : FiVideo} size="sm" />}
+                _hover={{ bg: "#4b5563" }}
+                _active={{ bg: "#374151" }}
+                _disabled={{ bg: "#374151", opacity: 0.5 }}
+                borderRadius="lg"
+                size="sm"
+                fontSize="xs"
+                fontWeight="600"
+              >
+                {mediaType === 'image' ? 'Upload' : 'Save URL'}
+              </Button>
+            </Flex>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -833,23 +847,47 @@ const MediaScreenUploadModal = ({ isOpen, onClose, mediaScreenId, onImageChange 
         leastDestructiveRef={cancelRef}
         onClose={() => setIsDeleteDialogOpen(false)}
       >
-        <AlertDialogOverlay>
-          <AlertDialogContent bg="gray.800" color="white">
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+        <AlertDialogOverlay bg="rgba(0, 0, 0, 0.8)">
+          <AlertDialogContent bg="#1a1a1a" color="white" borderRadius="xl" border="1px solid #333" maxW="350px">
+            <AlertDialogHeader fontSize="md" fontWeight="600" pt={4} pb={2} color="white">
               Delete {mediaType === 'video' ? 'Video' : 'Image'}
             </AlertDialogHeader>
 
-            <AlertDialogBody>
-              Are you sure you want to delete this {mediaType}? This will revert the media screen to its blank state.
+            <AlertDialogBody py={2} color="gray.400" fontSize="sm">
+              Are you sure? This will revert the media screen to its blank state.
             </AlertDialogBody>
 
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsDeleteDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button colorScheme="red" onClick={handleDelete} ml={3} leftIcon={<Icon as={FiTrash2} />}>
-                Delete
-              </Button>
+            <AlertDialogFooter pt={3} pb={4}>
+              <Flex w="full" gap={2}>
+                <Button 
+                  ref={cancelRef} 
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                  variant="outline"
+                  flex={1}
+                  color="gray.400"
+                  borderColor="rgba(255,255,255,0.2)"
+                  _hover={{ bg: "rgba(255,255,255,0.05)" }}
+                  borderRadius="lg"
+                  size="sm"
+                  fontSize="sm"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  bg="#dc2626"
+                  color="white"
+                  onClick={handleDelete} 
+                  flex={1}
+                  leftIcon={<Icon as={FiTrash2} size="sm" />}
+                  _hover={{ bg: "#b91c1c" }}
+                  borderRadius="lg"
+                  fontWeight="600"
+                  size="sm"
+                  fontSize="sm"
+                >
+                  Delete
+                </Button>
+              </Flex>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialogOverlay>

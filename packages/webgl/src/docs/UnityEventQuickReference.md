@@ -14,6 +14,9 @@ Events sent from React to Unity via `ReactIncomingEvent.HandleEvent` or similar 
 | `DeleteObject` | Delete an object | `{ objectId: string }` |
 | `SetHLSStream` | Set an HLS stream URL | `{ identifier: string, playerIndex: string, streamUrl: string }` |
 | `FirebaseUserFromReact` | Send user data to Unity | User object with properties like uid, displayName, etc. |
+| `SetMasterVolume` | Set the master audio volume | `{ volume: float }` (0.0 - 1.0) |
+| `SetMusicVolume` | Set the music volume | `{ volume: float }` (0.0 - 1.0) |
+| `SetSFXVolume` | Set the sound effects volume | `{ volume: float }` (0.0 - 1.0) |
 
 ## Events from Unity to React
 
@@ -68,5 +71,95 @@ public class SelectableObject : MonoBehaviour
             ReactBridge.DispatchEventToReact("ObjectSelected", JsonUtility.ToJson(data));
         }
     }
+}
+```
+
+## Audio Volume Control Implementation
+
+For the audio volume control features, Unity should implement an AudioManager that handles the volume events:
+
+### Unity AudioManager Example
+
+```csharp
+using UnityEngine;
+using UnityEngine.Audio;
+
+public class AudioManager : MonoBehaviour
+{
+    [Header("Audio Mixer")]
+    public AudioMixer audioMixer;
+    
+    [Header("Mixer Groups")]
+    public string masterVolumeParameter = "MasterVolume";
+    public string musicVolumeParameter = "MusicVolume";
+    public string sfxVolumeParameter = "SFXVolume";
+    
+    private void Start()
+    {
+        // Initialize with default volumes
+        SetMasterVolume(1.0f);
+        SetMusicVolume(1.0f);
+        SetSFXVolume(1.0f);
+    }
+    
+    public void SetMasterVolume(float volume)
+    {
+        // Convert 0-1 range to decibel range (-80 to 0)
+        float dbValue = volume > 0 ? Mathf.Log10(volume) * 20 : -80f;
+        audioMixer.SetFloat(masterVolumeParameter, dbValue);
+    }
+    
+    public void SetMusicVolume(float volume)
+    {
+        float dbValue = volume > 0 ? Mathf.Log10(volume) * 20 : -80f;
+        audioMixer.SetFloat(musicVolumeParameter, dbValue);
+    }
+    
+    public void SetSFXVolume(float volume)
+    {
+        float dbValue = volume > 0 ? Mathf.Log10(volume) * 20 : -80f;
+        audioMixer.SetFloat(sfxVolumeParameter, dbValue);
+    }
+}
+```
+
+### Event Handler Integration
+
+Add these methods to your ReactIncomingEvent handler:
+
+```csharp
+public class ReactIncomingEvent : MonoBehaviour
+{
+    private AudioManager audioManager;
+    
+    private void Start()
+    {
+        audioManager = FindObjectOfType<AudioManager>();
+    }
+    
+    public void HandleEvent(string eventData)
+    {
+        var eventObj = JsonUtility.FromJson<UnityEvent>(eventData);
+        var data = JsonUtility.FromJson<VolumeData>(eventObj.data);
+        
+        switch (eventObj.eventName)
+        {
+            case "SetMasterVolume":
+                audioManager?.SetMasterVolume(data.volume);
+                break;
+            case "SetMusicVolume":
+                audioManager?.SetMusicVolume(data.volume);
+                break;
+            case "SetSFXVolume":
+                audioManager?.SetSFXVolume(data.volume);
+                break;
+        }
+    }
+}
+
+[System.Serializable]
+public class VolumeData
+{
+    public float volume;
 }
 ``` 

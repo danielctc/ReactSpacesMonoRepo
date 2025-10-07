@@ -92,12 +92,15 @@ import { useUnityOnPlayVideo } from '@disruptive-spaces/shared/hooks/unityEvents
 function VideoSystem() {
   const { videoUrl } = useUnityOnPlayVideo();
   
-  // Video play events automatically tracked with:
-  // - videoId
-  // - videoUrl
-  // - videoTitle
-  // - gameObjectName
-  // - isEditMode
+  // Video events automatically tracked:
+  // 1. Unity-side: VIDEO_PLAY when video starts playing
+  // 2. React-side: VIDEO_CLICK when user opens video player modal
+  // 3. React-side: VIDEO_CLOSE when user closes video player modal
+  
+  // Data tracked includes:
+  // - videoId, videoUrl, videoTitle
+  // - gameObjectName, isEditMode
+  // - spaceId, timestamp
   
   return videoUrl ? <VideoPlayer url={videoUrl} /> : null;
 }
@@ -180,7 +183,9 @@ ANALYTICS_EVENT_TYPES.REACT = {
   MODAL_CLOSE: 'react_modal_close',
   BUTTON_CLICK: 'react_button_click',
   FORM_SUBMIT: 'react_form_submit',
-  ERROR_OCCURRED: 'react_error_occurred'
+  ERROR_OCCURRED: 'react_error_occurred',
+  VIDEO_CLICK: 'react_video_click',
+  VIDEO_CLOSE: 'react_video_close'
 };
 ```
 

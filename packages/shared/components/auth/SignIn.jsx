@@ -239,12 +239,20 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
                         }}
                     >
                         <ModalHeader p={8} textAlign="center">
-                            <Heading size="lg" mb={2}>Welcome Back</Heading>
+                            <Heading size="lg" mb={2} color="white">Welcome Back</Heading>
                             <Text fontSize="sm" color="gray.400">
                                 Enter your credentials to access your account
                             </Text>
                         </ModalHeader>
-                        <ModalCloseButton color="gray.400" />
+                        <ModalCloseButton
+                            color="white"
+                            bg="rgba(255,255,255,0.1)"
+                            _hover={{ color: "gray.400", bg: "transparent" }}
+                            borderRadius="full"
+                            size="sm"
+                            top={2}
+                            right={3}
+                        />
                         <ModalBody px={8} pb={8}>
                             <VStack spacing={4}>
                                 <FormControl isInvalid={errors.email}>
@@ -380,12 +388,20 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
                     }}
                 >
                     <ModalHeader p={8} textAlign="center">
-                        <Heading size="lg" mb={2}>Reset Password</Heading>
+                        <Heading size="lg" mb={2} color="white">Reset Password</Heading>
                         <Text fontSize="sm" color="gray.400">
                             Enter your email to receive password reset instructions
                         </Text>
                     </ModalHeader>
-                    <ModalCloseButton color="gray.400" />
+                    <ModalCloseButton
+                        color="white"
+                        bg="rgba(255,255,255,0.1)"
+                        _hover={{ color: "gray.400", bg: "transparent" }}
+                        borderRadius="full"
+                        size="sm"
+                        top={2}
+                        right={3}
+                    />
                     <ModalBody px={8} pb={4}>
                         <FormControl>
                             <InputGroup>

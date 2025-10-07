@@ -979,30 +979,37 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>
-      <ModalOverlay backdropFilter="blur(4px)" />
+      <ModalOverlay bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(8px)" />
       <ModalContent 
-        bg="rgba(23, 25, 35, 0.95)" 
+        bg="#1a1a1a"
         color="white" 
-        borderRadius="md"
-        boxShadow="0 4px 20px rgba(0, 0, 0, 0.5)"
+        borderRadius="xl"
+        border="1px solid #333"
         maxW="800px"
         maxH="90vh"
         overflow="hidden"
       >
         <ModalHeader 
-          borderBottom="1px solid" 
-          borderColor="whiteAlpha.200" 
-          py={2} 
           fontSize="md"
           fontWeight="600"
+          pb={1}
+          pt={3}
+          px={4}
+          color="white"
+          borderBottom="1px solid" 
+          borderColor="whiteAlpha.200"
         >
           Manage Space
         </ModalHeader>
         
-        <ModalCloseButton 
+        <ModalCloseButton
+          color="white"
+          bg="rgba(255,255,255,0.1)"
+          _hover={{ color: "gray.400", bg: "transparent" }}
+          borderRadius="full"
           size="sm"
-          color="whiteAlpha.700"
-          _hover={{ color: "white", bg: "whiteAlpha.100" }}
+          top={2}
+          right={3}
         />
         
         <ModalBody p={0} display="flex" overflow="hidden">
@@ -1111,11 +1118,11 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
             >
               {/* Details Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
-                <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Space Details</Text>
+                <Text fontSize="sm" fontWeight="600" mb={3} color="white">Space Details</Text>
                 
                 <VStack spacing={4} align="stretch">
                   <FormControl>
-                    <FormLabel fontSize="xs">Space Name</FormLabel>
+                    <FormLabel fontSize="xs" color="white">Space Name</FormLabel>
                     <Input
                       value={spaceName}
                       onChange={(e) => setSpaceName(e.target.value)}
@@ -1131,7 +1138,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                   </FormControl>
                   
                   <FormControl>
-                    <FormLabel fontSize="xs">Description</FormLabel>
+                    <FormLabel fontSize="xs" color="white">Description</FormLabel>
                     <Textarea
                       value={spaceDescription}
                       onChange={(e) => setSpaceDescription(e.target.value)}
@@ -1148,7 +1155,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                   </FormControl>
                   
                   <FormControl>
-                    <FormLabel fontSize="xs">Space Tags</FormLabel>
+                    <FormLabel fontSize="xs" color="white">Space Tags</FormLabel>
                     <Box 
                       p={3} 
                       bg="whiteAlpha.50"
@@ -1186,7 +1193,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
               
               {/* Logo Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
-                <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Space Logo</Text>
+                <Text fontSize="sm" fontWeight="600" mb={3} color="white">Space Logo</Text>
                 <Text fontSize="xs" mb={4}>Upload a logo for your space. This will be displayed during loading.</Text>
                 
                 {/* Display current logo and preview side by side when both exist */}
@@ -1250,7 +1257,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                 
                 {/* Logo upload form */}
                 <FormControl>
-                  <FormLabel fontSize="xs">Upload New Logo</FormLabel>
+                  <FormLabel fontSize="xs" color="white">Upload New Logo</FormLabel>
                   <Input
                     type="file"
                     accept="image/*"
@@ -1300,7 +1307,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
               
               {/* Background Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
-                <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Background</Text>
+                <Text fontSize="sm" fontWeight="600" mb={3} color="white">Background</Text>
                 <Text fontSize="xs" mb={4}>Upload a background for your space. This will be displayed during loading.</Text>
                 
                 <Tabs variant="enclosed" colorScheme="blue" size="md" mb={4} borderColor="blue.300">
@@ -1389,7 +1396,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                       
                       {/* Background upload form */}
                       <FormControl>
-                        <FormLabel fontSize="xs">Upload New Background Image</FormLabel>
+                        <FormLabel fontSize="xs" color="white">Upload New Background Image</FormLabel>
                         <Input
                           type="file"
                           accept="image/*"
@@ -1510,7 +1517,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                       
                       {/* Video upload form */}
                       <FormControl>
-                        <FormLabel fontSize="xs">Upload New Video Background</FormLabel>
+                        <FormLabel fontSize="xs" color="white">Upload New Video Background</FormLabel>
                         <Input
                           type="file"
                           accept="video/*"
@@ -1563,7 +1570,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
               
               {/* Settings Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
-                <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Space Settings</Text>
+                <Text fontSize="sm" fontWeight="600" mb={3} color="white">Space Settings</Text>
                 <Text fontSize="xs" mb={4}>Configure settings for your space.</Text>
                 
                 <VStack spacing={4} align="stretch">
@@ -1632,7 +1639,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                             ? "This space is accessible to all users in the 'users' group." 
                             : "This space is only accessible to specific users."}
                         </Text>
-                        <Text fontSize="xs" color="blue.300" mt={1}>
+                        <Text fontSize="xs" color="whiteAlpha.700" mt={1}>
                           Note: Space owners and hosts will always have access regardless of this setting.
                         </Text>
                       </Box>
@@ -1670,7 +1677,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
               
               {/* Users Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
-                <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Manage Users</Text>
+                <Text fontSize="sm" fontWeight="600" mb={3} color="white">Manage Users</Text>
                 <Text fontSize="xs" mb={4}>View and manage the owners and hosts of this space.</Text>
                 
                 {isLoadingUsers ? (
@@ -1836,7 +1843,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
 
               {/* Streaming Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
-                <Text fontSize="sm" fontWeight="600" mb={3} color="blue.300">Stream Settings</Text>
+                <Text fontSize="sm" fontWeight="600" mb={3} color="white">Stream Settings</Text>
                 
                 <VStack spacing={4} align="stretch">
                   {/* Streaming Toggle */}
@@ -1950,7 +1957,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                     
                     {/* HLS Player URL */}
                     <FormControl mb={4}>
-                      <FormLabel fontSize="xs">Stream URL</FormLabel>
+                      <FormLabel fontSize="xs" color="white">Stream URL</FormLabel>
                       <Input
                         value={hlsStreamUrl}
                         onChange={(e) => setHlsStreamUrl(e.target.value)}
@@ -1971,7 +1978,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                     
                     {/* RTMP URL */}
                     <FormControl mb={3}>
-                      <FormLabel fontSize="xs">RTMP URL</FormLabel>
+                      <FormLabel fontSize="xs" color="white">RTMP URL</FormLabel>
                       <Input
                         value={rtmpUrl}
                         onChange={(e) => setRtmpUrl(e.target.value)}
@@ -1988,7 +1995,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                     
                     {/* Stream Key */}
                     <FormControl mb={3}>
-                      <FormLabel fontSize="xs">Stream Key</FormLabel>
+                      <FormLabel fontSize="xs" color="white">Stream Key</FormLabel>
                       <Input
                         value={streamKey}
                         onChange={(e) => setStreamKey(e.target.value)}

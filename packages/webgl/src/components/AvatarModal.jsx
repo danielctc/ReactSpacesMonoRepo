@@ -79,17 +79,19 @@ function AvatarModal({ isOpen, onClose }) {
                     size="xl"
                     zIndex={9999}
                 >
-                    <ModalOverlay bg="rgba(0, 0, 0, 0.7)" />
-                    <ModalContent bg="gray.800" color="white" maxW="900px">
-                        <ModalHeader fontSize="lg">Customise Your Avatar</ModalHeader>
-                        <ModalCloseButton 
+                    <ModalOverlay bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(8px)" />
+                    <ModalContent bg="#1a1a1a" color="white" borderRadius="xl" border="1px solid #333" maxW="900px">
+                        <ModalHeader fontSize="md" fontWeight="600" pb={1} pt={3} px={4} color="white">
+                            Customise Your Avatar
+                        </ModalHeader>
+                        <ModalCloseButton
                             color="white"
-                            _hover={{ bg: 'transparent', color: 'whiteAlpha.800' }}
-                            _focus={{ boxShadow: 'none' }}
-                            size="lg"
-                            position="absolute"
-                            right={2}
+                            bg="rgba(255,255,255,0.1)"
+                            _hover={{ color: "gray.400", bg: "transparent" }}
+                            borderRadius="full"
+                            size="sm"
                             top={2}
+                            right={3}
                         />
                         <ModalBody pb={4}>
                             <VStack spacing={4} align="stretch">

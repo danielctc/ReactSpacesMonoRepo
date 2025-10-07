@@ -613,10 +613,20 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
             blockScrollOnMount={false}
             size="md"
         >
-            <ModalOverlay backdropFilter="blur(10px)" />
-            <ModalContent bg="gray.800" color="white">
-                <ModalHeader>Profile</ModalHeader>
-                <ModalCloseButton />
+            <ModalOverlay bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(8px)" />
+            <ModalContent bg="#1a1a1a" color="white" borderRadius="xl" border="1px solid #333">
+                <ModalHeader fontSize="md" fontWeight="600" pb={1} pt={3} px={4} color="white">
+                    Profile
+                </ModalHeader>
+                <ModalCloseButton
+                    color="white"
+                    bg="rgba(255,255,255,0.1)"
+                    _hover={{ color: "gray.400", bg: "transparent" }}
+                    borderRadius="full"
+                    size="sm"
+                    top={2}
+                    right={3}
+                />
                 <ModalBody pb={6}>
                     <VStack spacing={6}>
                         <Avatar

@@ -24,6 +24,7 @@ export const useAnalytics = (spaceId, options = {}) => {
   const spaceEntryTrackedRef = useRef(false); // Track if space entry has been recorded for this session
   const spaceExitTrackedRef = useRef(false); // Track if space exit has been recorded for this session
   const isInitializingRef = useRef(false); // Prevent multiple simultaneous initializations
+  const isEndingSessionRef = useRef(false); // Prevent multiple simultaneous session endings
   
   const {
     autoStart = true,
@@ -39,23 +40,32 @@ export const useAnalytics = (spaceId, options = {}) => {
     
     // Cleanup on unmount
     return () => {
-      if (sessionIdRef.current) {
+      if (sessionIdRef.current && !isEndingSessionRef.current) {
+        if (enableDebugLogs) {
+          Logger.log('Component unmounting, ending analytics session');
+        }
         endSession();
       }
     };
-  }, [user, spaceId, autoStart]);
+  }, [user, spaceId, autoStart, enableDebugLogs]);
 
   // Handle page visibility changes to end session when user leaves
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.hidden && sessionIdRef.current) {
+      if (document.hidden && sessionIdRef.current && !isEndingSessionRef.current) {
         // User switched away from the page
+        if (enableDebugLogs) {
+          Logger.log('Page hidden, ending analytics session');
+        }
         endSession();
       }
     };
 
     const handleBeforeUnload = () => {
-      if (sessionIdRef.current) {
+      if (sessionIdRef.current && !isEndingSessionRef.current) {
+        if (enableDebugLogs) {
+          Logger.log('Page unloading, ending analytics session');
+        }
         endSession();
       }
     };
@@ -67,7 +77,7 @@ export const useAnalytics = (spaceId, options = {}) => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, []);
+  }, [enableDebugLogs]);
 
   /**
    * Initialize a new analytics session
@@ -130,11 +140,36 @@ export const useAnalytics = (spaceId, options = {}) => {
    * End the current analytics session
    */
   const endSession = useCallback(async () => {
+    if (enableDebugLogs) {
+      Logger.log('endSession called with:', {
+        sessionId: sessionIdRef.current,
+        spaceId: spaceId,
+        sessionIdType: typeof sessionIdRef.current,
+        spaceIdType: typeof spaceId
+      });
+    }
+    
     if (!sessionIdRef.current || !spaceId) {
+      if (enableDebugLogs) {
+        Logger.log('endSession: Missing required parameters, skipping', {
+          sessionId: sessionIdRef.current,
+          spaceId: spaceId
+        });
+      }
+      return;
+    }
+    
+    // Prevent multiple simultaneous calls to endSession
+    if (isEndingSessionRef.current) {
+      if (enableDebugLogs) {
+        Logger.log('endSession: Already ending session, skipping duplicate call');
+      }
       return;
     }
 
     try {
+      isEndingSessionRef.current = true;
+      
       // Track space exit event only once per session
       if (!spaceExitTrackedRef.current) {
         await trackAnalyticsEvent(spaceId, sessionIdRef.current, ANALYTICS_EVENT_TYPES.REACT.SPACE_EXIT, {
@@ -155,11 +190,16 @@ export const useAnalytics = (spaceId, options = {}) => {
         }
       }
       
-      // End the session
-      await endAnalyticsSession(spaceId, sessionIdRef.current);
+      // Store sessionId for logging before clearing it
+      const sessionIdToEnd = sessionIdRef.current;
       
-      if (enableDebugLogs) {
-        Logger.log(`Analytics session ended: ${sessionIdRef.current}`);
+      // End the session
+      if (sessionIdToEnd && spaceId) {
+        await endAnalyticsSession(spaceId, sessionIdToEnd);
+        
+        if (enableDebugLogs) {
+          Logger.log(`Analytics session ended: ${sessionIdToEnd}`);
+        }
       }
       
       sessionIdRef.current = null;
@@ -171,8 +211,10 @@ export const useAnalytics = (spaceId, options = {}) => {
       spaceExitTrackedRef.current = false;
     } catch (error) {
       Logger.error('Failed to end analytics session:', error);
+    } finally {
+      isEndingSessionRef.current = false;
     }
-  }, [spaceId, user?.uid, enableDebugLogs]);
+  }, [spaceId, user?.uid, enableDebugLogs, trackAnalyticsEvent, endAnalyticsSession]);
 
   /**
    * Track a custom event

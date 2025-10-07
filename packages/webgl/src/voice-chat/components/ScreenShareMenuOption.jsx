@@ -159,10 +159,10 @@ const ScreenShareMenuOption = ({ onClose }) => {
   
   return (
     <Text 
-      fontSize="md" 
+      fontSize="sm" 
       cursor="pointer" 
       _hover={{ bg: "whiteAlpha.200" }} 
-      p={2} 
+      p={1.5} 
       borderRadius="md"
       onClick={handleScreenShare}
       color={isScreenSharing ? "red.300" : "white"}

@@ -66,16 +66,20 @@ function PortalHandler() {
 }
 ```
 
-### 3. Video Play Analytics (Auto-Tracking)
+### 3. Video Analytics (Auto-Tracking)
 ```javascript
 import { useUnityOnPlayVideo } from '@disruptive-spaces/shared/hooks/unityEvents/useUnityOnPlayVideo';
 
 function VideoHandler() {
   const { videoUrl } = useUnityOnPlayVideo();
   
-  // Video plays automatically tracked with:
-  // - videoId, videoUrl, videoTitle
-  // - gameObjectName, isEditMode, timestamp
+  // Video events automatically tracked:
+  // 1. VIDEO_CLICK - when user clicks to open video player
+  // 2. VIDEO_PLAY - when video starts playing (Unity-side)
+  // 3. VIDEO_CLOSE - when user closes video player
+  
+  // Data tracked: videoId, videoUrl, videoTitle,
+  // gameObjectName, isEditMode, spaceId, timestamp
   
   return videoUrl ? <VideoPlayer url={videoUrl} /> : null;
 }
@@ -114,7 +118,7 @@ function AnalyticsDashboard() {
 
 ### ✅ Auto-Tracked Events
 - ✅ Portal clicks and navigation
-- ✅ Video play events
+- ✅ Video play events + video click/close events
 - ✅ Space enter/exit (session management)
 - ✅ Nameplate clicks
 - ✅ Media screen interactions

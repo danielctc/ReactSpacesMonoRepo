@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useContext } from "react";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import {
   Modal,
@@ -12,6 +12,10 @@ import {
 } from "@chakra-ui/react";
 import { useUnityOnPlayVideo } from "../hooks/unityEvents";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { useUnity } from '../providers/UnityProvider';
+import { useAnalytics } from '@disruptive-spaces/shared/hooks/useAnalytics';
+import { ANALYTICS_EVENT_TYPES, ANALYTICS_CATEGORIES } from '@disruptive-spaces/shared/firebase/analyticsFirestore';
+import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 
 const iframeStyles = {
   iframeContainer: {
@@ -35,17 +39,53 @@ function VideoPlayer() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { fullscreenRef } = useFullscreenContext();
   const [currentVideoUrl, resetVideoUrl] = useUnityOnPlayVideo(false); // Ensure edit mode is off for play
+  const { user } = useContext(UserContext);
+  const { spaceID } = useUnity();
+  
+  // Analytics tracking
+  const { trackReactEvent, isReady } = useAnalytics(spaceID, {
+    enableDebugLogs: true
+  });
 
   useEffect(() => {
     Logger.log("VideoPlayer: Current video URL:", currentVideoUrl);
     if (currentVideoUrl) {
       Logger.log("VideoPlayer: Opening modal for video URL:", currentVideoUrl);
       onOpen();
+      
+      // Track video click event when modal opens
+      if (isReady && user) {
+        trackReactEvent(ANALYTICS_EVENT_TYPES.REACT.VIDEO_CLICK, {
+          category: ANALYTICS_CATEGORIES.MEDIA_INTERACTION,
+          action: 'video_player_open',
+          videoUrl: currentVideoUrl,
+          context: 'video_player_modal',
+          spaceId: spaceID,
+          timestamp: new Date().toISOString()
+        });
+        
+        Logger.log("🎯 Analytics: Video click event tracked for modal open:", currentVideoUrl);
+      }
     }
-  }, [currentVideoUrl, onOpen]);
+  }, [currentVideoUrl, onOpen, trackReactEvent, isReady, user, spaceID]);
 
   const handleClose = () => {
     Logger.log("VideoPlayer: Closing modal");
+    
+    // Track video close event
+    if (isReady && user && currentVideoUrl) {
+      trackReactEvent(ANALYTICS_EVENT_TYPES.REACT.VIDEO_CLOSE, {
+        category: ANALYTICS_CATEGORIES.MEDIA_INTERACTION,
+        action: 'video_player_close',
+        videoUrl: currentVideoUrl,
+        context: 'video_player_modal',
+        spaceId: spaceID,
+        timestamp: new Date().toISOString()
+      });
+      
+      Logger.log("🎯 Analytics: Video close event tracked for modal close:", currentVideoUrl);
+    }
+    
     resetVideoUrl();
     onClose();
   };
