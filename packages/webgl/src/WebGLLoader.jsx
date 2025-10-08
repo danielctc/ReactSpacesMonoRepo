@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import PropTypes from 'prop-types';
 import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
+import { Box } from "@chakra-ui/react";
+import SignIn from '@disruptive-spaces/shared/components/auth/SignIn';
 
 import { UnityProvider } from "./providers/UnityProvider";
 
@@ -213,6 +215,7 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
     const [isLoading, setIsLoading] = useState(true); // Initial loading state set to true
     const { loading: userLoading, isUserBannedFromSpace, user } = useContext(UserContext);
     const [banned, setBanned] = useState(false);
+    const [requiresAuth, setRequiresAuth] = useState(false);
 
     // Setup Unity configuration
     const [unityConfig, setUnityConfig] = useState({
@@ -244,6 +247,23 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
 
                 if (itemData) {
                     console.log("Space data: ", itemData);
+                    console.log("WebGLLoader: Current user state:", user ? "authenticated" : "not authenticated");
+                    console.log("WebGLLoader: allowGuestUsers setting:", itemData.allowGuestUsers);
+
+                    // STRICT: Check if authentication is required
+                    if (!user && (!itemData.allowGuestUsers || itemData.allowGuestUsers !== true)) {
+                        console.log("WebGLLoader: ❌ AUTHENTICATION REQUIRED - guest users not allowed");
+                        console.log("WebGLLoader: ❌ BLOCKING UNITY INITIALIZATION");
+                        setRequiresAuth(true);
+                        setIsLoading(false);
+                        return; // Don't load Unity if auth is required
+                    } else if (!user && itemData.allowGuestUsers === true) {
+                        console.log("WebGLLoader: ✅ Guest users allowed, proceeding with Unity load");
+                        setRequiresAuth(false);
+                    } else if (user) {
+                        console.log("WebGLLoader: ✅ User authenticated, proceeding with Unity load");
+                        setRequiresAuth(false);
+                    }
 
                     // Update unityConfig with relevant fetched data
                     setUnityConfig(prevConfig => ({
@@ -321,7 +341,7 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
         };
 
         fetchData();
-    }, [spaceID, spaceSettings.urlDisruptiveLogo, overrideSettings]);
+    }, [spaceID, spaceSettings.urlDisruptiveLogo, overrideSettings, user]); // Add user dependency
 
     useEffect(() => {
         const checkBan = async () => {
@@ -353,6 +373,33 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
         return <div className="flex justify-center items-center h-full mt-12 text-red-500">Access Denied: You have been banned from this space.</div>;
     }
 
+    if (requiresAuth) {
+        return (
+            <Box 
+                position="absolute" 
+                top="0" 
+                left="0" 
+                width="100%" 
+                height="100%" 
+                display="flex" 
+                justifyContent="center" 
+                alignItems="center"
+                backgroundColor="rgba(0, 0, 0, 0.8)"
+                zIndex="1000"
+            >
+                <SignIn 
+                    mode="button" 
+                    label="Sign In Required" 
+                    initialIsOpen={true}
+                    buttonProps={{ 
+                        size: "lg", 
+                        colorScheme: "blue"
+                    }} 
+                />
+            </Box>
+        );
+    }
+
     if (!spaceID) {
         return null;
     }
@@ -362,7 +409,7 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
             {isLoading ? (
                 <div className="flex justify-center items-center h-full mt-12">Getting space data...</div> // Show loading indicator while fetching data
             ) : (
-                // Render UnityProvider only after data has been fetched
+                // Render UnityProvider only after data has been fetched AND authentication is verified
                 <UnityProvider {...unityConfig}>
                     <WebGLRenderer ref={fullscreenRef} settings={spaceSettings} />
                 </UnityProvider>

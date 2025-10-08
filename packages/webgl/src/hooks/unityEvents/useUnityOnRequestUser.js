@@ -8,9 +8,9 @@ export const useUnityOnRequestUser = () => {
     const { sendUserToUnity } = useContext(UserContext);
 
     useEffect(() => {
-        const handleRequestUserFromUnity = () => {
+        const handleRequestUserFromUnity = async () => {
             Logger.log("React: Request from Unity to send user data");
-            sendUserToUnity(); // Send user data to Unity when requested
+            await sendUserToUnity(); // Send user data to Unity when requested (now async)
         };
 
         // Register listener for the "RequestUserForUnity" event

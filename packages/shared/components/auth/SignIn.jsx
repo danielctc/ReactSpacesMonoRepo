@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { useForm } from "react-hook-form";
 import Register from "./Register";
 import { useUnityInputManager } from '@disruptive-spaces/webgl/src/hooks/useUnityInputManager';
@@ -40,7 +41,7 @@ import { EmailIcon, LockIcon } from "@chakra-ui/icons";
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Le4oQUrAAAAAHe0GMH5Z0tpuqTV2qqDzK9Yk4Uv";
 
 function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialIsOpen = false }) {
-    const { signIn } = useContext(UserContext);
+    const { signIn, createGuestUser } = useContext(UserContext);
     const { fullscreenRef } = useFullscreenContext();
     const toast = useToast();
     const { register, handleSubmit, formState: { errors } } = useForm();
@@ -51,9 +52,34 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
     const [resetEmail, setResetEmail] = useState('');
     const [isResetting, setIsResetting] = useState(false);
     const [captchaToken, setCaptchaToken] = useState(null);
+    const [allowGuestUsers, setAllowGuestUsers] = useState(false);
+    const [isCreatingGuest, setIsCreatingGuest] = useState(false);
     const recaptchaRef = useRef(null);
 
     useUnityInputManager(isOpen || showResetPassword);
+    
+    // Check if guest users are allowed for current space
+    useEffect(() => {
+        const checkGuestAccess = async () => {
+            try {
+                // Get current space ID from URL
+                const path = window.location.pathname;
+                const spaceSlugMatch = path.match(/\/(w|embed)\/([^\/]+)/);
+                if (spaceSlugMatch) {
+                    const spaceId = spaceSlugMatch[2];
+                    const spaceData = await getSpaceItem(spaceId);
+                    setAllowGuestUsers(spaceData?.allowGuestUsers || false);
+                }
+            } catch (error) {
+                Logger.error('SignIn: Error checking guest access:', error);
+                setAllowGuestUsers(false);
+            }
+        };
+
+        if (isOpen) {
+            checkGuestAccess();
+        }
+    }, [isOpen]);
     
     // Listen for custom event to open the SignIn modal
     useEffect(() => {
@@ -182,6 +208,48 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
 
     const handleShowResetPassword = () => {
         setShowResetPassword(true);
+    };
+
+    const handleContinueAsGuest = async () => {
+        try {
+            setIsCreatingGuest(true);
+            
+            // Get current space ID from URL
+            const path = window.location.pathname;
+            const spaceSlugMatch = path.match(/\/(w|embed)\/([^\/]+)/);
+            if (spaceSlugMatch) {
+                const spaceId = spaceSlugMatch[2];
+                await createGuestUser(spaceId);
+                
+                toast({
+                    title: "Welcome, Guest!",
+                    description: "You're now entering as a guest user.",
+                    status: "success",
+                    duration: 3000,
+                    isClosable: true,
+                    position: "top",
+                    container: fullscreenRef.current
+                });
+                
+                setIsOpen(false);
+                
+                // Refresh the page to reload Unity with guest user
+                window.location.reload();
+            }
+        } catch (error) {
+            Logger.error('SignIn: Error creating guest user:', error);
+            toast({
+                title: "Error",
+                description: "Failed to create guest user. Please try again.",
+                status: "error",
+                duration: 5000,
+                isClosable: true,
+                position: "top",
+                container: fullscreenRef.current
+            });
+        } finally {
+            setIsCreatingGuest(false);
+        }
     };
 
     const signInTrigger = mode === 'link' ? (
@@ -339,6 +407,22 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
                             >
                                 Sign In
                             </Button>
+                            
+                            {allowGuestUsers && (
+                                <Button
+                                    colorScheme="gray"
+                                    variant="outline"
+                                    size="lg"
+                                    width="100%"
+                                    onClick={handleContinueAsGuest}
+                                    isLoading={isCreatingGuest}
+                                    loadingText="Creating Guest Account..."
+                                    _hover={{ bg: "gray.700" }}
+                                >
+                                    Continue as Guest
+                                </Button>
+                            )}
+                            
                             <Text fontSize="sm" color="gray.400" textAlign="center">
                                 Don't have an account?{" "}
                                 <Link color="blue.400" onClick={handleShowRegister}>

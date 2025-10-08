@@ -4,10 +4,11 @@ import { useUnity } from "../../providers/UnityProvider";
 import SignIn from "@disruptive-spaces/shared/components/auth/SignIn";
 import { useContext } from "react";
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
+import { getSpaceItem } from "@disruptive-spaces/shared/firebase/spacesFirestore";
 import { useListenForUnityEvent } from "../../hooks/unityEvents/core/useListenForUnityEvent";
 
 function LoaderProgress() {
-  const { loadingProgression, isLoaded, error } = useUnity();
+  const { loadingProgression, isLoaded, error, spaceID } = useUnity();
   const { user } = useContext(UserContext);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
@@ -24,14 +25,31 @@ function LoaderProgress() {
   const canvasCheckIntervalRef = useRef(null);
   const debugIntervalRef = useRef(null);
 
-  // Check if user needs to sign in
+  // Check if user needs to sign in (respecting guest access)
   useEffect(() => {
-    if (!user && loadingProgression === 0) {
-      setShowSignInPrompt(true);
-    } else {
-      setShowSignInPrompt(false);
-    }
-  }, [user, loadingProgression]);
+    const checkSignInRequirement = async () => {
+      if (!user && loadingProgression === 0) {
+        try {
+          const spaceData = await getSpaceItem(spaceID);
+          if (spaceData && spaceData.allowGuestUsers === true) {
+            console.log("LoaderProgress: Guest users confirmed allowed, not showing sign-in prompt");
+            setShowSignInPrompt(false);
+          } else {
+            console.log("LoaderProgress: Guest users not allowed or space data invalid, showing sign-in prompt");
+            setShowSignInPrompt(true);
+          }
+        } catch (error) {
+          console.error("LoaderProgress: Cannot verify space guest access, showing sign-in prompt for security:", error);
+          // STRICT: Default to showing sign-in prompt if we can't verify space settings
+          setShowSignInPrompt(true);
+        }
+      } else {
+        setShowSignInPrompt(false);
+      }
+    };
+
+    checkSignInRequirement();
+  }, [user, loadingProgression, spaceID]);
 
   // Create and inject CSS styles
   useEffect(() => {

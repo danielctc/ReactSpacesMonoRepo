@@ -40,4 +40,9 @@ export const userProperties = [
     
     // User groups for permissions
     "groups",
+    
+    // Guest user fields
+    "isGuest",
+    "guestSpaceId",
+    "guestSessionStart",
 ];

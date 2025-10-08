@@ -69,12 +69,36 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
   const [isDisruptiveAdmin, setIsDisruptiveAdmin] = useState(false); // New state for disruptiveAdmin check
   const toast = useToast();
   
-  const { user } = useContext(UserContext);
-  const userNickname = user?.Nickname || "Unknown";
+  const { user, currentUser, isGuestUser } = useContext(UserContext);
+  
+  // Get display name based on user type
+  const getDisplayName = () => {
+    if (user?.Nickname) {
+      return user.Nickname;
+    }
+    if (currentUser && isGuestUser(currentUser)) {
+      return currentUser.username || currentUser.Nickname || "Guest User";
+    }
+    return "Unknown";
+  };
+  
+  const userNickname = getDisplayName();
   const [voiceDisabled, setVoiceDisabled] = useState(false);
+
+  // Helper function to get initials for guest users
+  const getGuestInitials = (username) => {
+    if (!username) return "G";
+    // For "Visitor_1234" format, return "V1"
+    if (username.startsWith("Visitor_")) {
+      const number = username.split("_")[1];
+      return `V${number ? number.charAt(0) : ""}`;
+    }
+    return username.charAt(0).toUpperCase();
+  };
 
   // Fetch Firebase profile data for the avatar and check permissions
   const fetchProfileData = async () => {
+    // Handle authenticated users
     if (user?.uid && spaceID) {
       try {
         const userProfile = await getUserProfileData(user.uid);
@@ -99,7 +123,8 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
         setProfileData({
           rpmURL: userProfile.rpmURL ? 
             userProfile.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75") 
-            : null
+            : null,
+          isGuest: false
         });
         
         // If user is a disruptiveAdmin, they can edit regardless of other permissions
@@ -130,7 +155,33 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
         setIsSpaceHost(false);
         setIsDisruptiveAdmin(false);
       }
-    } else {
+    }
+    // Handle guest users
+    else if (currentUser && isGuestUser(currentUser)) {
+      setProfileData({
+        rpmURL: currentUser.rpmURL ? 
+          currentUser.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75") 
+          : null,
+        isGuest: true
+      });
+      
+      // Guests have no permissions
+      setCanEditSpace(false);
+      setIsSpaceHost(false);
+      setIsDisruptiveAdmin(false);
+      
+      // If edit mode is enabled, disable it for guests
+      if (editModeEnabled) {
+        setEditModeEnabled(false);
+        const editModeEvent = new CustomEvent('editModeChanged', { 
+          detail: { enabled: false } 
+        });
+        window.dispatchEvent(editModeEvent);
+      }
+    }
+    // No user at all
+    else {
+      setProfileData(null);
       setCanEditSpace(false);
       setIsSpaceHost(false);
       setIsDisruptiveAdmin(false);
@@ -140,7 +191,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
   // Initial fetch and refresh when user or spaceID changes
   useEffect(() => {
     fetchProfileData();
-  }, [user?.uid, spaceID, editModeEnabled]);
+  }, [user?.uid, currentUser?.uid, currentUser?.rpmURL, spaceID, editModeEnabled]);
 
   // Still listen for player instantiation, but don't block functionality
   useEffect(() => {
@@ -302,7 +353,10 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
                   size="sm"
                   src={profileData?.rpmURL}
                   bg="white"
-                  name=" "
+                  name={profileData?.isGuest ? 
+                    getGuestInitials(currentUser?.username || currentUser?.Nickname) : 
+                    " "
+                  }
                   borderWidth="1px"
                   borderColor="whiteAlpha.300"
                 />

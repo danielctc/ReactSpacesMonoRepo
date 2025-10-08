@@ -4,9 +4,10 @@ import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFires
 
 export const useAvatarUpdate = () => {
   const [profileData, setProfileData] = useState(null);
-  const { user } = useContext(UserContext);
+  const { user, currentUser, isGuestUser } = useContext(UserContext);
 
   const fetchProfileData = async () => {
+    // Handle authenticated users
     if (user?.uid) {
       try {
         const userProfile = await getUserProfileData(user.uid);
@@ -19,11 +20,19 @@ export const useAvatarUpdate = () => {
         // Silent fail - no logging
       }
     }
+    // Handle guest users
+    else if (currentUser && isGuestUser(currentUser)) {
+      if (currentUser.rpmURL) {
+        setProfileData({
+          rpmURL: currentUser.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75")
+        });
+      }
+    }
   };
 
   useEffect(() => {
     fetchProfileData();
-  }, [user?.uid]);
+  }, [user?.uid, currentUser?.uid, currentUser?.rpmURL]);
 
   return [profileData?.rpmURL, fetchProfileData];
 }; 

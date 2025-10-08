@@ -40,51 +40,51 @@ service cloud.firestore {
     match /spaces/{spaceId} {
       // Allow public read access to spaces explicitly marked as public,
       // or allow authenticated users based on additional access rules
-      allow read: if true
+      allow read: if true;
       // Allow write access only to the space owner or an admin
       allow write: if isSpaceOwner(spaceId) || isDisruptiveAdmin();
       
       // Allow access to portals within spaces
       match /portals/{portalId} {
-        // Allow any authenticated user to read portals
-        allow read: if request.auth != null;
+        // Allow public read access for guest users and authenticated users
+        allow read: if true;
         // Allow write access only to space owners or admins
         allow write: if isSpaceOwner(spaceId) || isDisruptiveAdmin();
       }
       
       // Allow access to media screens within spaces
       match /mediaScreens/{screenId} {
-        // Allow public read access only for public spaces
-        allow read: if isSpacePublic(spaceId) || request.auth != null;
+        // Allow public read access for guest users and authenticated users
+        allow read: if true;
         allow write: if isSpaceOwnerOrHost(spaceId) || isDisruptiveAdmin();
       }
       
       // Allow access to media screen images
       match /mediaScreenImages/{imageId} {
-        // Allow public read access only for public spaces
-        allow read: if isSpacePublic(spaceId) || request.auth != null;
+        // Allow public read access for guest users and authenticated users
+        allow read: if true;
         allow write: if isSpaceOwnerOrHost(spaceId) || isDisruptiveAdmin();
       }
       
       // Allow access to media screen thumbnails
       match /mediaScreenThumbnails/{thumbnailId} {
-        // Allow public read access only for public spaces
-        allow read: if isSpacePublic(spaceId) || request.auth != null;
+        // Allow public read access for guest users and authenticated users
+        allow read: if true;
         allow write: if isSpaceOwnerOrHost(spaceId) || isDisruptiveAdmin();
       }
       
       // Allow access to space objects
       match /objects/{objectId} {
-        // Allow any authenticated user to read objects
-        allow read: if request.auth != null;
+        // Allow public read access for guest users and authenticated users
+        allow read: if true;
         // Allow write access only to space owners, hosts, or admins
         allow write: if isSpaceOwnerOrHost(spaceId) || isDisruptiveAdmin();
       }
       
       // Allow access to catalogue items within spaces
       match /catalogue/{itemId} {
-        // Allow any authenticated user to read catalogue items
-        allow read: if request.auth != null;
+        // Allow public read access for guest users and authenticated users
+        allow read: if true;
         // Allow write access only to space owners or admins
         allow write: if isSpaceOwner(spaceId) || isDisruptiveAdmin();
       }
@@ -121,9 +121,9 @@ service cloud.firestore {
       allow write: if isDisruptiveAdmin();
     }
     
-    // Allow all authenticated users to read WebGL builds, and public access for builds used in public spaces
+    // Allow public read access to WebGL builds for guest users and authenticated users
     match /webglBuilds/{buildId} {
-      allow read: if isWebGLBuildPublic(buildId) || request.auth != null;
+      allow read: if true;
       allow write: if isDisruptiveAdmin();
     }
     
@@ -141,19 +141,19 @@ service cloud.firestore {
     
     // Allow access to media screens collection at root level
     match /mediaScreens/{screenId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if isDisruptiveAdmin();
     }
     
     // Allow access to media screen images collection at root level
     match /mediaScreenImages/{imageId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if isDisruptiveAdmin();
     }
     
     // Allow access to media screen thumbnails collection at root level
     match /mediaScreenThumbnails/{thumbnailId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if isDisruptiveAdmin();
     }
     

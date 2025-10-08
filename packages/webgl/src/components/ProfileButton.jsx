@@ -11,7 +11,7 @@ function ProfileButton() {
   const [openModal, setOpenModal] = useState(false);
   const [isAvatarHovered, setIsAvatarHovered] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(false);
-  const { user } = useContext(UserContext);
+  const { user, currentUser, isGuestUser } = useContext(UserContext);
   const [profileData, setProfileData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -20,9 +20,21 @@ function ProfileButton() {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
+  const getGuestInitials = (username) => {
+    if (!username) return "G";
+    // For "Visitor_1234" format, return "V1"
+    if (username.startsWith("Visitor_")) {
+      const number = username.split("_")[1];
+      return `V${number ? number.charAt(0) : ""}`;
+    }
+    return username.charAt(0).toUpperCase();
+  };
+
   const fetchProfileData = async () => {
+    setIsLoading(true);
+    
+    // Handle authenticated users
     if (user?.uid) {
-      setIsLoading(true);
       try {
         const userProfile = await getUserProfileData(user.uid);
         setProfileData({
@@ -30,20 +42,33 @@ function ProfileButton() {
             userProfile.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75") 
             : null,
           firstName: userProfile.firstName,
-          lastName: userProfile.lastName
+          lastName: userProfile.lastName,
+          isGuest: false
         });
       } catch (error) {
         console.error('Error fetching profile data:', error);
-      } finally {
-        setIsLoading(false);
       }
     }
+    // Handle guest users
+    else if (currentUser && isGuestUser(currentUser)) {
+      setProfileData({
+        rpmURL: currentUser.rpmURL ? 
+          currentUser.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75") 
+          : null,
+        firstName: "Guest",
+        lastName: "User",
+        username: currentUser.username || currentUser.Nickname,
+        isGuest: true
+      });
+    }
+    
+    setIsLoading(false);
   };
 
   // Initial fetch
   useEffect(() => {
     fetchProfileData();
-  }, [user?.uid]);
+  }, [user?.uid, currentUser?.uid, currentUser?.rpmURL]);
 
   useEffect(() => {
     const handlePlayerInstantiated = () => {
@@ -70,7 +95,7 @@ function ProfileButton() {
   return (
     <>
       <Tooltip
-        label="Edit Avatar"
+        label={profileData?.isGuest ? "Guest Avatar" : "Edit Avatar"}
         hasArrow
         placement="top"
         closeOnClick
@@ -87,19 +112,24 @@ function ProfileButton() {
             setIsAvatarHovered(false);
             setTooltipVisible(false);
           }}
-          cursor="pointer"
-          onClick={handleModalToggle}
+          cursor={profileData?.isGuest ? "default" : "pointer"}
+          onClick={profileData?.isGuest ? undefined : handleModalToggle}
         >
           <Avatar 
             src={!isLoading ? profileData?.rpmURL : undefined}
             size="md"
             borderRadius="full"
             bg="white"
-            name={isLoading ? getInitials(profileData?.firstName, profileData?.lastName) : " "}
+            name={!isLoading && profileData ? 
+              (profileData.isGuest ? 
+                getGuestInitials(profileData.username) : 
+                getInitials(profileData.firstName, profileData.lastName)
+              ) : " "
+            }
             borderWidth="1px"
             borderColor="whiteAlpha.300"
           />
-          {isAvatarHovered && (
+          {isAvatarHovered && !profileData?.isGuest && (
             <Box
               position="absolute"
               top="0"

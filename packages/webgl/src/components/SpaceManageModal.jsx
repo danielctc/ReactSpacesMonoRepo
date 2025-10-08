@@ -101,6 +101,8 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   // Settings state
   const [voiceDisabled, setVoiceDisabled] = useState(false);
   const [accessibleToAllUsers, setAccessibleToAllUsers] = useState(true);
+  const [allowGuestUsers, setAllowGuestUsers] = useState(false);
+  const [hideGuestSignInButton, setHideGuestSignInButton] = useState(false);
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   
   // Add streaming state variables
@@ -147,6 +149,14 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       
       if (spaceData.accessibleToAllUsers !== undefined) {
         setAccessibleToAllUsers(spaceData.accessibleToAllUsers);
+      }
+      
+      if (spaceData.allowGuestUsers !== undefined) {
+        setAllowGuestUsers(spaceData.allowGuestUsers);
+      }
+      
+      if (spaceData.hideGuestSignInButton !== undefined) {
+        setHideGuestSignInButton(spaceData.hideGuestSignInButton);
       }
       
       // Set space details from the space's name field, not from WebGL build
@@ -826,6 +836,76 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       toast({
         title: 'Error',
         description: 'Failed to update accessibility settings',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdatingSettings(false);
+    }
+  };
+
+  const handleGuestUsersToggle = async () => {
+    setIsUpdatingSettings(true);
+    try {
+      const newAllowGuestUsers = !allowGuestUsers;
+      const updateData = { allowGuestUsers: newAllowGuestUsers };
+      
+      // If disabling guest users, also disable the sign-in button hiding
+      if (!newAllowGuestUsers) {
+        updateData.hideGuestSignInButton = false;
+        setHideGuestSignInButton(false);
+      }
+      
+      await updateSpaceSettings(spaceID, updateData);
+      setAllowGuestUsers(newAllowGuestUsers);
+      toast({
+        title: 'Settings Updated',
+        description: `Guest users are now ${newAllowGuestUsers ? 'allowed' : 'not allowed'} in this space.`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      Logger.error('Error updating guest user settings:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update guest user settings',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdatingSettings(false);
+    }
+  };
+
+  const handleHideSignInButtonToggle = async () => {
+    setIsUpdatingSettings(true);
+    try {
+      await updateSpaceSettings(spaceID, { hideGuestSignInButton: !hideGuestSignInButton });
+      setHideGuestSignInButton(!hideGuestSignInButton);
+      
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('SpaceSettingsChanged', {
+        detail: {
+          spaceId: spaceID,
+          hideGuestSignInButton: !hideGuestSignInButton
+        }
+      }));
+      
+      toast({
+        title: 'Settings Updated',
+        description: `Guest sign-in button is now ${!hideGuestSignInButton ? 'hidden' : 'visible'}.`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      Logger.error('Error updating sign-in button settings:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update sign-in button settings',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -1652,6 +1732,76 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                         isDisabled={isUpdatingSettings}
                       />
                     </HStack>
+                  </Box>
+
+                  {/* Guest Users Setting */}
+                  <Box 
+                    borderWidth="1px" 
+                    borderRadius="md" 
+                    p={3} 
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                  >
+                    <HStack justify="space-between" align="center">
+                      <Box>
+                        <HStack mb={1} spacing={2}>
+                          <Box position="relative" w="16px" h="16px">
+                            <Icon as={FiUserPlus} color={allowGuestUsers ? "green.400" : "red.400"} />
+                          </Box>
+                          <Text fontSize="sm" fontWeight="600">Allow Guest Users</Text>
+                        </HStack>
+                        <Text fontSize="xs" color="whiteAlpha.800">
+                          {allowGuestUsers 
+                            ? "Unauthenticated users can enter as guests with usernames like 'Visitor_1234'." 
+                            : "Only authenticated users can access this space."}
+                        </Text>
+                        <Text fontSize="xs" color="whiteAlpha.700" mt={1}>
+                          Guest users have limited permissions and cannot save progress.
+                        </Text>
+                      </Box>
+                      
+                      <Switch
+                        isChecked={allowGuestUsers}
+                        onChange={handleGuestUsersToggle}
+                        colorScheme="green"
+                        size="md"
+                        isDisabled={isUpdatingSettings}
+                      />
+                    </HStack>
+                    
+                    {/* Sub-setting: Hide Guest Sign In Button */}
+                    {allowGuestUsers && (
+                      <Box 
+                        mt={3}
+                        pt={3}
+                        borderTop="1px solid"
+                        borderColor="whiteAlpha.200"
+                      >
+                        <HStack justify="space-between" align="center">
+                          <Box>
+                            <HStack mb={1} spacing={2}>
+                              <Box position="relative" w="14px" h="14px" ml={1}>
+                                <Icon as={FiUserMinus} color={hideGuestSignInButton ? "orange.400" : "gray.400"} fontSize="sm" />
+                              </Box>
+                              <Text fontSize="sm" fontWeight="500">Remove Sign In Button</Text>
+                            </HStack>
+                            <Text fontSize="xs" color="whiteAlpha.700" ml={5}>
+                              {hideGuestSignInButton 
+                                ? "Guest users won't see the sign-in button to upgrade their account." 
+                                : "Guest users can see a sign-in button to upgrade to a full account."}
+                            </Text>
+                          </Box>
+                          
+                          <Switch
+                            isChecked={hideGuestSignInButton}
+                            onChange={handleHideSignInButtonToggle}
+                            colorScheme="orange"
+                            size="sm"
+                            isDisabled={isUpdatingSettings || !allowGuestUsers}
+                          />
+                        </HStack>
+                      </Box>
+                    )}
                   </Box>
                   
                   {/* Additional settings can be added here */}

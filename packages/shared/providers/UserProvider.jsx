@@ -8,6 +8,7 @@ import { userProperties } from '@disruptive-spaces/shared/firebase/userPropertie
 import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
+import { createGuestUser, isGuestUser } from '@disruptive-spaces/shared/utils/guestUserGenerator';
 
 export const UserContext = createContext(null);
 export const RegistrationContext = createContext(null);
@@ -17,6 +18,8 @@ export const UserProvider = ({ children }) => {
     const currentUserRef = useRef(null); // Initialize ref with null
     const [loading, setLoading] = useState(true);
     const [registrationInProgress, setRegistrationInProgress] = useState(false);
+    const [guestUser, setGuestUser] = useState(null);
+    const guestUserRef = useRef(null);
     const auth = getAuth();
 
     const getDisplayName = (userProfile) => {
@@ -25,6 +28,104 @@ export const UserProvider = ({ children }) => {
             return userProfile.Nickname;
         }
         return `${userProfile.firstName} ${userProfile.lastName}`;
+    };
+
+    // Function to check if guest users are allowed and create one if needed
+    const checkAndCreateGuestUser = async () => {
+        try {
+            // Get current space ID from URL or other source
+            const spaceId = getCurrentSpaceId();
+            if (!spaceId) {
+                Logger.log('UserProvider: No space ID found, skipping guest user creation');
+                return;
+            }
+
+            // Check if we already have a guest user for this session
+            if (guestUser && guestUser.guestSpaceId === spaceId) {
+                Logger.log('UserProvider: Guest user already exists for this space');
+                return;
+            }
+
+            // STRICT: Check if space allows guest users - fail if we can't verify
+            try {
+                const spaceData = await getSpaceItem(spaceId);
+                if (!spaceData) {
+                    Logger.log('UserProvider: Space data not found, denying guest access');
+                    return;
+                }
+                if (!spaceData.allowGuestUsers) {
+                    Logger.log('UserProvider: Guest users explicitly not allowed for this space');
+                    return;
+                }
+                Logger.log('UserProvider: Guest users confirmed allowed for space:', spaceId);
+            } catch (permissionError) {
+                Logger.log('UserProvider: Cannot verify space guest settings, denying guest access for security');
+                return;
+            }
+
+            // Create new guest user
+            const newGuestUser = createGuestUser(spaceId);
+            setGuestUser(newGuestUser);
+            guestUserRef.current = newGuestUser;
+            
+            Logger.log('UserProvider: Created guest user:', newGuestUser.username);
+            
+            // Send guest user to Unity
+            sendUserToUnity(newGuestUser);
+            
+        } catch (error) {
+            Logger.error('UserProvider: Error creating guest user:', error);
+        }
+    };
+
+    // Helper function to get current space ID from DOM element or URL
+    const getCurrentSpaceId = () => {
+        try {
+            // First, try to get space ID from webgl-root element (micro-frontend setup)
+            const webglRoot = document.getElementById('webgl-root');
+            if (webglRoot) {
+                const spaceIdFromElement = webglRoot.getAttribute('data-space-id');
+                if (spaceIdFromElement) {
+                    Logger.log('UserProvider: Found space ID from webgl-root element:', spaceIdFromElement);
+                    return spaceIdFromElement;
+                }
+            }
+            
+            // Fallback: try to get from URL (for other setups)
+            const currentUrl = window.location.href;
+            const path = window.location.pathname;
+            const search = window.location.search;
+            
+            Logger.log('UserProvider: No space ID in DOM element, trying URL extraction');
+            Logger.log('UserProvider: URL:', currentUrl);
+            
+            // Pattern: /w/spaceSlug or /embed/spaceSlug
+            const spaceSlugMatch = path.match(/\/(w|embed)\/([^\/]+)/);
+            if (spaceSlugMatch) {
+                Logger.log('UserProvider: Found space ID from path pattern:', spaceSlugMatch[2]);
+                return spaceSlugMatch[2];
+            }
+            
+            // Pattern: direct space ID in URL params
+            const urlParams = new URLSearchParams(search);
+            const spaceId = urlParams.get('spaceId') || urlParams.get('space');
+            if (spaceId) {
+                Logger.log('UserProvider: Found space ID from URL params:', spaceId);
+                return spaceId;
+            }
+            
+            // For development/hosting environments, use a default
+            if (currentUrl.includes('localhost') || currentUrl.includes('web.app') || currentUrl.includes('firebaseapp.com')) {
+                Logger.log('UserProvider: Using default space ID for development/hosting');
+                return 'SpacesMetaverse_SDK';
+            }
+            
+            Logger.log('UserProvider: No space ID found');
+            return null;
+        } catch (error) {
+            Logger.error('UserProvider: Error getting space ID:', error);
+            return null;
+        }
     };
 
     useEffect(() => {
@@ -52,6 +153,9 @@ export const UserProvider = ({ children }) => {
             } else {
                 setUser(null);
                 currentUserRef.current = null;
+                
+                // Check if we should create a guest user
+                await checkAndCreateGuestUser();
             }
             setLoading(false);
         });
@@ -187,14 +291,49 @@ export const UserProvider = ({ children }) => {
         }
     };
 
-    const sendUserToUnity = () => {
-        const currentUser = currentUserRef.current;
-        if (currentUser) {
-            const filteredUser = filterUserPropertiesForUnity(currentUser);
-            Logger.log("UserProvider: sendUserToUnity() using the eventBus", filteredUser);
+    const sendUserToUnity = async (userToSend = null) => {
+        // Use provided user or fall back to current authenticated user or guest user
+        let targetUser = userToSend || currentUserRef.current || guestUserRef.current;
+        
+        // If no user exists and no specific user was provided, try to create a guest user
+        if (!targetUser && !userToSend) {
+            Logger.log("UserProvider: No user available, attempting to create guest user for Unity request");
+            await checkAndCreateGuestUser();
+            targetUser = guestUserRef.current;
+        }
+        
+        if (targetUser) {
+            const filteredUser = filterUserPropertiesForUnity(targetUser);
+            
+            // Enhanced logging for debugging guest user data
+            Logger.log("UserProvider: sendUserToUnity() - Raw user data:", {
+                uid: targetUser.uid,
+                username: targetUser.username,
+                Nickname: targetUser.Nickname,
+                displayName: targetUser.displayName,
+                rpmURL: targetUser.rpmURL,
+                isGuest: targetUser.isGuest || false
+            });
+            
+            Logger.log("UserProvider: sendUserToUnity() - Filtered data being sent to Unity:", filteredUser);
+            
+            // Special check for guest users
+            if (targetUser.isGuest) {
+                Logger.log("UserProvider: GUEST USER - Verifying required fields:");
+                Logger.log("UserProvider: GUEST - Nickname in filtered data:", filteredUser.Nickname);
+                Logger.log("UserProvider: GUEST - rpmURL in filtered data:", filteredUser.rpmURL);
+                Logger.log("UserProvider: GUEST - uid in filtered data:", filteredUser.uid);
+                
+                if (!filteredUser.Nickname || !filteredUser.rpmURL) {
+                    Logger.error("UserProvider: GUEST USER MISSING REQUIRED FIELDS!");
+                    Logger.error("UserProvider: Missing Nickname:", !filteredUser.Nickname);
+                    Logger.error("UserProvider: Missing rpmURL:", !filteredUser.rpmURL);
+                }
+            }
+            
             eventBus.publish(EventNames.sendUserToUnity, filteredUser);
         } else {
-            Logger.log("UserProvider: No current user to send to Unity.");
+            Logger.log("UserProvider: No current user or guest user to send to Unity.");
         }
     };
 
@@ -203,11 +342,19 @@ export const UserProvider = ({ children }) => {
         // Add uid to the list of properties to send
         const propertiesForUnity = [...userProperties, 'uid'];
         
+        Logger.log("UserProvider: Properties to send to Unity:", propertiesForUnity);
+        Logger.log("UserProvider: Available properties in user object:", Object.keys(userObject));
+        
         propertiesForUnity.forEach(field => {
             if (userObject.hasOwnProperty(field)) {
                 filteredUser[field] = userObject[field];
+                Logger.log(`UserProvider: Including field '${field}' with value:`, userObject[field]);
+            } else {
+                Logger.log(`UserProvider: Field '${field}' not found in user object`);
             }
         });
+        
+        Logger.log("UserProvider: Final filtered user object:", filteredUser);
         return filteredUser;
     };
 
@@ -363,10 +510,38 @@ export const UserProvider = ({ children }) => {
         }
     };
 
+    // Function to get the current active user (authenticated or guest)
+    const getCurrentUser = () => {
+        return user || guestUser;
+    };
+
+    // Function to create a guest user manually (for testing or special cases)
+    const createManualGuestUser = async (spaceId) => {
+        try {
+            const newGuestUser = createGuestUser(spaceId);
+            setGuestUser(newGuestUser);
+            guestUserRef.current = newGuestUser;
+            sendUserToUnity(newGuestUser);
+            return newGuestUser;
+        } catch (error) {
+            Logger.error('UserProvider: Error creating manual guest user:', error);
+            throw error;
+        }
+    };
+
+    // Function to clear guest user
+    const clearGuestUser = () => {
+        setGuestUser(null);
+        guestUserRef.current = null;
+        Logger.log('UserProvider: Guest user cleared');
+    };
+
     return (
         <RegistrationContext.Provider value={{ registrationInProgress }}>
             <UserContext.Provider value={{
                 user,
+                guestUser,
+                currentUser: getCurrentUser(),
                 loading,
                 register,
                 signIn,
@@ -379,6 +554,9 @@ export const UserProvider = ({ children }) => {
                 resendVerificationEmail,
                 updateUser,
                 isUserBannedFromSpace,
+                createGuestUser: createManualGuestUser,
+                clearGuestUser,
+                isGuestUser: (userObj) => isGuestUser(userObj || getCurrentUser()),
             }}>
                 {children}
             </UserContext.Provider>

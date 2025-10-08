@@ -13,6 +13,7 @@ import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus'
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
+import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import LoaderProgress from "./components/Loader/LoaderProgress";
 import AuthenticationButton from "./components/AuthenticationButton";
 import HelpButton from "./components/HelpButton";
@@ -34,7 +35,6 @@ import LiveStreamButton from './components/LiveStreamButton';
 import { useSpacePortals } from './hooks/unityEvents/index';
 import PortalEditor from './components/PortalEditor';
 import PortalController from './components/PortalController';
-import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useSpaceCatalogueItems } from './hooks/unityEvents/useSpaceCatalogueItems';
@@ -116,21 +116,50 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     }
   }, [user?.uid]);
   
-  // Check if user is logged in and show sign-in modal if not
+  // Check if user is logged in and show sign-in modal if not (respecting guest access)
   useEffect(() => {
-    // If there's an error with Unity or user isn't logged in, show sign-in modal
-    if (error || !user) {
-      console.log("WebGLRenderer: User not logged in or Unity error, showing sign-in modal");
-      // Add a small delay to ensure the UI is ready
-      const timer = setTimeout(() => {
+    const checkAuthenticationRequirement = async () => {
+      // If there's a Unity error, always show sign-in modal
+      if (error) {
+        console.log("WebGLRenderer: Unity error, showing sign-in modal");
         setShowSignInModal(true);
         setIsModalOpen(true);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setShowSignInModal(false);
-    }
-  }, [error, user]);
+        return;
+      }
+
+      // If user is logged in, hide sign-in modal
+      if (user) {
+        setShowSignInModal(false);
+        return;
+      }
+
+      // User is not logged in - STRICT check if guest access is allowed
+      try {
+        const spaceData = await getSpaceItem(spaceID);
+        if (spaceData && spaceData.allowGuestUsers === true) {
+          console.log("WebGLRenderer: Guest users confirmed allowed, not showing sign-in modal");
+          setShowSignInModal(false);
+          // Guest user will be created automatically by UserProvider
+        } else {
+          console.log("WebGLRenderer: Guest users not allowed or space data invalid, showing sign-in modal");
+          setShowSignInModal(true);
+          setIsModalOpen(true);
+        }
+      } catch (error) {
+        console.log("WebGLRenderer: Cannot verify space guest access, showing sign-in modal for security");
+        // STRICT: Default to showing sign-in modal if we can't verify space settings
+        setShowSignInModal(true);
+        setIsModalOpen(true);
+      }
+    };
+
+    // Add a small delay to ensure the UI is ready
+    const timer = setTimeout(() => {
+      checkAuthenticationRequirement();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [error, user, spaceID]);
   
   // Handle player instantiation
   useEffect(() => {
@@ -419,6 +448,17 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   useEffect(() => {
     const handleSendUserToUnity = (userData) => {
       console.log("WebGLRenderer: Received 'sendUserToUnity' event");
+      console.log("WebGLRenderer: Sending to Unity via 'FirebaseUserFromReact':", userData);
+      console.log("WebGLRenderer: User data keys:", Object.keys(userData));
+      console.log("WebGLRenderer: RPM URL being sent:", userData.rpmURL);
+      console.log("WebGLRenderer: Nickname being sent:", userData.Nickname);
+      console.log("WebGLRenderer: Username being sent:", userData.username);
+      console.log("WebGLRenderer: Is Guest:", userData.isGuest);
+      console.log("WebGLRenderer: UID:", userData.uid);
+      
+      // Stringify the data to see exactly what Unity will receive
+      console.log("WebGLRenderer: JSON data being sent to Unity:", JSON.stringify(userData, null, 2));
+      
       sendUnityEvent('FirebaseUserFromReact', userData);
     };
     
@@ -554,7 +594,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
         />
       )}
       
-      {/* Add the PersistentLoader component with container ref */}
+      {/* Add the PersistentLoader component with container ref - only when sign-in not required */}
       {!showSignInModal && (
         <PersistentLoader containerRef={unityContainerRef} />
       )}
@@ -592,7 +632,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
         <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "auto", position: "absolute" }}>
           {/* Top right buttons - Moved inside the fullscreen container - also changed aspact ratio from 16/9 and position to absolute from relative */}
           <Box position="absolute" zIndex="10" top={4} right={4} display="flex" alignItems="center" gap={2}>
-            {settings.showAuthButton && <AuthenticationButton />}
+            <AuthenticationButton />
             
             {/* Live Stream Button - Show when user is logged in */}
             {user && <LiveStreamButton size="md" />}
@@ -655,9 +695,9 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
               zIndex="0"
             />
             
-            {/* Unity display - z-index 1 */}
+            {/* Unity display - z-index 1 - only render when sign-in not required */}
             <Box {...fadeStyles} width="100%" height="100%" position="absolute" zIndex="1">
-              {unityProvider ? (
+              {unityProvider && !showSignInModal ? (
                 <Unity 
                   unityProvider={unityProvider}
                   style={{ width: "100%", height: "100%" }}
@@ -665,7 +705,11 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
                   tabIndex={1} // Set tabIndex to 1 to enable proper keyboard focus handling
                 />
               ) : (
-                <Box width="100%" height="100%" />
+                <Box width="100%" height="100%" backgroundColor="#333" display="flex" alignItems="center" justifyContent="center">
+                  {showSignInModal && (
+                    <Text color="white" fontSize="lg">Authentication Required</Text>
+                  )}
+                </Box>
               )}
             </Box>
             
