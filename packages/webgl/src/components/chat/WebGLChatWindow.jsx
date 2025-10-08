@@ -14,6 +14,7 @@ import { ChatIcon, CloseIcon, MinusIcon } from '@chakra-ui/icons';
 import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 import { useWebGLChat } from './hooks/useWebGLChat';
 import { useChatKeyboardFocus } from './hooks/useChatKeyboardFocus';
+import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import ChatMessageList from './ChatMessageList';
 import ChatInput from './ChatInput';
 
@@ -22,6 +23,9 @@ const WebGLChatWindow = ({ spaceID, isVisible = true }) => {
   const { isOpen, onToggle, onClose } = useDisclosure();
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isPlayerInstantiated, setIsPlayerInstantiated] = useState(false);
+  const [textChatDisabled, setTextChatDisabled] = useState(false);
+  const messagesContainerRef = useRef(null);
   
   // Chat functionality
   const {
@@ -33,6 +37,19 @@ const WebGLChatWindow = ({ spaceID, isVisible = true }) => {
   
   // Keyboard focus management
   useChatKeyboardFocus(isInputFocused);
+  
+  // Listen for player instantiation (same pattern as ProfileButton)
+  useEffect(() => {
+    const handlePlayerInstantiated = () => {
+      setIsPlayerInstantiated(true);
+    };
+
+    window.addEventListener("PlayerInstantiated", handlePlayerInstantiated);
+
+    return () => {
+      window.removeEventListener("PlayerInstantiated", handlePlayerInstantiated);
+    };
+  }, []);
   
   // Track unread messages when chat is closed
   useEffect(() => {
@@ -72,8 +89,57 @@ const WebGLChatWindow = ({ spaceID, isVisible = true }) => {
     setIsInputFocused(focused);
   };
 
-  // Don't render if not visible or no user
-  if (!isVisible || !user) {
+  // Scroll to bottom when chat opens or new messages arrive
+  useEffect(() => {
+    if (isOpen && messagesContainerRef.current) {
+      setTimeout(() => {
+        const container = messagesContainerRef.current;
+        container.scrollTop = container.scrollHeight;
+      }, 150); // Slight delay to ensure content is rendered
+    }
+  }, [isOpen, messages.length]);
+
+  // Check text chat setting from Firebase
+  useEffect(() => {
+    const checkTextChatSetting = async () => {
+      if (spaceID) {
+        try {
+          const spaceData = await getSpaceItem(spaceID);
+          setTextChatDisabled(spaceData?.textChatDisabled || false);
+        } catch (error) {
+          console.error('Error checking text chat setting:', error);
+          // Default to enabled if we can't check the setting
+          setTextChatDisabled(false);
+        }
+      }
+    };
+
+    checkTextChatSetting();
+  }, [spaceID]);
+
+  // Listen for text chat setting changes
+  useEffect(() => {
+    const handleTextChatSettingChanged = (event) => {
+      if (event.detail && event.detail.spaceId === spaceID) {
+        console.log('Text chat setting changed:', event.detail.textChatDisabled);
+        setTextChatDisabled(event.detail.textChatDisabled);
+        
+        // If chat is disabled and currently open, close it
+        if (event.detail.textChatDisabled && isOpen) {
+          onClose();
+        }
+      }
+    };
+
+    window.addEventListener('SpaceTextChatSettingChanged', handleTextChatSettingChanged);
+    
+    return () => {
+      window.removeEventListener('SpaceTextChatSettingChanged', handleTextChatSettingChanged);
+    };
+  }, [spaceID, isOpen, onClose]);
+
+  // Don't render if not visible, no user, player not instantiated, or text chat is disabled
+  if (!isVisible || !user || !isPlayerInstantiated || textChatDisabled) {
     return null;
   }
 
@@ -81,7 +147,7 @@ const WebGLChatWindow = ({ spaceID, isVisible = true }) => {
     <Box
       position="fixed"
       bottom="20px"
-      right="20px"
+      left="20px"
       zIndex="1000"
       maxWidth="350px"
       minWidth="280px"
@@ -120,87 +186,77 @@ const WebGLChatWindow = ({ spaceID, isVisible = true }) => {
         </Box>
       )}
 
-      {/* Chat Window */}
+      {/* Chat Window - Frameless with subtle background */}
       <Collapse in={isOpen} animateOpacity>
         <Box
-          bg="rgba(0, 0, 0, 0.85)"
-          backdropFilter="blur(10px)"
-          borderRadius="lg"
-          border="1px solid rgba(255, 255, 255, 0.1)"
-          overflow="hidden"
-          boxShadow="xl"
+          bg="rgba(0, 0, 0, 0.3)"
+          backdropFilter="blur(8px)"
+          borderRadius="md"
+          overflow="visible"
+          maxWidth="350px"
+          minWidth="280px"
         >
-          {/* Chat Header */}
-          <HStack
-            p={3}
-            bg="rgba(255, 255, 255, 0.1)"
-            justify="space-between"
-            align="center"
+          {/* Messages Area */}
+          <Box
+            height="210px"
+            overflowY="scroll"
+            overflowX="hidden"
+            p={2}
+            width="100%"
+            maxWidth="100%"
+            css={{
+              boxSizing: 'border-box',
+              '&::-webkit-scrollbar': {
+                width: '4px',
+              },
+              '&::-webkit-scrollbar-track': {
+                background: 'transparent',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: 'rgba(255, 255, 255, 0.2)',
+                borderRadius: '2px',
+              },
+              '&::-webkit-scrollbar:horizontal': {
+                display: 'none',
+              },
+            }}
+            ref={messagesContainerRef}
           >
-            <HStack spacing={2}>
-              <ChatIcon color="white" />
-              <Text color="white" fontWeight="bold" fontSize="sm">
-                Space Chat
-              </Text>
-              <Badge colorScheme="green" size="sm">
-                {messages.length} messages
-              </Badge>
-            </HStack>
-            
-            <HStack spacing={1}>
-              <Tooltip label="Minimize" placement="top">
-                <IconButton
-                  icon={<MinusIcon />}
-                  size="xs"
-                  variant="ghost"
-                  color="white"
-                  _hover={{ bg: "whiteAlpha.200" }}
-                  onClick={onClose}
+            <ChatMessageList 
+              messages={messages} 
+              currentUserId={user?.uid}
+              isLoading={isLoading}
+              spaceID={spaceID}
+            />
+          </Box>
+
+          {/* Input Area */}
+          <Box p={2}>
+            <HStack spacing={2} align="center">
+              <Box flex={1}>
+                <ChatInput
+                  onSendMessage={handleSendMessage}
+                  onFocusChange={handleInputFocus}
+                  placeholder="Press Enter to chat..."
+                  disabled={isLoading}
                 />
-              </Tooltip>
+              </Box>
+              
+              {/* Minimize Chat Button */}
+              <IconButton
+                icon={<ChatIcon />}
+                size="sm"
+                variant="ghost"
+                color="white"
+                _hover={{ bg: "whiteAlpha.200" }}
+                onClick={onClose}
+                aria-label="Minimize chat"
+                h="32px"
+                w="32px"
+                flexShrink={0}
+              />
             </HStack>
-          </HStack>
-
-          {/* Chat Content */}
-          <VStack spacing={0} align="stretch">
-            {/* Messages Area */}
-            <Box
-              height="300px"
-              overflowY="auto"
-              p={2}
-              css={{
-                '&::-webkit-scrollbar': {
-                  width: '4px',
-                },
-                '&::-webkit-scrollbar-track': {
-                  background: 'transparent',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  background: 'rgba(255, 255, 255, 0.3)',
-                  borderRadius: '2px',
-                },
-              }}
-            >
-              <ChatMessageList 
-                messages={messages} 
-                currentUserId={user?.uid}
-                isLoading={isLoading}
-              />
-            </Box>
-
-            {/* Input Area */}
-            <Box
-              p={2}
-              borderTop="1px solid rgba(255, 255, 255, 0.1)"
-            >
-              <ChatInput
-                onSendMessage={handleSendMessage}
-                onFocusChange={handleInputFocus}
-                placeholder="Press Enter to chat..."
-                disabled={isLoading}
-              />
-            </Box>
-          </VStack>
+          </Box>
 
           {/* Error Display */}
           {error && (

@@ -43,6 +43,7 @@ import CatalogueItemModalHandler from './components/CatalogueItemModalHandler';
 import { useUnityAnalytics } from './hooks/unityEvents/useUnityAnalytics';
 import { useAnalytics } from '@disruptive-spaces/shared/hooks/useAnalytics';
 import { ANALYTICS_EVENT_TYPES, ANALYTICS_CATEGORIES } from '@disruptive-spaces/shared/firebase/analyticsFirestore';
+import WebGLChatWindow from './components/chat/WebGLChatWindow';
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -870,6 +871,12 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
 
           {/* Portal Controller */}
           <PortalController />
+
+          {/* WebGL Chat System */}
+          <WebGLChatWindow 
+            spaceID={spaceID}
+            isVisible={!showSignInModal && user}
+          />
         </div>
       </PortalManager>
     </Box>

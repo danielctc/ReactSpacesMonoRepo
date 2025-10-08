@@ -37,7 +37,7 @@ import {
   Switch,
   Textarea,
 } from '@chakra-ui/react';
-import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2, FiTag, FiVideo, FiFilm } from 'react-icons/fi';
+import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2, FiTag, FiVideo, FiFilm, FiMessageCircle } from 'react-icons/fi';
 import { 
   uploadSpaceLogo, 
   deleteSpaceLogo, 
@@ -100,6 +100,7 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   
   // Settings state
   const [voiceDisabled, setVoiceDisabled] = useState(false);
+  const [textChatDisabled, setTextChatDisabled] = useState(false);
   const [accessibleToAllUsers, setAccessibleToAllUsers] = useState(true);
   const [allowGuestUsers, setAllowGuestUsers] = useState(false);
   const [hideGuestSignInButton, setHideGuestSignInButton] = useState(false);
@@ -145,6 +146,10 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       // Set settings
       if (spaceData.voiceDisabled !== undefined) {
         setVoiceDisabled(spaceData.voiceDisabled);
+      }
+      
+      if (spaceData.textChatDisabled !== undefined) {
+        setTextChatDisabled(spaceData.textChatDisabled);
       }
       
       if (spaceData.accessibleToAllUsers !== undefined) {
@@ -810,6 +815,42 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       toast({
         title: 'Error',
         description: 'Failed to update voice settings',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdatingSettings(false);
+    }
+  };
+
+  // Handle text chat toggle
+  const handleTextChatToggle = async () => {
+    setIsUpdatingSettings(true);
+    try {
+      await updateSpaceSettings(spaceID, { textChatDisabled: !textChatDisabled });
+      setTextChatDisabled(!textChatDisabled);
+      
+      // Dispatch event to notify chat components about the setting change
+      window.dispatchEvent(new CustomEvent('SpaceTextChatSettingChanged', {
+        detail: {
+          spaceId: spaceID,
+          textChatDisabled: !textChatDisabled
+        }
+      }));
+      
+      toast({
+        title: 'Settings Updated',
+        description: `Text chat has been ${!textChatDisabled ? 'disabled' : 'enabled'} for this space.`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      Logger.error('Error updating text chat settings:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update text chat settings',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -1691,6 +1732,50 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                       <Switch 
                         isChecked={!voiceDisabled}
                         onChange={handleVoiceToggle}
+                        colorScheme="green"
+                        size="md"
+                        isDisabled={isUpdatingSettings}
+                      />
+                    </HStack>
+                  </Box>
+                  
+                  {/* Text Chat Setting */}
+                  <Box 
+                    borderWidth="1px" 
+                    borderRadius="md" 
+                    p={3} 
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                  >
+                    <HStack justify="space-between" align="center">
+                      <Box>
+                        <HStack mb={1} spacing={2}>
+                          <Box position="relative" w="16px" h="16px">
+                            <Icon as={FiMessageCircle} color={textChatDisabled ? "red.400" : "green.400"} />
+                            {textChatDisabled && (
+                              <Box 
+                                position="absolute" 
+                                top="50%" 
+                                left="0" 
+                                right="0" 
+                                height="2px" 
+                                bg="red.400" 
+                                transform="rotate(45deg)" 
+                                transformOrigin="center"
+                              />
+                            )}
+                          </Box>
+                          <Text fontSize="sm" fontWeight="600">Text Chat</Text>
+                        </HStack>
+                        <Text fontSize="xs" color="whiteAlpha.800">
+                          {textChatDisabled 
+                            ? "Text chat is currently disabled for all users in this space." 
+                            : "Text chat is currently enabled for all users in this space."}
+                        </Text>
+                      </Box>
+                      <Switch 
+                        isChecked={!textChatDisabled}
+                        onChange={handleTextChatToggle}
                         colorScheme="green"
                         size="md"
                         isDisabled={isUpdatingSettings}
