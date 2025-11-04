@@ -3,20 +3,37 @@ import {
   Input,
   InputGroup,
   InputRightElement,
-  IconButton
+  InputLeftElement,
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  SimpleGrid,
+  Text,
+  Box
 } from '@chakra-ui/react';
 import { ArrowForwardIcon } from '@chakra-ui/icons';
+import { BsEmojiSmile } from 'react-icons/bs';
 
 const ChatInput = ({ 
   onSendMessage, 
   onFocusChange, 
   placeholder = "Press Enter to chat...", 
   disabled = false,
-  maxLength = 500 
+  maxLength = 500
 }) => {
   const [message, setMessage] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef(null);
+
+  // Common emojis for the picker
+  const emojis = [
+    '😀', '😂', '😍', '🥰', '😊', '😎', '🤔', '😮',
+    '😢', '😭', '😡', '🤯', '🥳', '🤗', '🙄', '😴',
+    '👍', '👎', '👏', '🙌', '👋', '🤝', '💪', '🤞',
+    '❤️', '💔', '💯', '🔥', '⭐', '✨', '🎉', '🎊'
+  ];
 
   // Handle Enter key press
   const handleKeyPress = (e) => {
@@ -65,6 +82,19 @@ const ChatInput = ({
     }
   };
 
+  const handleEmojiSelect = (emoji) => {
+    const newMessage = message + emoji;
+    if (newMessage.length <= maxLength) {
+      setMessage(newMessage);
+      // Keep focus on input after emoji selection
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 0);
+    }
+  };
+
   // Auto-focus when Enter is pressed globally (when not already focused)
   useEffect(() => {
     const handleGlobalKeyPress = (e) => {
@@ -94,6 +124,50 @@ const ChatInput = ({
 
   return (
     <InputGroup size="sm">
+      <InputLeftElement>
+        <Menu>
+          <MenuButton
+            as={IconButton}
+            icon={<BsEmojiSmile />}
+            size="xs"
+            variant="ghost"
+            color="white"
+            _hover={{ bg: "whiteAlpha.200" }}
+            aria-label="Add emoji"
+            disabled={disabled}
+          />
+          <MenuList
+            bg="rgba(0, 0, 0, 0.9)"
+            borderColor="whiteAlpha.300"
+            border="1px solid rgba(255, 255, 255, 0.2)"
+            maxW="280px"
+            zIndex="9999"
+            p={2}
+          >
+            <SimpleGrid columns={8} spacing={1}>
+              {emojis.map((emoji, index) => (
+                <Box
+                  key={index}
+                  as="button"
+                  p={1}
+                  borderRadius="md"
+                  _hover={{ bg: "whiteAlpha.200" }}
+                  onClick={() => handleEmojiSelect(emoji)}
+                  fontSize="lg"
+                  textAlign="center"
+                  minH="32px"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  {emoji}
+                </Box>
+              ))}
+            </SimpleGrid>
+          </MenuList>
+        </Menu>
+      </InputLeftElement>
+
       <Input
         ref={inputRef}
         value={message}
@@ -116,7 +190,8 @@ const ChatInput = ({
           border: "1px solid rgba(255, 255, 255, 0.2)"
         }}
         borderRadius="md"
-        pr="40px" // Make room for send button
+        pl="40px"
+        pr="40px"
       />
       
       <InputRightElement>
