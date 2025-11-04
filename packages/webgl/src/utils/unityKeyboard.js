@@ -86,8 +86,6 @@ const allowArrowKeyScrolling = () => {
  * @returns {Promise<boolean>} - Success state
  */
 export function setUnityKeyboardCapture(enable) {
-  console.log(`Setting Unity keyboard capture: ${enable}`);
-  
   // Add/remove the unity-focused class for CSS-based focus management
   if (enable) {
     document.body.classList.add('unity-focused');
@@ -116,21 +114,19 @@ export function setUnityKeyboardCapture(enable) {
           } else {
             unityInstance.SendMessage('WebGLInput', 'DisableKeyboardCapture');
           }
-          console.log(`Unity keyboard capture ${enable ? 'enabled' : 'disabled'} (using Unity preferred method)`);
           resolve(true);
           return;
         } catch (err) {
-          console.warn('Failed to use Unity preferred keyboard method, falling back to SetCaptureAllKeyboardInput', err);
+          // Silently try fallback
         }
         
         // Fall back to the original method if the direct method fails
         try {
           unityInstance.SendMessage('WebGLInput', 'SetCaptureAllKeyboardInput', enable);
-          console.log(`Unity keyboard capture ${enable ? 'enabled' : 'disabled'} (using fallback method)`);
           resolve(true);
           return;
         } catch (err) {
-          console.warn('Failed to use SetCaptureAllKeyboardInput, trying module method', err);
+          // Silently try module method
         }
         
         // Try the Module method as final fallback
@@ -148,22 +144,20 @@ export function setUnityKeyboardCapture(enable) {
             unityInstance.Module.WebGLInputHandler = null;
           }
           
-          console.log(`Unity keyboard capture ${enable ? 'enabled' : 'disabled'} (using Module method)`);
           resolve(true);
           return;
         }
       } else {
-        console.warn('Unity instance not available, cannot set keyboard capture');
         // Store for later when Unity becomes available
         window.__pendingKeyboardCaptureState = enable;
         
         // Add special handling for SpacePage - poll for Unity instance
         if (document.getElementById('webgl-root')) {
-          console.log('webgl-root detected, will poll for Unity instance');
           pollForUnityInstance(enable);
         }
         
-        resolve(false);
+        // Resolve true anyway - this isn't a failure, Unity just isn't ready yet
+        resolve(true);
       }
     } catch (err) {
       console.error('Error setting Unity keyboard capture:', err);
@@ -189,7 +183,7 @@ function pollForUnityInstance(enable) {
     const unityInstance = getUnityInstance();
     
     if (unityInstance) {
-      console.log(`Unity instance found after ${attempts} attempts`);
+      
       // Apply the pending keyboard state
       try {
         if (enable) {
@@ -197,26 +191,26 @@ function pollForUnityInstance(enable) {
         } else {
           unityInstance.SendMessage('WebGLInput', 'DisableKeyboardCapture');
         }
-        console.log(`Applied pending keyboard state: ${enable}`);
         window.__pendingKeyboardCaptureState = null;
       } catch (err) {
-        console.warn('Failed to apply pending keyboard state with preferred method, trying fallback', err);
-        
         try {
           unityInstance.SendMessage('WebGLInput', 'SetCaptureAllKeyboardInput', enable);
-          console.log(`Applied pending keyboard state: ${enable} (fallback method)`);
           window.__pendingKeyboardCaptureState = null;
         } catch (fallbackErr) {
-          console.error('Failed to apply pending keyboard state with fallback method', fallbackErr);
+          console.error('Unity keyboard: Failed to apply keyboard state', fallbackErr);
         }
       }
     } else if (attempts < maxAttempts) {
       // Try again after a delay, with increasing delay times
       const delay = Math.min(500 * Math.pow(1.2, attempts), 5000);
-      console.log(`Unity instance not found (attempt ${attempts}/${maxAttempts}), retrying in ${delay}ms`);
+      // Only log every 5 attempts to reduce verbosity
+      if (attempts % 5 === 0 || attempts === 1) {
+        
+      }
       window.__unityInstancePoller = setTimeout(poll, delay);
     } else {
-      console.warn(`Unity instance still not found after ${maxAttempts} attempts, giving up`);
+      // Silent failure - Unity might initialize through a different path
+      window.__pendingKeyboardCaptureState = null;
     }
   };
   
@@ -255,8 +249,6 @@ export function hasUnityKeyboardFocus() {
  * @returns {Promise<boolean>} - Success state
  */
 export function focusUnity(captureKeyboard = true) {
-  console.log('Focusing Unity canvas');
-  
   // Also prevent arrow key scrolling when focusing Unity
   if (captureKeyboard) {
     preventArrowKeyScrolling();
@@ -288,7 +280,6 @@ export function focusUnity(captureKeyboard = true) {
         }
         resolve(true);
       } else {
-        console.warn('Unity canvas not found');
         resolve(false);
       }
     } catch (err) {
@@ -304,8 +295,6 @@ export function focusUnity(captureKeyboard = true) {
  * @returns {Promise<boolean>} - Success state
  */
 export function blockUnityKeyboardInput(blockInput = true) {
-  console.log(`${blockInput ? 'Blocking' : 'Unblocking'} Unity keyboard input`);
-  
   // When blocking Unity input, stop preventing arrow key scrolling
   // This allows normal page scrolling when interacting with UI
   preventArrowKeyScrolling(!blockInput);
@@ -316,10 +305,6 @@ export function blockUnityKeyboardInput(blockInput = true) {
       if (blockInput) {
         // Disable Unity keyboard input
         setUnityKeyboardCapture(false).then(success => {
-          if (success) {
-            console.log('Successfully disabled Unity keyboard capture');
-          }
-          
           // Also disable pointer events on the canvas
           const canvas = document.querySelector('canvas') || document.getElementById('unity-canvas');
           if (canvas) {
@@ -380,10 +365,7 @@ export function blockUnityKeyboardInput(blockInput = true) {
         }
         
         // Re-enable Unity keyboard capture
-        setUnityKeyboardCapture(true).then(success => {
-          if (success) {
-            console.log('Successfully re-enabled Unity keyboard capture');
-          }
+        setUnityKeyboardCapture(true).then(() => {
           resolve(true);
         });
       }
@@ -401,14 +383,12 @@ export function blockUnityKeyboardInput(blockInput = true) {
 export function registerUnityInstance(instance) {
   if (!instance) return;
   
-  console.log('Registering Unity instance');
   window.unityInstance = instance;
   
   // Apply any pending keyboard state
   if (typeof window.__pendingKeyboardCaptureState === 'boolean') {
     try {
       const enable = window.__pendingKeyboardCaptureState;
-      console.log(`Applying pending keyboard state: ${enable}`);
       
       try {
         if (enable) {
@@ -416,21 +396,17 @@ export function registerUnityInstance(instance) {
         } else {
           instance.SendMessage('WebGLInput', 'DisableKeyboardCapture');
         }
-        console.log(`Applied pending keyboard state: ${enable} (Unity preferred method)`);
         window.__pendingKeyboardCaptureState = null;
       } catch (err) {
-        console.warn('Failed to apply pending keyboard state with preferred method, trying fallback', err);
-        
         try {
           instance.SendMessage('WebGLInput', 'SetCaptureAllKeyboardInput', enable);
-          console.log(`Applied pending keyboard state: ${enable} (fallback method)`);
           window.__pendingKeyboardCaptureState = null;
         } catch (fallbackErr) {
-          console.error('Failed to apply pending keyboard state with fallback method', fallbackErr);
+          console.error('Unity keyboard: Failed to apply keyboard state', fallbackErr);
         }
       }
     } catch (err) {
-      console.error('Error applying pending keyboard state:', err);
+      console.error('Unity keyboard: Error applying keyboard state:', err);
     }
   }
   
@@ -445,8 +421,6 @@ export function registerUnityInstance(instance) {
  * Initialize Unity keyboard helpers
  */
 export function initUnityKeyboard() {
-  console.log('Initializing Unity keyboard helpers');
-  
   // Make these functions available globally
   window.setUnityKeyboardCapture = setUnityKeyboardCapture;
   window.focusUnity = focusUnity;
@@ -465,8 +439,6 @@ export function initUnityKeyboard() {
             const node = mutation.addedNodes[i];
             if (node.nodeName === 'CANVAS' || 
                 (node.querySelector && node.querySelector('canvas'))) {
-              console.log('Canvas detected, Unity might be loading. Setting up instance detection.');
-              
               // Start polling for Unity instance
               pollForUnityInstance(true);
               
@@ -484,7 +456,6 @@ export function initUnityKeyboard() {
     
     // Also look for an existing canvas
     if (document.querySelector('canvas')) {
-      console.log('Canvas already exists, Unity might be loaded. Starting instance detection.');
       pollForUnityInstance(true);
     }
   }
@@ -500,18 +471,15 @@ export function initUnityKeyboard() {
         
         React.useEffect(() => {
           if (isFocused) {
-            console.log('useUnityKeyboardFocus: Blocking Unity keyboard input');
             blockUnityKeyboardInput(true);
             window.dispatchEvent(new CustomEvent('modal-opened'));
           } else {
-            console.log('useUnityKeyboardFocus: Unblocking Unity keyboard input');
             blockUnityKeyboardInput(false);
             window.dispatchEvent(new CustomEvent('modal-closed'));
           }
           
           return () => {
             if (isFocused) {
-              console.log('useUnityKeyboardFocus: Cleanup - unblocking Unity keyboard input');
               blockUnityKeyboardInput(false);
               window.dispatchEvent(new CustomEvent('modal-closed'));
             }
@@ -520,10 +488,8 @@ export function initUnityKeyboard() {
         
         return [isFocused, setIsFocused];
       };
-      
-      console.log('Created useUnityKeyboardFocus hook globally');
     } catch (err) {
-      console.warn('Could not create React hook, React might not be available yet:', err);
+      // Silently fail if React isn't available
     }
   }
 }

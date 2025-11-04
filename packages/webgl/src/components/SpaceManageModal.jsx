@@ -37,7 +37,7 @@ import {
   Switch,
   Textarea,
 } from '@chakra-ui/react';
-import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2, FiTag, FiVideo, FiFilm, FiMessageCircle } from 'react-icons/fi';
+import { FiUpload, FiTrash2, FiImage, FiSettings, FiCamera, FiInfo, FiUsers, FiUserPlus, FiUserMinus, FiAward, FiStar, FiVolume2, FiTag, FiVideo, FiFilm, FiMessageCircle, FiTool } from 'react-icons/fi';
 import { 
   uploadSpaceLogo, 
   deleteSpaceLogo, 
@@ -114,6 +114,19 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
   const [isSavingStream, setIsSavingStream] = useState(false);
   const { setHLSStreamUrl, playerStatus, isLoading: isStreamLoading, savedStreamData } = useHLSStream();
   
+  // ==================================================================================
+  // OVERRIDE FUNCTIONALITY - STATE
+  // ==================================================================================
+  // Override allows temporary RPM URL replacement for all users in this space
+  // When enabled, users' avatars are replaced with URLs from the customPlayers list
+  // This does NOT modify user profiles - only applies while in this space
+  // State management for Custom tab in this modal
+  // ==================================================================================
+  const [overrideEnabled, setOverrideEnabled] = useState(false);
+  const [customPlayers, setCustomPlayers] = useState([]);
+  const [newPlayerUrl, setNewPlayerUrl] = useState('');
+  const [isSavingOverride, setIsSavingOverride] = useState(false);
+  
   const toast = useToast();
 
   // Fetch existing data when modal opens
@@ -167,6 +180,15 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
       // Set space details from the space's name field, not from WebGL build
       setSpaceName(spaceData.name || '');
       setSpaceDescription(spaceData.description || '');
+      
+      // Load Override data if exists
+      if (spaceData.Override) {
+        setOverrideEnabled(spaceData.Override.enabled === true);
+        setCustomPlayers(spaceData.Override.customPlayers || []);
+      } else {
+        setOverrideEnabled(false);
+        setCustomPlayers([]);
+      }
       
       // Fetch HLS Stream Data directly from Firebase for reliability
       try {
@@ -1098,6 +1120,135 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
     }
   };
 
+  // ==================================================================================
+  // OVERRIDE FUNCTIONALITY - HANDLERS
+  // ==================================================================================
+  // These handlers manage Override settings:
+  // - Add/remove custom RPM URLs to the list
+  // - Toggle Override on/off (auto-saves to Firebase)
+  // - Save all Override settings to Firebase
+  // Data is stored at: spaces/{spaceId}/Override.enabled and Override.customPlayers
+  // Changes trigger 'SpaceOverrideUpdated' event that UserProvider listens to
+  // ==================================================================================
+  
+  // Handle adding custom player URL
+  const handleAddCustomPlayer = () => {
+    if (!newPlayerUrl.trim()) {
+      toast({
+        title: 'URL Required',
+        description: 'Please enter a URL',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    const newPlayer = {
+      id: Date.now().toString(),
+      url: newPlayerUrl.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    setCustomPlayers(prev => [...prev, newPlayer]);
+    setNewPlayerUrl('');
+  };
+
+  // Handle removing custom player
+  const handleRemoveCustomPlayer = (playerId) => {
+    setCustomPlayers(prev => prev.filter(p => p.id !== playerId));
+  };
+
+  // Handle override toggle - auto-saves to Firebase
+  const handleOverrideToggle = async () => {
+    const newEnabledState = !overrideEnabled;
+    setOverrideEnabled(newEnabledState);
+    
+    setIsSavingOverride(true);
+    try {
+      const db = getFirestore();
+      const spaceRef = doc(db, 'spaces', spaceID);
+      
+      await updateDoc(spaceRef, {
+        'Override.enabled': newEnabledState
+      });
+      
+      toast({
+        title: 'Override ' + (newEnabledState ? 'Enabled' : 'Disabled'),
+        description: `Override is now ${newEnabledState ? 'enabled' : 'disabled'}.`,
+        status: 'success',
+        duration: 2000,
+        isClosable: true,
+      });
+      
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('SpaceOverrideUpdated', { 
+        detail: { 
+          enabled: newEnabledState,
+          customPlayers 
+        } 
+      }));
+    } catch (error) {
+      Logger.error('Error updating override enabled state:', error);
+      setOverrideEnabled(!newEnabledState); // Revert on error
+      toast({
+        title: 'Error',
+        description: 'Failed to update override state',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSavingOverride(false);
+    }
+  };
+
+  // Handle saving override settings
+  const handleSaveOverrideSettings = async () => {
+    if (!spaceID) return;
+    
+    setIsSavingOverride(true);
+    try {
+      const db = getFirestore();
+      const spaceRef = doc(db, 'spaces', spaceID);
+      
+      await updateDoc(spaceRef, {
+        'Override.enabled': overrideEnabled,
+        'Override.customPlayers': customPlayers
+      });
+      
+      toast({
+        title: 'Success',
+        description: 'Override settings saved successfully',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('SpaceOverrideUpdated', { 
+        detail: { 
+          enabled: overrideEnabled,
+          customPlayers 
+        } 
+      }));
+    } catch (error) {
+      Logger.error('Error updating override settings:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update override settings',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSavingOverride(false);
+    }
+  };
+  // ==================================================================================
+  // END OVERRIDE FUNCTIONALITY - HANDLERS
+  // ==================================================================================
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" isCentered>
       <ModalOverlay bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(8px)" />
@@ -1216,6 +1367,17 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
               >
                 <Icon as={FiVideo} mb={1} />
                 <Text fontSize="xs">Stream</Text>
+              </Tab>
+              <Tab 
+                display="flex" 
+                flexDirection="column" 
+                alignItems="center"
+                py={3}
+                _selected={{ bg: "whiteAlpha.100", color: "blue.300" }}
+                _hover={{ bg: "whiteAlpha.50" }}
+              >
+                <Icon as={FiTool} mb={1} />
+                <Text fontSize="xs">Custom</Text>
               </Tab>
             </TabList>
             
@@ -1691,9 +1853,6 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
               
               {/* Settings Tab */}
               <TabPanel p={4} display="flex" flexDirection="column">
-                <Text fontSize="sm" fontWeight="600" mb={3} color="white">Space Settings</Text>
-                <Text fontSize="xs" mb={4}>Configure settings for your space.</Text>
-                
                 <VStack spacing={4} align="stretch">
                   {/* Voice Chat Setting */}
                   <Box 
@@ -1804,9 +1963,6 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                             ? "This space is accessible to all users in the 'users' group." 
                             : "This space is only accessible to specific users."}
                         </Text>
-                        <Text fontSize="xs" color="whiteAlpha.700" mt={1}>
-                          Note: Space owners and hosts will always have access regardless of this setting.
-                        </Text>
                       </Box>
                       
                       <Switch
@@ -1839,9 +1995,6 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                           {allowGuestUsers 
                             ? "Unauthenticated users can enter as guests with usernames like 'Visitor_1234'." 
                             : "Only authenticated users can access this space."}
-                        </Text>
-                        <Text fontSize="xs" color="whiteAlpha.700" mt={1}>
-                          Guest users have limited permissions and cannot save progress.
                         </Text>
                       </Box>
                       
@@ -1888,25 +2041,6 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                       </Box>
                     )}
                   </Box>
-                  
-                  {/* Additional settings can be added here */}
-                  
-                  <Alert 
-                    status="info" 
-                    variant="subtle" 
-                    bg="whiteAlpha.100" 
-                    borderRadius="md"
-                    borderWidth="1px"
-                    borderColor="blue.800"
-                  >
-                    <AlertIcon color="blue.300" />
-                    <Box>
-                      <AlertTitle fontSize="xs" fontWeight="medium">Coming Soon</AlertTitle>
-                      <AlertDescription fontSize="xs">
-                        Additional space configuration options will be available in a future update.
-                      </AlertDescription>
-                    </Box>
-                  </Alert>
                 </VStack>
               </TabPanel>
               
@@ -2279,6 +2413,175 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                       </AlertDescription>
                     </Box>
                   </Alert>
+                </VStack>
+              </TabPanel>
+
+              {/* ========================================================================== */}
+              {/* OVERRIDE FUNCTIONALITY - UI (CUSTOM TAB)                                  */}
+              {/* ========================================================================== */}
+              {/* This tab allows space owners to configure Override settings:              */}
+              {/* - Toggle Override on/off to enable/disable avatar replacement             */}
+              {/* - Add/manage custom RPM URLs that will replace users' avatars             */}
+              {/* When enabled, all users in the space will use one of these custom avatars */}
+              {/* Firebase: spaces/{spaceId}/Override.enabled and Override.customPlayers    */}
+              {/* Implementation: packages/shared/providers/UserProvider.jsx (line ~317)    */}
+              {/* ========================================================================== */}
+              
+              {/* Custom Tab */}
+              <TabPanel p={4} display="flex" flexDirection="column">
+                <Text fontSize="sm" fontWeight="600" mb={3} color="white">Override Settings</Text>
+                
+                <VStack spacing={4} align="stretch">
+                  {/* Enable Override Toggle */}
+                  <Box 
+                    borderWidth="1px" 
+                    borderRadius="md" 
+                    p={3} 
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                  >
+                    <HStack justify="space-between" align="center">
+                      <Box>
+                        <HStack mb={1} spacing={2}>
+                          <Box position="relative" w="16px" h="16px">
+                            <Icon as={FiTool} color={overrideEnabled ? "green.400" : "red.400"} />
+                          </Box>
+                          <Text fontSize="sm" fontWeight="600">Enable Override</Text>
+                        </HStack>
+                      </Box>
+                      
+                      <Switch
+                        isChecked={overrideEnabled}
+                        onChange={handleOverrideToggle}
+                        colorScheme="green"
+                        size="md"
+                        isDisabled={isSavingOverride}
+                      />
+                    </HStack>
+                  </Box>
+                  {/* Add Custom Player URL Section */}
+                  <Box 
+                    borderWidth="1px" 
+                    borderRadius="md" 
+                    p={4} 
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                  >
+                    <Text fontSize="sm" fontWeight="600" mb={3}>Add URL</Text>
+                    
+                    <HStack spacing={3}>
+                      <FormControl flex="1">
+                        <Input
+                          value={newPlayerUrl}
+                          onChange={(e) => setNewPlayerUrl(e.target.value)}
+                          placeholder="Enter URL"
+                          size="sm"
+                          bg="whiteAlpha.100"
+                          borderColor="whiteAlpha.200"
+                          _hover={{ borderColor: "whiteAlpha.300" }}
+                          _focus={{ borderColor: "blue.300", boxShadow: "0 0 0 1px #63B3ED" }}
+                          color="white"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              handleAddCustomPlayer();
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      
+                      <Button
+                        colorScheme="green"
+                        size="sm"
+                        onClick={handleAddCustomPlayer}
+                        leftIcon={<Icon as={FiUserPlus} />}
+                        flexShrink={0}
+                      >
+                        Add
+                      </Button>
+                    </HStack>
+                  </Box>
+                  
+                  {/* Custom Players List */}
+                  <Box 
+                    borderWidth="1px" 
+                    borderRadius="md" 
+                    p={4} 
+                    bg="whiteAlpha.50"
+                    borderColor="whiteAlpha.200"
+                  >
+                    <HStack justify="space-between" mb={3}>
+                      <Text fontSize="sm" fontWeight="600">URLs</Text>
+                      <Badge colorScheme="blue">{customPlayers.length}</Badge>
+                    </HStack>
+                    
+                    {customPlayers.length === 0 ? (
+                      <Text fontSize="xs" color="whiteAlpha.600">No URLs added yet.</Text>
+                    ) : (
+                      <VStack 
+                        spacing={2} 
+                        align="stretch"
+                        maxH="250px"
+                        overflowY="auto"
+                        css={{
+                          '&::-webkit-scrollbar': {
+                            width: '6px',
+                          },
+                          '&::-webkit-scrollbar-track': {
+                            background: 'rgba(0,0,0,0.1)',
+                          },
+                          '&::-webkit-scrollbar-thumb': {
+                            background: 'rgba(255,255,255,0.3)',
+                            borderRadius: '3px',
+                          },
+                        }}
+                      >
+                        {customPlayers.map(player => (
+                          <Box
+                            key={player.id}
+                            p={2}
+                            borderWidth="1px"
+                            borderRadius="md"
+                            borderColor="whiteAlpha.200"
+                            bg="whiteAlpha.50"
+                            _hover={{ bg: "whiteAlpha.100" }}
+                          >
+                            <HStack justify="space-between" align="center" spacing={3}>
+                              <Text 
+                                fontSize="sm" 
+                                color="white" 
+                                flex="1"
+                                isTruncated
+                                title={player.url}
+                              >
+                                {player.url}
+                              </Text>
+                              <Button
+                                size="xs"
+                                colorScheme="red"
+                                variant="ghost"
+                                onClick={() => handleRemoveCustomPlayer(player.id)}
+                                flexShrink={0}
+                              >
+                                <Icon as={FiTrash2} />
+                              </Button>
+                            </HStack>
+                          </Box>
+                        ))}
+                      </VStack>
+                    )}
+                  </Box>
+                  
+                  {/* Save Button */}
+                  <Button
+                    colorScheme="blue"
+                    size="sm"
+                    onClick={handleSaveOverrideSettings}
+                    isLoading={isSavingOverride}
+                    loadingText="Saving..."
+                    alignSelf="flex-start"
+                  >
+                    Save Override Settings
+                  </Button>
                 </VStack>
               </TabPanel>
             </TabPanels>

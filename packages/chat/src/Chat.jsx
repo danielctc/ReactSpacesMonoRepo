@@ -10,7 +10,7 @@ const Chat = ({ spaceID }) => {
     const { user } = useContext(UserContext);
 
     if (!user) {
-        console.log('No user found, returning login message');
+        
         return (
             <Box>
                 <Text>Please log in to view the chat.</Text>

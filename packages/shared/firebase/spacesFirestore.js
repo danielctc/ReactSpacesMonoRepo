@@ -5,6 +5,8 @@ import { getStorage, ref, getDownloadURL, uploadBytes, deleteObject } from 'fire
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import { fetchHttpUrlFromGsUrl } from '@disruptive-spaces/shared/firebase/firebaseStorage';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { checkClientRateLimit } from '@disruptive-spaces/shared/utils/clientRateLimiter';
+import { getAuth } from 'firebase/auth';
 
 
 
@@ -12,7 +14,23 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 
 let cachedSpaces = {}; // Initialize an empty object to store cached spaces
-export const getSpaceItem = async (itemId) => {
+
+/**
+ * Get space item with retry logic for transient failures
+ */
+export const getSpaceItem = async (itemId, retryCount = 0) => {
+    const maxRetries = 4;
+    const baseRetryDelay = 300; // Base delay
+    const fetchTimeout = 8000; // 8 second timeout for Firestore queries
+    
+    // Exponential backoff for permission errors (they take longer to resolve)
+    const getRetryDelay = (isPermissionError) => {
+        if (isPermissionError) {
+            return baseRetryDelay * Math.pow(2, retryCount); // Exponential: 300ms, 600ms, 1200ms, 2400ms
+        }
+        return baseRetryDelay * (retryCount + 1); // Linear for other errors
+    };
+    
     try {
         // Check if the space is already cached
         // if (cachedSpaces[itemId]) {
@@ -20,8 +38,43 @@ export const getSpaceItem = async (itemId) => {
         //     return cachedSpaces[itemId];
         // }
 
+        // Before querying, ensure auth state is ready (wait for Firestore to sync auth token)
+        // This prevents "Missing or insufficient permissions" errors
+        // CRITICAL: For unauthenticated users accessing public spaces, Firestore rules need
+        // extra time to evaluate - the rules check resource.data.isPublic which requires
+        // the document to be loaded first
+        if (retryCount === 0) {
+            const auth = getAuth();
+            if (auth.currentUser) {
+                // For authenticated users: Force token refresh to ensure Firestore sees fresh auth state
+                try {
+                    await auth.currentUser.getIdToken(true); // Force refresh
+                    // Wait for Firestore to sync the new token
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                } catch (e) {
+                    // If token refresh fails, still wait a bit for sync
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
+            } else {
+                // For unauthenticated users (guests): Wait longer for Firestore rules to initialize
+                // Firestore rules need time to:
+                // 1. Load the document
+                // 2. Evaluate resource.data.isPublic
+                // 3. Determine if space is public
+                // This is especially important on first load or when Firestore is cold
+                await new Promise(resolve => setTimeout(resolve, 800));
+            }
+        }
+
         const itemDocRef = doc(db, 'spaces', itemId); // Reference to the specific document in the 'spaces' collection
-        const itemDocSnapshot = await getDoc(itemDocRef); // Attempt to fetch the document
+        
+        // Add timeout to prevent 30-second hangs
+        const itemDocSnapshot = await Promise.race([
+            getDoc(itemDocRef),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Firestore query timeout')), fetchTimeout)
+            )
+        ]);
 
         if (itemDocSnapshot.exists()) {
             // Get the complete item document data
@@ -59,19 +112,86 @@ export const getSpaceItem = async (itemId) => {
             // map URL fields to the expected format \9was done to make firebase have fields prefixed with gsUrl, so they all show together in the document).
             itemData = mapWebGLUrlsFields(itemData);
 
-            console.log("Space data:", itemData);
+            
             // Cache the fetched space
             Logger.log(`spacesFirestore: Caching space data for: ${itemId}`);
             cachedSpaces[itemId] = itemData;
 
             return itemData;
         } else {
-            // Item document doesn't exist, return null or handle accordingly
-            Logger.warn(`spacesFirestore: No document found for item ID: ${itemId}`);
+            // Item document doesn't exist
+            // Retry if might be a timing/permission issue (especially right after auth)
+            if (retryCount < maxRetries) {
+                const delay = getRetryDelay(false);
+                Logger.log(`spacesFirestore: Space not found, retrying (${retryCount + 1}/${maxRetries}) after ${delay}ms: ${itemId} - might be timing/permission issue`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return getSpaceItem(itemId, retryCount + 1);
+            }
+            
+            // After retries, space truly doesn't exist
+            Logger.warn(`spacesFirestore: No document found for item ID: ${itemId} (after ${maxRetries} attempts)`);
             return null;
         }
     } catch (error) {
-        Logger.error('spacesFirestore: Error fetching item data:', error);
+        const isPermissionError = error.code === 'permission-denied' || 
+                                  error.code === 'permissions' ||
+                                  error.message?.toLowerCase().includes('permission') ||
+                                  error.message?.toLowerCase().includes('insufficient permissions');
+        
+        // Log the error for debugging
+        Logger.log(`spacesFirestore: Error fetching space (attempt ${retryCount + 1}):`, {
+            code: error.code,
+            message: error.message,
+            itemId,
+            isPermissionError
+        });
+        
+        // Retry on transient errors (network, permissions, timeouts, etc.)
+        if (retryCount < maxRetries && (
+            error.code === 'unavailable' || 
+            error.code === 'deadline-exceeded' ||
+            isPermissionError ||
+            error.message?.includes('network') ||
+            error.message?.includes('timeout') ||
+            error.message?.includes('Firestore query timeout')
+        )) {
+            const delay = getRetryDelay(isPermissionError);
+            Logger.log(`spacesFirestore: ${isPermissionError ? 'Permission' : 'Transient'} error, retrying (${retryCount + 1}/${maxRetries}) after ${delay}ms: ${error.code || error.message}`);
+            
+            // For permission errors, wait longer and ensure auth state
+            // CRITICAL: Permission errors for public spaces accessed by guests are often
+            // caused by Firestore rules evaluating before the document is fully loaded.
+            // The rule checks resource.data.isPublic which requires the document to exist.
+            if (isPermissionError) {
+                const auth = getAuth();
+                if (auth.currentUser) {
+                    // For authenticated users: Wait for Firestore to fully sync auth state
+                    const extraDelay = retryCount === 0 ? 500 : 300;
+                    await new Promise(resolve => setTimeout(resolve, extraDelay));
+                    // Force a token refresh on first retry to ensure Firestore sees the auth
+                    if (retryCount === 0) {
+                        try {
+                            await auth.currentUser.getIdToken(true); // Force refresh
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        } catch (e) {
+                            // Ignore token refresh errors
+                        }
+                    }
+                } else {
+                    // For unauthenticated users (guests): Wait longer for Firestore rules to initialize
+                    // This is especially important for public spaces that should allow guest access
+                    // Exponential backoff: 1200ms, 2400ms, 4800ms, 9600ms
+                    const guestDelay = 1200 * Math.pow(2, retryCount);
+                    Logger.log(`spacesFirestore: Guest user permission error, waiting ${guestDelay}ms for Firestore rules to evaluate (attempt ${retryCount + 1})`);
+                    await new Promise(resolve => setTimeout(resolve, guestDelay));
+                }
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return getSpaceItem(itemId, retryCount + 1);
+        }
+        
+        Logger.error('spacesFirestore: Error fetching item data (final):', error);
         throw error; // Rethrow the error to be handled by the caller
     }
 };
@@ -302,6 +422,12 @@ export const userCanModerateSpace = async (spaceId, userID) => {
  */
 export const uploadSpaceLogo = async (spaceId, logoFile) => {
   try {
+    // Client-side rate limiting
+    const rateLimitCheck = checkClientRateLimit('fileUpload', spaceId);
+    if (!rateLimitCheck.allowed) {
+      throw new Error(rateLimitCheck.message);
+    }
+
     // Validate parameters
     if (!spaceId || !logoFile) {
       throw new Error('Missing required parameters: spaceId and logoFile');
@@ -310,6 +436,12 @@ export const uploadSpaceLogo = async (spaceId, logoFile) => {
     // Validate file type
     if (!logoFile.type.startsWith('image/')) {
       throw new Error('File must be an image');
+    }
+
+    // Validate file size (5MB limit for logos)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (logoFile.size > MAX_FILE_SIZE) {
+      throw new Error('File size must be less than 5MB');
     }
 
     // Create a reference to Firebase Storage
@@ -401,6 +533,12 @@ export const deleteSpaceLogo = async (spaceId) => {
  */
 export const uploadSpaceBackground = async (spaceId, backgroundFile) => {
   try {
+    // Client-side rate limiting
+    const rateLimitCheck = checkClientRateLimit('fileUpload', spaceId);
+    if (!rateLimitCheck.allowed) {
+      throw new Error(rateLimitCheck.message);
+    }
+
     // Validate parameters
     if (!spaceId || !backgroundFile) {
       throw new Error('Missing required parameters: spaceId and backgroundFile');
@@ -409,6 +547,12 @@ export const uploadSpaceBackground = async (spaceId, backgroundFile) => {
     // Validate file type
     if (!backgroundFile.type.startsWith('image/')) {
       throw new Error('File must be an image');
+    }
+
+    // Validate file size (10MB limit for backgrounds)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (backgroundFile.size > MAX_FILE_SIZE) {
+      throw new Error('File size must be less than 10MB');
     }
 
     // Create a reference to Firebase Storage

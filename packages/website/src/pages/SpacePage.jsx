@@ -70,11 +70,11 @@ function setupFirebaseStorageProxy() {
   window.fetch = function(url, options) {
     // Check if this is a Firebase Storage URL
     if (typeof url === 'string' && url.includes('firebasestorage.googleapis.com')) {
-      console.log('Intercepting Firebase Storage URL:', url);
+      
       
       // Replace the Firebase Storage URL with our proxy URL
       const proxyUrl = url.replace('https://firebasestorage.googleapis.com', '/firebase-proxy');
-      console.log('Using proxy URL:', proxyUrl);
+      
       
       // Call the original fetch with the proxy URL
       return originalFetch(proxyUrl, options);
@@ -91,9 +91,9 @@ function setupFirebaseStorageProxy() {
 }
 
 function SpacePage() {
-  console.log("SpacePage component rendering");
+  
   const { spaceSlug } = useParams();
-  console.log("Space slug from URL:", spaceSlug);
+  
   
   const [space, setSpace] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -106,11 +106,11 @@ function SpacePage() {
     async function fetchSpace() {
       try {
         setLoading(true);
-        console.log("Fetching space with slug:", spaceSlug);
+        
         
         // Special case for the potato website - always use hardcoded data
         if (spaceSlug === 'the-potato-website') {
-          console.log("Using hardcoded potato space data");
+          
           setSpace(potatoSpaceData);
           setActualSpaceId(POTATO_SPACE_ID);
           setLoading(false);
@@ -122,12 +122,12 @@ function SpacePage() {
         const spaceDoc = await getDoc(spaceRef);
         
         if (spaceDoc.exists()) {
-          console.log("Found space by ID:", spaceDoc.id);
+          
           const spaceData = { id: spaceDoc.id, ...spaceDoc.data() };
           setSpace(spaceData);
           setActualSpaceId(spaceDoc.id);
         } else {
-          console.log("Space not found by ID, checking by slug...");
+          
           
           // Try to find by slug
           try {
@@ -140,19 +140,19 @@ function SpacePage() {
             
             if (!querySnapshot.empty) {
               const spaceDoc = querySnapshot.docs[0];
-              console.log("Found space by slug:", spaceDoc.id);
+              
               const spaceData = { id: spaceDoc.id, ...spaceDoc.data() };
               setSpace(spaceData);
               setActualSpaceId(spaceDoc.id);
             } else {
               // Check if it's a sample space ID
               if (spaceSlug.startsWith('sample')) {
-                console.log('Using sample space data');
+                
                 const sampleSpace = getSampleSpace(spaceSlug);
                 setSpace(sampleSpace);
                 setActualSpaceId(spaceSlug);
               } else {
-                console.log("Space not found by slug either");
+                
                 setError('Space not found');
               }
             }
@@ -167,12 +167,12 @@ function SpacePage() {
         // If there's a permissions error, use sample data if it's a sample ID
         if (err.code === 'permission-denied') {
           if (spaceSlug.startsWith('sample')) {
-            console.log('Using sample space data due to Firebase permissions issue');
+            
             const sampleSpace = getSampleSpace(spaceSlug);
             setSpace(sampleSpace);
             setActualSpaceId(spaceSlug);
           } else if (spaceSlug === 'the-potato-website') {
-            console.log("Using special potato space data due to permissions issue");
+            
             setSpace(potatoSpaceData);
             setActualSpaceId(POTATO_SPACE_ID);
           } else {
@@ -196,7 +196,7 @@ function SpacePage() {
   
   // Set up the Firebase Storage proxy
   useEffect(() => {
-    console.log('Setting up Firebase Storage proxy');
+    
     return setupFirebaseStorageProxy();
   }, []);
   
@@ -206,11 +206,11 @@ function SpacePage() {
       if (!spaceSlug) return;
       
       try {
-        console.log("Fetching SEO data for:", spaceSlug);
+        
         
         // For the potato website, always use hardcoded data first
         if (spaceSlug === 'the-potato-website') {
-          console.log("Using hardcoded data for SEO (potato website)");
+          
           setSeoData({
             title: potatoSpaceData.name,
             description: potatoSpaceData.description,
@@ -223,7 +223,7 @@ function SpacePage() {
             const seoDoc = await getDoc(seoRef);
             
             if (seoDoc.exists()) {
-              console.log("Found SEO data from collection:", seoDoc.data());
+              
               // Update with Firebase data but keep hardcoded as fallback
               setSeoData(prevData => ({
                 title: seoDoc.data().title || prevData.title,
@@ -237,7 +237,7 @@ function SpacePage() {
               
               if (spaceDoc.exists()) {
                 const data = spaceDoc.data();
-                console.log("Found space data for SEO:", data);
+                
                 // Update with Firebase data but keep hardcoded as fallback
                 setSeoData(prevData => ({
                   title: data.name || prevData.title,
@@ -259,7 +259,7 @@ function SpacePage() {
         const seoDoc = await getDoc(seoRef);
         
         if (seoDoc.exists()) {
-          console.log("Found SEO data:", seoDoc.data());
+          
           setSeoData(seoDoc.data());
         } else if (space) {
           // If no dedicated SEO data, use space data

@@ -25,7 +25,7 @@ export const subscribeToSpaceChatMessages = (spaceId, callback) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
                     const messageData = change.doc.data();
-                    console.log('Firestore document data:', messageData); // Log each document's data
+                     // Log each document's data
                     newMessages.push({ id: change.doc.id, ...messageData });
                 }
             });

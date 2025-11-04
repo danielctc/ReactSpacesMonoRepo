@@ -73,8 +73,8 @@ export const useMediaScreenVideoPlayer = (isEditMode) => {
 
     const handlePlayMediaScreenVideo = async (eventDataJson) => {
       try {
-        console.log("[DEBUG] PlayMediaScreenVideo event received:", eventDataJson, "isEditMode:", isEditMode);
-        console.log("PlayMediaScreenVideo event received:", eventDataJson);
+        
+        
         
         // IMPORTANT: We no longer return early in edit mode
         // Instead, we'll just skip the video playing logic but still set the currentMediaScreenId
@@ -90,7 +90,7 @@ export const useMediaScreenVideoPlayer = (isEditMode) => {
         // In edit mode, just set the current media screen ID and return
         // This allows the click to be processed by the MediaScreenController for opening the upload modal
         if (isEditMode) {
-          console.log(`[DEBUG] Edit mode is active for screen ${mediaScreenId}, setting ID but not playing video`);
+          
           Logger.log("Edit mode is active, setting media screen ID but not playing video");
           setCurrentMediaScreenId(mediaScreenId);
           return;
@@ -111,12 +111,12 @@ export const useMediaScreenVideoPlayer = (isEditMode) => {
 
         // If a direct video URL is provided in the event, use it instead of fetching from Firestore
         if (directVideoUrl) {
-          console.log(`Using direct video URL from event: ${directVideoUrl}`);
+          
           if (isMounted) {
             try {
               // Convert to embed URL before setting state
               const embedUrl = getEmbedUrl(directVideoUrl);
-              console.log(`Setting video URL to: ${embedUrl} (original: ${directVideoUrl})`);
+              
               setVideoUrl(embedUrl);
               setVideoTitle(`Media Screen ${mediaScreenId}`);
               setCurrentMediaScreenId(mediaScreenId);
@@ -132,11 +132,11 @@ export const useMediaScreenVideoPlayer = (isEditMode) => {
           return;
         }
 
-        console.log(`Fetching media screen data for ID: ${mediaScreenId}`);
+        
         try {
           // Get the media screen data from Firestore
           const mediaScreen = await getMediaScreenImage(spaceID, mediaScreenId);
-          console.log("Media screen data from Firestore:", mediaScreen);
+          
           
           // Check if the media screen has a video URL
           if (!mediaScreen || !mediaScreen.videoUrl) {
@@ -149,7 +149,7 @@ export const useMediaScreenVideoPlayer = (isEditMode) => {
           // Only proceed if this media screen is set to display as video
           if (!mediaScreen.displayAsVideo) {
             Logger.log("Media screen is not set to display as video:", mediaScreenId);
-            console.log("displayAsVideo flag is false for this media screen");
+            
             safelyResetProcessingState();
             clearTimeout(processingTimeout);
             return;
@@ -159,7 +159,7 @@ export const useMediaScreenVideoPlayer = (isEditMode) => {
             try {
               // Convert to embed URL before setting state
               const embedUrl = getEmbedUrl(mediaScreen.videoUrl);
-              console.log(`Setting video URL to: ${embedUrl} (original: ${mediaScreen.videoUrl})`);
+              
               const videoTitle = mediaScreen.title || `Media Screen ${mediaScreenId}`;
               setVideoUrl(embedUrl);
               setVideoTitle(videoTitle);

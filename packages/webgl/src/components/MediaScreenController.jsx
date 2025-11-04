@@ -30,8 +30,6 @@ const DEBUG_MEDIA_SCREEN = false;
 const EDIT_MODE_REFRESH_INTERVAL = 5000;
 
 // Utilities
-const debugLog = (...args) => DEBUG_MEDIA_SCREEN && console.log(...args);
-
 const cleanFirebaseUrl = (url) => {
   if (!url?.includes('firebasestorage.googleapis.com')) return url;
   try {
@@ -369,7 +367,7 @@ const MediaScreenController = () => {
     };
     
     window.TestJavaScriptFromUnity = (message) => {
-      console.log("Unity called JavaScript:", message);
+      // Message received from Unity
     };
     
     return () => {
@@ -626,7 +624,6 @@ const MediaScreenController = () => {
                       maxHeight="80vh"
                       objectFit="contain"
                       alt="Media Screen Image"
-                      onLoad={() => console.log("Image loaded successfully:", currentImageUrl)}
                       onError={(e) => console.error("Error loading image:", e, currentImageUrl)}
                       onClick={preventPropagation}
                     />

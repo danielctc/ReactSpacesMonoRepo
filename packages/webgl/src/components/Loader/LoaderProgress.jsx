@@ -32,10 +32,10 @@ function LoaderProgress() {
         try {
           const spaceData = await getSpaceItem(spaceID);
           if (spaceData && spaceData.allowGuestUsers === true) {
-            console.log("LoaderProgress: Guest users confirmed allowed, not showing sign-in prompt");
+            
             setShowSignInPrompt(false);
           } else {
-            console.log("LoaderProgress: Guest users not allowed or space data invalid, showing sign-in prompt");
+            
             setShowSignInPrompt(true);
           }
         } catch (error) {
@@ -239,7 +239,7 @@ function LoaderProgress() {
   useEffect(() => {
     // Only proceed if both conditions are met
     if (isFirstSceneLoaded && isPlayerInstantiated) {
-      console.log("LoaderProgress: Both conditions met, showing Unity canvas");
+      
       
       // Clear any existing timeout
       if (timeoutRef.current) {

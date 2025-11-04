@@ -38,7 +38,7 @@ function ReadyPlayerMeModal({ open, onClose }) {
     // Get avatar GLB URL and send it to Unity
     if (json.eventName === 'v1.avatar.exported') {
       const avatarUrl = json.data.url;
-      console.log(`Avatar URL: ${avatarUrl}`);
+      
 
       // Use sendUnityEvent to send the avatar URL to Unity
       sendUnityEvent("AvatarUrlFromReact", { url: avatarUrl });

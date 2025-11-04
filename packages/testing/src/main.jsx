@@ -6,9 +6,10 @@ import { loadTheme } from "@disruptive-spaces/shared/themes/loadTheme";
 import { UserProvider } from "@disruptive-spaces/shared/providers/UserProvider";
 import { FullScreenProvider } from "@disruptive-spaces/shared/providers/FullScreenProvider";
 
-import HeaderAuthLinks from "@disruptive-spaces/header-auth-links";
-import WebGLLoader from "@disruptive-spaces/webgl";
-import Chat from "@disruptive-spaces/chat";
+// Import the raw components instead of the packaged versions to avoid duplicate UserProviders
+import HeaderAuthLinks from "@disruptive-spaces/header-auth-links/src/HeaderAuthLinks.jsx";
+import WebGLLoader from "@disruptive-spaces/webgl/src/WebGLLoader.jsx";
+import Chat from "@disruptive-spaces/chat/src/Chat.jsx";
 
 // Error Boundary for WebGL component
 class WebGLErrorBoundary extends Component {

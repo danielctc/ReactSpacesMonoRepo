@@ -61,13 +61,13 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
     // Block Unity keyboard input when modal is open
     useEffect(() => {
         if (isOpen) {
-            console.log('ProfileModal: Modal opened, blocking Unity keyboard input');
+            
             blockUnityKeyboardInput(true);
             
             // Dispatch modal-opened event for WebGLRenderer to listen for
             window.dispatchEvent(new CustomEvent('modal-opened'));
         } else {
-            console.log('ProfileModal: Modal closed, unblocking Unity keyboard input');
+            
             blockUnityKeyboardInput(false).then(() => {
                 setTimeout(() => {
                     focusUnity(true);
@@ -80,7 +80,7 @@ const ProfileModal = ({ isOpen, onClose, user, profileImageUrl }) => {
         
         return () => {
             if (isOpen) {
-                console.log('ProfileModal: Cleanup on unmount, unblocking Unity keyboard input');
+                
                 blockUnityKeyboardInput(false);
                 window.dispatchEvent(new CustomEvent('modal-closed'));
             }

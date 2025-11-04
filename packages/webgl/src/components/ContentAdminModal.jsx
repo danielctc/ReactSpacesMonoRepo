@@ -17,7 +17,10 @@ import {
   Button,
   Divider,
   useColorModeValue,
+  IconButton,
+  Icon,
 } from '@chakra-ui/react';
+import { FaCouch, FaCube, FaUpload, FaDoorOpen, FaClock, FaArrowLeft } from 'react-icons/fa';
 import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import PortalAdminModal from './PortalAdminModal';
@@ -35,7 +38,7 @@ const CATEGORY_KEY_MAP = {
 };
 
 const ContentAdminModal = ({ isOpen, onClose, settings }) => {
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]);
+  const [selectedCategory, setSelectedCategory] = useState(null); // null means home grid
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreatePortalView, setShowCreatePortalView] = useState(false);
   const [isPortalAdminModalOpen, setIsPortalAdminModalOpen] = useState(false);
@@ -88,12 +91,18 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
 
   const handleCategoryClick = (category) => {
     setSelectedCategory(category);
-    setSearchTerm(''); // Reset search when category changes
+    setSearchTerm('');
     if (category === "Portals") {
       setShowCreatePortalView(true);
     } else {
       setShowCreatePortalView(false);
     }
+  };
+
+  const handleBackToHome = () => {
+    setSelectedCategory(null);
+    setShowCreatePortalView(false);
+    setSearchTerm('');
   };
 
   // Helper to filter items based on selected category and search term
@@ -116,12 +125,12 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
     return filtered;
   };
 
-  const filteredItems = ["Furniture", "Objects"].includes(selectedCategory)
+  const filteredItems = ["Furniture", "Objects"].includes(selectedCategory || '')
     ? filterByCategory(catalogueItems, selectedCategory)
     : [];
 
   const handlePlaceItem = async (item) => {
-    console.log(`Placing item: ${item.name}`);
+    
     
     try {
       // Validate required fields
@@ -187,18 +196,23 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="5xl" isCentered>
-      <ModalOverlay bg="rgba(0, 0, 0, 0.8)" backdropFilter="blur(8px)" />
+    <Modal isOpen={isOpen} onClose={onClose} isCentered={false} motionPreset="slideInLeft">
+      <ModalOverlay bg="transparent" backdropFilter="none" />
       <ModalContent 
         bg="#1a1a1a"
         color="white" 
-        borderRadius="xl"
+        borderRadius="2xl"
         border="1px solid #333"
-        height="85vh"
-        maxHeight="750px" 
-        width="85vw" 
-        maxWidth="1200px"
+        position="fixed"
+        left="20px"
+        top="20px"
+        transform="none"
+        width="360px"
+        maxWidth="360px"
+        height="80vh"
+        maxHeight="80vh"
         overflow="hidden"
+        boxShadow="xl"
       >
         <ModalHeader 
           fontSize="md"
@@ -210,7 +224,21 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
           borderBottom="1px solid" 
           borderColor="whiteAlpha.300"
         >
-          {showCreatePortalView ? "Create New Portal" : "Content Catalogue"}
+          <Flex align="center" gap={2}>
+            {selectedCategory && (
+              <IconButton
+                aria-label="Back"
+                icon={<FaArrowLeft />}
+                size="sm"
+                variant="ghost"
+                color="whiteAlpha.800"
+                onClick={handleBackToHome}
+              />
+            )}
+            <Text>
+              {selectedCategory ? (showCreatePortalView ? "Create New Portal" : selectedCategory) : "Content Catalogue"}
+            </Text>
+          </Flex>
         </ModalHeader>
         <ModalCloseButton
           color="white"
@@ -222,68 +250,107 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
           right={3}
         />
         <ModalBody p={0} display="flex" flexDirection="column" height="calc(100% - 60px)">
-          
-          <HStack 
-            spacing={4} 
-            p={4} 
-            borderBottom="1px solid" 
-            borderColor="whiteAlpha.300"
-            overflowX="auto"
-          >
-            {categories
-              .filter(category => category !== 'Portals')
-              .map(category => (
-                <Button
-                  key={category}
-                  variant="ghost"
-                  size="md"
-                  fontWeight={selectedCategory === category ? "semibold" : "normal"}
-                  color={selectedCategory === category ? "white" : inactiveTabColor}
-                  bg={selectedCategory === category ? activeTabBg : "transparent"}
-                  borderBottom={selectedCategory === category ? `2px solid ${activeTabColor}` : "2px solid transparent"}
-                  borderRadius="md"
-                  _hover={{ 
-                    bg: selectedCategory !== category ? "whiteAlpha.100" : activeTabBg,
-                    color: "white"
-                  }}
-                  onClick={() => handleCategoryClick(category)}
-                  px={4}
-                  whiteSpace="nowrap"
+          {/* Home icon grid */}
+          {!selectedCategory && (
+            <Box p={4}>
+              <Grid templateColumns="repeat(2, 1fr)" gap={3}>
+                <Box
+                  onClick={() => handleCategoryClick('Recent')}
+                  cursor="pointer"
+                  bg="rgba(255,255,255,0.06)"
+                  border="1px solid rgba(255,255,255,0.12)"
+                  borderRadius="xl"
+                  height="120px"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  _hover={{ bg: 'rgba(255,255,255,0.12)' }}
                 >
-                  {category}
-                </Button>
-              ))}
-            
-            <Spacer />
+                  <VStack spacing={2}>
+                    <Icon as={FaClock} boxSize={8} color="white" />
+                    <Text fontSize="sm" color="white">Recent</Text>
+                  </VStack>
+                </Box>
+                <Box
+                  onClick={() => handleCategoryClick('Furniture')}
+                  cursor="pointer"
+                  bg="rgba(255,255,255,0.06)"
+                  border="1px solid rgba(255,255,255,0.12)"
+                  borderRadius="xl"
+                  height="120px"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  _hover={{ bg: 'rgba(255,255,255,0.12)' }}
+                >
+                  <VStack spacing={2}>
+                    <Icon as={FaCouch} boxSize={8} color="white" />
+                    <Text fontSize="sm" color="white">Furniture</Text>
+                  </VStack>
+                </Box>
+                <Box
+                  onClick={() => handleCategoryClick('Objects')}
+                  cursor="pointer"
+                  bg="rgba(255,255,255,0.06)"
+                  border="1px solid rgba(255,255,255,0.12)"
+                  borderRadius="xl"
+                  height="120px"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  _hover={{ bg: 'rgba(255,255,255,0.12)' }}
+                >
+                  <VStack spacing={2}>
+                    <Icon as={FaCube} boxSize={8} color="white" />
+                    <Text fontSize="sm" color="white">Objects</Text>
+                  </VStack>
+                </Box>
+                <Box
+                  onClick={() => handleCategoryClick('Upload')}
+                  cursor="pointer"
+                  bg="rgba(255,255,255,0.06)"
+                  border="1px solid rgba(255,255,255,0.12)"
+                  borderRadius="xl"
+                  height="120px"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  _hover={{ bg: 'rgba(255,255,255,0.12)' }}
+                >
+                  <VStack spacing={2}>
+                    <Icon as={FaUpload} boxSize={8} color="white" />
+                    <Text fontSize="sm" color="white">Upload</Text>
+                  </VStack>
+                </Box>
+                <Box
+                  onClick={() => handleCategoryClick('Portals')}
+                  cursor="pointer"
+                  bg="rgba(255,255,255,0.06)"
+                  border="1px solid rgba(255,255,255,0.12)"
+                  borderRadius="xl"
+                  height="120px"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  gridColumn="1 / span 2"
+                  _hover={{ bg: 'rgba(255,255,255,0.12)' }}
+                >
+                  <VStack spacing={2}>
+                    <Icon as={FaDoorOpen} boxSize={8} color="white" />
+                    <Text fontSize="sm" color="white">Portals</Text>
+                  </VStack>
+                </Box>
+              </Grid>
+            </Box>
+          )}
 
-            <Button
-              key="Portals"
-              variant="ghost"
-              size="md"
-              fontWeight={selectedCategory === "Portals" ? "semibold" : "normal"}
-              color={selectedCategory === "Portals" ? "white" : inactiveTabColor}
-              bg={selectedCategory === "Portals" ? activeTabBg : "transparent"}
-              borderBottom={selectedCategory === "Portals" ? `2px solid ${activeTabColor}` : "2px solid transparent"}
-              borderRadius="md"
-              _hover={{ 
-                bg: selectedCategory !== "Portals" ? "whiteAlpha.100" : activeTabBg,
-                color: "white"
-              }}
-              onClick={() => handleCategoryClick("Portals")}
-              px={4}
-              whiteSpace="nowrap"
-            >
-              Portals
-            </Button>
-          </HStack>
-
-          {showCreatePortalView && selectedCategory === "Portals" ? (
+          {selectedCategory === "Portals" && showCreatePortalView ? (
             <Box p={4} flexGrow={1} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
               {/* Content for Create New Portal view */}
               {/* Title is now handled by ModalHeader */}
               <Button size="lg" colorScheme="blue" onClick={handleOpenPortalAdminModal}>Browse</Button>
             </Box>
-          ) : (
+          ) : selectedCategory && (
             <>
               <Box p={4}>
                 <Input
@@ -300,8 +367,8 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
               
               <Box p={4} pt={0} overflowY="auto" flexGrow={1}>
                 <Grid 
-                  templateColumns="repeat(auto-fill, minmax(140px, 1fr))"
-                  gap={4}
+                  templateColumns="repeat(2, minmax(0, 1fr))"
+                  gap={3}
                 >
                   {isLoading ? (
                     <Text color="whiteAlpha.700">Loading items...</Text>
@@ -326,7 +393,7 @@ const ContentAdminModal = ({ isOpen, onClose, settings }) => {
                           bgRepeat="no-repeat"
                           bgPos="center"
                           borderRadius="md"
-                          h="100px"
+                          h="84px"
                           mb={2}
                           flexShrink={0}
                         />

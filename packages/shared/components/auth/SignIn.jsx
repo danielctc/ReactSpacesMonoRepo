@@ -37,8 +37,13 @@ import {
 } from "@chakra-ui/react";
 import { EmailIcon, LockIcon } from "@chakra-ui/icons";
 
-// reCAPTCHA site key - should be moved to environment variables in production
+// reCAPTCHA site key - Uses environment variable or fallback
+// Note: reCAPTCHA site keys are PUBLIC and safe to include in code
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Le4oQUrAAAAAHe0GMH5Z0tpuqTV2qqDzK9Yk4Uv";
+
+if (!import.meta.env.VITE_RECAPTCHA_SITE_KEY && import.meta.env.DEV) {
+    console.warn('DEV MODE: Using fallback reCAPTCHA key. Set VITE_RECAPTCHA_SITE_KEY in .env for production.');
+}
 
 function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialIsOpen = false }) {
     const { signIn, createGuestUser } = useContext(UserContext);

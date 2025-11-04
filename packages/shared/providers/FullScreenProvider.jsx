@@ -38,7 +38,7 @@ export const FullScreenProvider = ({ children }) => {
 
         // Handle mobile devices
         if (isMobile) {
-            console.log("Attempting mobile fullscreen...");
+            
             
             // Try to use the video element for iOS (if it exists)
             const videoElement = element.querySelector('video') || element;

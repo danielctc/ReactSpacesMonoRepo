@@ -7,7 +7,12 @@ import { useContext } from 'react';
 import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 
 const HeaderAuthLinks = () => {
-    const { user } = useContext(UserContext);
+    const { user, loading } = useContext(UserContext);
+
+    // Don't show anything while loading to prevent flash of login screen
+    if (loading) {
+        return null;
+    }
 
     return (
         <Box 

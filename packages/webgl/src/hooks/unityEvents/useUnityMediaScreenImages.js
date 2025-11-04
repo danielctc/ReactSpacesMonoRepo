@@ -25,7 +25,7 @@ const cleanFirebaseUrl = (url) => {
       if (alt) urlObj.searchParams.set('alt', alt);
       if (token) urlObj.searchParams.set('token', token);
       
-      console.log(`Cleaned Firebase URL from ${url} to ${urlObj.toString()}`);
+      
       return urlObj.toString();
     }
     return url;

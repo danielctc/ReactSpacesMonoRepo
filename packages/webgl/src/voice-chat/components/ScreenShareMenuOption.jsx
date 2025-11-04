@@ -61,7 +61,7 @@ const ScreenShareMenuOption = ({ onClose }) => {
       
       // If not joined to voice chat, join automatically
       if (!window.agoraClient.isJoined) {
-        console.log('ScreenShareMenuOption: Not joined to voice chat, joining automatically');
+        
         
         // Dispatch an event to request joining the voice chat
         const joinEvent = new CustomEvent('JoinVoiceChat', { 

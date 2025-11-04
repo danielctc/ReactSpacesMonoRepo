@@ -102,19 +102,19 @@ export const userBelongsToGroup = (userId, groupName) => {
   Logger.warn(`⚠️ SECURITY OVERRIDE: Bypassing group membership check for user ${userId} and group ${groupName}`);
   // Always return true for 'users' group
   if (groupName === 'users') {
-    console.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and group ${groupName} - Returning true`);
+    
     return true;
   }
   
   // For admin groups, check if the user is in the list of admin UIDs
   if (groupName === 'disruptiveAdmin') {
     const isAdmin = DEVELOPMENT_ADMIN_UIDS.includes(userId);
-    console.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and admin group ${groupName} - Returning ${isAdmin}`);
+    
     return isAdmin;
   }
   
   // For other groups, return false
-  console.log(`OVERRIDE: userBelongsToGroup check for user ${userId} and group ${groupName} - Returning false`);
+  
   return false;
 };
 
@@ -127,7 +127,7 @@ export const userBelongsToGroup = (userId, groupName) => {
  * @returns {boolean} - Always true
  */
 export const userBelongsToSpaceGroup = (userId, spaceId) => {
-  console.log(`OVERRIDE: userBelongsToSpaceGroup check for user ${userId} and space ${spaceId} - Returning true`);
+  
   return true;
 };
 
@@ -140,7 +140,7 @@ export const userBelongsToSpaceGroup = (userId, spaceId) => {
  */
 export const isAdmin = (user) => {
   const isAdmin = DEVELOPMENT_ADMIN_UIDS.includes(user?.uid);
-  console.log(`OVERRIDE: isAdmin check for user ${user?.uid} - Returning ${isAdmin}`);
+  
   return isAdmin;
 };
 

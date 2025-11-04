@@ -48,16 +48,7 @@ const VoiceButton = ({
   
   // Log state on mount and when it changes
   useEffect(() => {
-    console.log("VoiceButton: State:", { 
-      isVoiceEnabled, 
-      isJoined, 
-      channel,
-      hasClient: !!client,
-      clientState: client?.connectionState,
-      windowAgoraClient: window.agoraClient,
-      isPlayerReady,
-      voiceDisabled
-    });
+    
   }, [isVoiceEnabled, isJoined, channel, client, isPlayerReady, voiceDisabled]);
   
   // Handle button click
@@ -65,22 +56,19 @@ const VoiceButton = ({
     if (isLoading || voiceDisabled) return;
     
     setIsLoading(true);
-    console.log("VoiceButton: Handling click, current state:", { 
-      isVoiceEnabled, 
-      isJoined 
-    });
+    
     
     try {
       // Make sure we're joined to the channel
       if (!isJoined && joinOnClick) {
         try {
-          console.log("VoiceButton: Not joined, attempting to join channel");
+          
           await joinChannel();
-          console.log("VoiceButton: Joined channel successfully");
+          
         } catch (err) {
           // Ignore "already connected" errors
           if (err.message && err.message.includes("already in connecting/connected state")) {
-            console.log("VoiceButton: Already connected to channel");
+            
           } else {
             console.error("VoiceButton: Error joining channel:", err);
           }
@@ -88,9 +76,9 @@ const VoiceButton = ({
       }
       
       // Toggle voice
-      console.log("VoiceButton: Toggling voice state from:", isVoiceEnabled);
+      
       const newState = await toggleVoice();
-      console.log("VoiceButton: Voice toggled, new state:", newState);
+      
       
     } catch (err) {
       console.error("VoiceButton: Error toggling voice:", err);

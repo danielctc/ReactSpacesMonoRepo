@@ -20,28 +20,45 @@ const requiredEnvVars = [
   { key: 'VITE_FIREBASE_APP_ID', value: import.meta.env.VITE_FIREBASE_APP_ID },
 ];
 
-// Check for missing environment variables and log warnings
+// Check for missing environment variables
 const missingEnvVars = requiredEnvVars.filter(env => !env.value);
-if (missingEnvVars.length > 0) {
-  const missingKeys = missingEnvVars.map(env => env.key).join(', ');
-  const warningMessage = `Missing environment variables: ${missingKeys}. Using fallback values. For production, it's recommended to set up your .env file.`;
-  Logger.warn(warningMessage);
-  console.warn(warningMessage);
-}
 
 // Your web app's Firebase configuration
+// SECURITY: Fallback values only used in PRODUCTION builds where env vars aren't available
+// Development always requires env vars for security
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCaxoNKRIMaXhotGzdAjXc5gkARoqtS3bU",
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "disruptive-metaverse.firebaseapp.com",
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "disruptive-metaverse",
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "disruptive-metaverse.appspot.com",
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "294433070603",
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:294433070603:web:136cddd196eea9614fb10e"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 
+            (!import.meta.env.DEV ? "AIzaSyCaxoNKRIMaXhotGzdAjXc5gkARoqtS3bU" : null),
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 
+                (!import.meta.env.DEV ? "disruptive-metaverse.firebaseapp.com" : null),
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 
+               (!import.meta.env.DEV ? "disruptive-metaverse" : null),
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 
+                   (!import.meta.env.DEV ? "disruptive-metaverse.appspot.com" : null),
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || 
+                       (!import.meta.env.DEV ? "294433070603" : null),
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || 
+           (!import.meta.env.DEV ? "1:294433070603:web:136cddd196eea9614fb10e" : null)
 };
 
-// Log which config we're using (but don't log the actual keys)
-const isUsingFallback = missingEnvVars.length > 0;
-Logger.log(`Firebase initializing with ${isUsingFallback ? 'fallback' : 'environment'} configuration`);
+// Validate that we have all required config values
+if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+  const errorMessage = `CRITICAL: Missing required Firebase configuration. In development, set environment variables. In production builds, config should be available.`;
+  Logger.error(errorMessage);
+  console.error(errorMessage);
+  throw new Error('Missing required Firebase configuration');
+}
+
+// Log which config we're using
+if (missingEnvVars.length > 0 && !import.meta.env.DEV) {
+  // Info level - this is expected for static production builds
+  Logger.log('Firebase: Using fallback configuration for production build (this is normal)');
+} else if (missingEnvVars.length > 0 && import.meta.env.DEV) {
+  Logger.error('Firebase: Missing environment variables in development mode');
+  throw new Error(`Missing required environment variables in development: ${missingEnvVars.map(e => e.key).join(', ')}`);
+} else {
+  Logger.log('Firebase: Initializing with environment configuration');
+}
 
 // Initialize Firebase
 let app, auth, db, functions;

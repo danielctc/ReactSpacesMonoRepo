@@ -122,16 +122,30 @@ export const UnityProvider = ({
     Logger.log(`${DEBUG_PREFIX} Loading progress:`, loadingProgression);
   }, [loadingProgression]);
 
-  // Monitor loaded state
+  // Monitor loaded state and register Unity instance globally
   useEffect(() => {
     if (isLoaded) {
       Logger.log(`${DEBUG_PREFIX} Unity instance loaded for:`, spaceID);
+      
+      // Register Unity instance globally for unityKeyboard.js
+      const unityInstanceForKeyboard = {
+        SendMessage: sendMessage,
+        Module: unityProvider?.Module
+      };
+      
+      window.unityInstance = unityInstanceForKeyboard;
+      
+      // Call registerUnityInstance if it exists
+      if (window.registerUnityInstance) {
+        window.registerUnityInstance(unityInstanceForKeyboard);
+      }
+      
       // Start keep-alive if page is hidden
       if (document.hidden) {
         startKeepAlive();
       }
     }
-  }, [isLoaded, spaceID]);
+  }, [isLoaded, spaceID, sendMessage, unityProvider]);
 
   // Monitor errors
   useEffect(() => {

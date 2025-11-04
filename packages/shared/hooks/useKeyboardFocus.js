@@ -12,11 +12,11 @@ const useKeyboardFocus = () => {
 
     useEffect(() => {
         if (isFocused) {
-            console.log('useKeyboardFocus (legacy): Blocking Unity keyboard input');
+            
             blockUnityKeyboardInput(true);
             window.dispatchEvent(new CustomEvent('modal-opened'));
         } else {
-            console.log('useKeyboardFocus (legacy): Unblocking Unity keyboard input');
+            
             blockUnityKeyboardInput(false).then(() => {
                 setTimeout(() => {
                     if (!isFocused) { // Double-check we're still not focused
@@ -29,7 +29,7 @@ const useKeyboardFocus = () => {
 
         return () => {
             if (isFocused) {
-                console.log('useKeyboardFocus (legacy): Cleanup - unblocking Unity keyboard input');
+                
                 blockUnityKeyboardInput(false);
                 window.dispatchEvent(new CustomEvent('modal-closed'));
             }

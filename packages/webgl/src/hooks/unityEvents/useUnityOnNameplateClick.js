@@ -6,16 +6,10 @@ export const useUnityOnNameplateClick = () => {
     const [nameplateData, setNameplateData] = useState(null);
     const listenToUnityMessage = useListenForUnityEvent();
 
-    // Immediate debug log when hook is initialized
-    console.log('🎮 Nameplate click hook initialized');
-
     useEffect(() => {
-        console.log('🎮 Setting up nameplate click listener...');
-        
         const handleNameplateClick = (data) => {
-            console.log('🎮 Nameplate click detected!', data);
             if (!data) {
-                console.warn("🎮 Received empty data in nameplate click handler");
+                Logger.warn("Received empty data in nameplate click handler");
                 return;
             }
 
@@ -23,17 +17,24 @@ export const useUnityOnNameplateClick = () => {
                 // Parse the data if it's a string
                 const playerData = typeof data === 'string' ? JSON.parse(data) : data;
                 
-                // Extract all relevant player information
+                // Unity sends the UID in the playerId field
+                // Try to extract UID from the data
+                let uid = playerData.uid || playerData.playerId;
+                
+                // If playerId doesn't look like a UID (e.g., "[Player:1]"), try to find it another way
+                if (uid && uid.startsWith('[Player:')) {
+                    Logger.warn('PlayerId is in [Player:X] format, cannot extract UID');
+                    uid = null;
+                }
+                
                 setNameplateData({
                     playerName: playerData.playerName,
                     playerId: playerData.playerId,
-                    uid: playerData.uid, // Make sure this is included in the Unity event data
+                    uid: uid,
                     isLocalPlayer: playerData.isLocalPlayer
                 });
-                
-                console.log('🎮 Processed nameplate data:', playerData);
             } catch (error) {
-                console.error('🎮 Error processing nameplate data:', error);
+                Logger.error('Error processing nameplate data:', error);
             }
         };
 
@@ -41,7 +42,6 @@ export const useUnityOnNameplateClick = () => {
         const unsubscribe = listenToUnityMessage("OpenNameplateModal", handleNameplateClick);
         
         return () => {
-            console.log('🎮 Cleaning up nameplate click listener');
             if (typeof unsubscribe === "function") {
                 unsubscribe();
             }
@@ -49,7 +49,6 @@ export const useUnityOnNameplateClick = () => {
     }, [listenToUnityMessage]);
 
     const resetNameplateData = () => {
-        console.log('🎮 Resetting nameplate data');
         setNameplateData(null);
     };
 

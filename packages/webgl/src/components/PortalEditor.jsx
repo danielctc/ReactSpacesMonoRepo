@@ -14,7 +14,7 @@ import {
   useToast
 } from '@chakra-ui/react';
 import { useSendUnityEvent } from '../hooks/unityEvents/core/useSendUnityEvent';
-import { updatePortal } from '@disruptive-spaces/shared/firebase/portalsFirestore';
+import { updatePortal, deletePortal } from '@disruptive-spaces/shared/firebase/portalsFirestore';
 
 // Debounce utility
 function useDebouncedCallback(callback, delay, deps) {
@@ -71,7 +71,7 @@ const PortalEditor = ({ isOpen, onClose, portal, spaceId, style }) => {
       sendUnityEvent('DeletePortal', {
         portalId: portal.portalId
       });
-      const success = await updatePortal(spaceId, portal.portalId, null);
+      const success = await deletePortal(spaceId, portal.portalId);
       if (success) {
         toast({
           title: "Portal Deleted",

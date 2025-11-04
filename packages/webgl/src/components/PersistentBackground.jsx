@@ -23,11 +23,8 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
     if (didSetupRef.current || loadAttemptedRef.current) return;
     loadAttemptedRef.current = true;
     
-    console.log(`🎬 PersistentBackground: Initializing with props - videoUrl: ${videoBackgroundUrl}, imageUrl: ${backgroundUrl}`);
-    
     // If video URL is provided directly in props, use it
     if (videoBackgroundUrl) {
-      console.log(`🎬 PersistentBackground: Using provided video URL: ${videoBackgroundUrl}`);
       setupVideoBackground(videoBackgroundUrl);
       didSetupRef.current = true;
       return;
@@ -35,7 +32,6 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
     
     // If no video but image is available, use image
     if (backgroundUrl) {
-      console.log(`🎬 PersistentBackground: No video available, using image: ${backgroundUrl}`);
       setupImageBackground(backgroundUrl);
       didSetupRef.current = true;
       return;
@@ -49,7 +45,6 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
   useEffect(() => {
     const handleVideoBackgroundUpdate = (event) => {
       const { videoBackgroundUrl } = event.detail;
-      console.log(`🎬 PersistentBackground: Received video background update event: ${videoBackgroundUrl}`);
       
       if (videoBackgroundUrl && !didSetupRef.current) {
         setupVideoBackground(videoBackgroundUrl);
@@ -70,42 +65,33 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
     const matches = path.match(/\/space\/([^\/]+)/);
     
     if (!matches || !matches[1]) {
-      console.warn("🎬 PersistentBackground: Couldn't extract space ID from URL");
       return;
     }
     
     const spaceID = matches[1];
-    console.log(`🎬 PersistentBackground: Found space ID: ${spaceID}`);
     
     // Fetch the space data to check for background
     getSpaceItem(spaceID)
       .then(spaceData => {
-        console.log(`🎬 PersistentBackground: Retrieved space data for ${spaceID}:`, 
-          spaceData ? 'success' : 'null');
-        
         if (spaceData && spaceData.videoBackgroundUrl) {
           // Video found! Set it up first
-          console.log(`🎬 PersistentBackground: VIDEO FOUND: ${spaceData.videoBackgroundUrl}`);
           setupVideoBackground(spaceData.videoBackgroundUrl);
           didSetupRef.current = true;
         } else if (spaceData && (spaceData.backgroundUrl || spaceData.backgroundGsUrl)) {
           // No video, fall back to image
           const bgUrl = spaceData.backgroundUrl || spaceData.backgroundGsUrl;
-          console.log(`🎬 PersistentBackground: No video available, using image backdrop: ${bgUrl}`);
           setupImageBackground(bgUrl);
           didSetupRef.current = true;
         }
       })
       .catch(error => {
-        console.error("🎬 PersistentBackground: Error fetching space data:", error);
+        Logger.error("PersistentBackground: Error fetching space data:", error);
       });
   };
 
   // Function to set up the video background
   const setupVideoBackground = (videoUrl) => {
     if (!containerRef || !containerRef.current) return;
-    
-    console.log(`🎬 PersistentBackground: Setting up video background: ${videoUrl}`);
     
     // Clear any existing background elements
     clearBackgroundElements();
@@ -135,6 +121,7 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
       zIndex: '20',
       transition: 'opacity 1.5s ease-in-out',
       pointerEvents: 'none',
+      opacity: '1', // Show immediately - Unity starts downloading right away
     });
     
     // Add to DOM
@@ -149,15 +136,10 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
     try {
       // Attempt 1: Standard play
       videoElement.play()
-        .then(() => console.log('🎬 VIDEO PLAYING SUCCESSFULLY'))
         .catch(err => {
-          console.warn('🎬 First video play attempt failed:', err);
-          
           // Attempt 2: On user interaction
           const playVideo = () => {
-            videoElement.play()
-              .then(() => console.log('🎬 Video started after user interaction'))
-              .catch(e => console.error('🎬 Video still failed to play:', e));
+            videoElement.play().catch(() => {});
           };
           
           window.addEventListener('click', playVideo, { once: true });
@@ -165,21 +147,17 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
           
           // Attempt 3: Try playing again after a delay
           setTimeout(() => {
-            videoElement.play()
-              .then(() => console.log('🎬 Video started after timeout'))
-              .catch(e => console.error('🎬 Video still failed to play after timeout:', e));
+            videoElement.play().catch(() => {});
           }, 1000);
         });
     } catch (error) {
-      console.error('🎬 Error attempting to play video:', error);
+      // Silently fail
     }
   };
 
   // Function to set up the image background
   const setupImageBackground = (imageUrl) => {
     if (!containerRef || !containerRef.current || !imageUrl) return;
-    
-    console.log(`🎬 PersistentBackground: Setting up image background: ${imageUrl}`);
     
     // Create image background
     const bgElement = document.createElement('div');
@@ -199,6 +177,7 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
       zIndex: '19',
       transition: 'opacity 1.5s ease-in-out',
       pointerEvents: 'none',
+      opacity: '1', // Show immediately - Unity starts downloading right away
     });
     
     // Add to DOM
@@ -266,7 +245,6 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
     
     // Function to handle player instantiation
     const handlePlayerInstantiated = () => {
-      console.log("🎬 PersistentBackground: Player instantiated, removing background");
       setIsPlayerInstantiated(true);
       
       // Fade out elements
@@ -282,7 +260,6 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
     
     // Check if player is already instantiated
     if (window.isPlayerInstantiated) {
-      console.log("🎬 PersistentBackground: Player was already instantiated");
       handlePlayerInstantiated();
       return;
     }
@@ -293,7 +270,6 @@ const PersistentBackground = ({ backgroundUrl = null, videoBackgroundUrl = null,
     
     // Failsafe removal
     const timeoutId = setTimeout(() => {
-      console.log("🎬 PersistentBackground: Timeout reached, removing background");
       handlePlayerInstantiated();
     }, 30000);
     

@@ -29,9 +29,21 @@ export const uploadMediaScreenImage = async (spaceId, mediaScreenId, imageFile, 
     
     // Handle image upload if we have an image file
     if (imageFile) {
+      // Client-side rate limiting
+      const rateLimitCheck = checkClientRateLimit('fileUpload', spaceId);
+      if (!rateLimitCheck.allowed) {
+        throw new Error(rateLimitCheck.message);
+      }
+
       // Validate file type for images
       if (!imageFile.type.startsWith('image/')) {
         throw new Error('File must be an image');
+      }
+
+      // Validate file size (10MB limit for media screen images)
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+      if (imageFile.size > MAX_FILE_SIZE) {
+        throw new Error('File size must be less than 10MB');
       }
 
       // Create a reference to Firebase Storage

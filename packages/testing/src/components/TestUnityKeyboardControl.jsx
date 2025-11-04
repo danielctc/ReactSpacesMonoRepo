@@ -55,7 +55,7 @@ const TestUnityKeyboardControl = () => {
   const addLog = (message) => {
     const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
     setLogs(prev => [`[${timestamp}] ${message}`, ...prev.slice(0, 29)]);
-    console.log(`TestUnityKeyboardControl: ${message}`);
+    
   };
 
   // Check for Unity availability and setup debugging

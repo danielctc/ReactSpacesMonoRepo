@@ -6,7 +6,7 @@ import { FullScreenProvider } from '@disruptive-spaces/shared/providers/FullScre
 import HeaderAuthLinks from '@disruptive-spaces/header-auth-links/src/HeaderAuthLinks';
 
 function SpaceLayout({ children, spaceName }) {
-  console.log("SpaceLayout rendering with spaceName:", spaceName);
+  
   
   return (
     <Flex direction="column" minH="100vh" width="100%">

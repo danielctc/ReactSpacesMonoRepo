@@ -13,30 +13,37 @@
  * @exports userProperties
  */
 
+/**
+ * PUBLIC user properties - safe to expose in social metaverse
+ * These fields are visible to all users (including guests) for social features
+ * 
+ * ⚠️ NEVER add sensitive data here (email, phone, address, etc.)
+ * ⚠️ Sensitive data should ONLY go in users/{userId}/private collection
+ */
 export const userProperties = [
-    // Firebase Auth fields
+    // Firebase Auth fields (PUBLIC ONLY)
     //---------------------
-    // "uid",
-    // "accessToken",
-    "email",
+    // "uid",  // Available via auth.uid, not needed here
+    // "accessToken",  // Never expose
+    // "email",  // ❌ REMOVED - Now in private subcollection only
     // "displayName",
     // "photoURL",
 
-    // Firestore User collection Fields
+    // Firestore User collection Fields (PUBLIC - Social Profile)
     //-----------------------------------
     "name",
-    "rpmURL",
-    "Nickname",
-    "username",
+    "rpmURL",  // Avatar URL
+    "Nickname",  // Display name
+    "username",  // @username for mentions/searches
     "created_on",
-    "height_cm",
-    // Add more fields as needed.
+    "height_cm",  // Avatar customization
+    // Add more PUBLIC fields as needed.
 
-    "companyName",
-    "firstName",
-    "lastName",
-    // "accessCode",
-    "linkedInProfile",
+    "companyName",  // Professional info (optional)
+    "firstName",  // Public name
+    "lastName",  // Public name
+    // "accessCode",  // Don't expose
+    "linkedInProfile",  // Public professional link
     
     // User groups for permissions
     "groups",
@@ -45,4 +52,16 @@ export const userProperties = [
     "isGuest",
     "guestSpaceId",
     "guestSessionStart",
+];
+
+/**
+ * PRIVATE user properties - stored in users/{userId}/private/data
+ * Only accessible by the user themselves and admins
+ */
+export const privateUserProperties = [
+    "email",  // ✅ Private
+    "emailVerified",  // ✅ Private
+    "phoneNumber",  // ✅ Private (if you add this)
+    "dateOfBirth",  // ✅ Private (if you add this)
+    // Add other sensitive fields here
 ];

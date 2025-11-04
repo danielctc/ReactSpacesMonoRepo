@@ -16,69 +16,69 @@ import WebGLRenderer from "./WebGLRenderer";
 // Define a fallback MultipleView class if it doesn't exist
 // This ensures there's always a MultipleView available
 if (typeof window !== 'undefined' && !window.MultipleView) {
-    console.log("Defining fallback MultipleView class - scripts may not be loaded yet");
+    
     window.MultipleView = class MultipleView {
         constructor() {
-            console.log("HISPlayer: Fallback MultipleView constructor called");
+            
             this.multiView = { 
                 getPlayer: () => {
-                    console.log("HISPlayer: getPlayer called from fallback");
+                    
                     return {
                         isPlaying: false,
                         play: () => {
-                            console.log("HISPlayer: play called");
+                            
                             return true;
                         },
                         pause: () => {
-                            console.log("HISPlayer: pause called");
+                            
                             return true;
                         },
                         mute: (state) => {
-                            console.log("HISPlayer: mute called with state:", state);
+                            
                             return true;
                         },
                         isMuted: false,
                         seek: (time) => {
-                            console.log("HISPlayer: seek called with time:", time);
+                            
                             return true;
                         },
                         setVolume: (volume) => {
-                            console.log("HISPlayer: setVolume called with volume:", volume);
+                            
                             return true;
                         },
                         getVolume: () => {
-                            console.log("HISPlayer: getVolume called");
+                            
                             return 1.0;
                         },
                         getCurrentTime: () => {
-                            console.log("HISPlayer: getCurrentTime called");
+                            
                             return 0;
                         },
                         getDuration: () => {
-                            console.log("HISPlayer: getDuration called");
+                            
                             return 100;
                         }
                     };
                 },
                 initialize: () => {
-                    console.log("HISPlayer: initialize called");
+                    
                     return true;
                 },
                 setUnityContext: (contextId) => {
-                    console.log("HISPlayer: setUnityContext called with:", contextId);
+                    
                     window.hisPlayerContextId = contextId;
                     return true;
                 },
                 release: () => {
-                    console.log("HISPlayer: release called");
+                    
                     return true;
                 },
                 setProperties: (props) => {
-                    console.log("HISPlayer: setProperties called with:", props);
+                    
                     return true;
                 },
                 setMultiPaths: (paths) => {
-                    console.log("HISPlayer: setMultiPaths called with:", paths);
+                    
                     window._hisplayer_paths = paths;
                     return true;
                 }
@@ -136,19 +136,19 @@ if (typeof window !== 'undefined' && !window._hisPlayerInitialized) {
     
     // Define setUpContext function if it doesn't exist yet
     window.setUpContext = window.setUpContext || function(contextId) {
-        console.log("HISPlayer: setUpContext called with contextId:", contextId);
+        
         window.hisPlayerContextId = contextId;
         
         // Try to create a player instance
         try {
             if (window.MultipleView) {
-                console.log("HISPlayer: Creating MultipleView instance");
+                
                 const player = new window.MultipleView();
                 
                 if (player && player.multiView && typeof player.multiView.setUnityContext === 'function') {
                     player.multiView.setUnityContext(contextId);
                     window._hisplayer_instance = player;
-                    console.log("HISPlayer: Successfully set Unity context ID");
+                    
                     return true;
                 } else {
                     console.error("HISPlayer: Player initialization failed - missing expected methods");
@@ -159,10 +159,10 @@ if (typeof window !== 'undefined' && !window._hisPlayerInitialized) {
                 // Define MultipleView if it's still not found
                 window.MultipleView = class MultipleView {
                     constructor() {
-                        console.log("HISPlayer: Backup MultipleView constructor called");
+                        
                         this.multiView = { 
                             getPlayer: () => {
-                                console.log("HISPlayer: getPlayer called from backup");
+                                
                                 return {
                                     isPlaying: false,
                                     play: () => true,
@@ -189,7 +189,7 @@ if (typeof window !== 'undefined' && !window._hisPlayerInitialized) {
                 };
                 
                 // Try again with our backup implementation
-                console.log("HISPlayer: Trying again with backup MultipleView");
+                
                 const backupPlayer = new window.MultipleView();
                 backupPlayer.multiView.setUnityContext(contextId);
                 window._hisplayer_instance = backupPlayer;
@@ -198,10 +198,10 @@ if (typeof window !== 'undefined' && !window._hisPlayerInitialized) {
         } catch (e) {
             console.error("HISPlayer: Error in setUpContext:", e);
             
-            // Display error in error div
+            // Display error in error div (using textContent to prevent XSS)
             const errorDiv = document.getElementById('hisplayer-error');
             if (errorDiv) {
-                errorDiv.innerHTML = "Error: " + e.message;
+                errorDiv.textContent = "Error: " + e.message;
             }
         }
         
@@ -239,29 +239,41 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
     })
 
     // Get Space details from Firestore.
+    // IMPORTANT: Wait for userLoading to complete before fetching space data
+    // This ensures Firestore is ready and permissions are initialized
     useEffect(() => {
-        const fetchData = async () => {
+        // Don't fetch space data until auth check is complete
+        if (userLoading) {
+            return;
+        }
 
+        // Add delay after auth completes to ensure Firestore rules are evaluated
+        // This prevents permission-denied errors that appear as "not found"
+        const fetchData = async () => {
+            // For guest users (unauthenticated), wait longer for Firestore to be ready
+            // Firestore needs time to initialize rules for unauthenticated queries
+            const delay = user ? 300 : 800; // Longer delay for guests
+            await new Promise(resolve => setTimeout(resolve, delay));
             try {
                 const itemData = await getSpaceItem(spaceID);
 
                 if (itemData) {
-                    console.log("Space data: ", itemData);
-                    console.log("WebGLLoader: Current user state:", user ? "authenticated" : "not authenticated");
-                    console.log("WebGLLoader: allowGuestUsers setting:", itemData.allowGuestUsers);
+                    
+                    
+                    
 
                     // STRICT: Check if authentication is required
                     if (!user && (!itemData.allowGuestUsers || itemData.allowGuestUsers !== true)) {
-                        console.log("WebGLLoader: ❌ AUTHENTICATION REQUIRED - guest users not allowed");
-                        console.log("WebGLLoader: ❌ BLOCKING UNITY INITIALIZATION");
+                        
+                        
                         setRequiresAuth(true);
                         setIsLoading(false);
                         return; // Don't load Unity if auth is required
                     } else if (!user && itemData.allowGuestUsers === true) {
-                        console.log("WebGLLoader: ✅ Guest users allowed, proceeding with Unity load");
+                        
                         setRequiresAuth(false);
                     } else if (user) {
-                        console.log("WebGLLoader: ✅ User authenticated, proceeding with Unity load");
+                        
                         setRequiresAuth(false);
                     }
 
@@ -302,7 +314,7 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
                     let videoBackgroundUrl = '';
                     if (itemData.videoBackgroundUrl) {
                         videoBackgroundUrl = itemData.videoBackgroundUrl;
-                        console.log("WebGLLoader: Found video background URL:", videoBackgroundUrl);
+                        
                     }
 
                     // Update settings with relevant fetched data
@@ -322,7 +334,7 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
 
                     // Manually dispatch event for video background
                     if (videoBackgroundUrl) {
-                        console.log("WebGLLoader: Dispatching video background event with URL:", videoBackgroundUrl);
+                        
                         window.dispatchEvent(new CustomEvent('SpaceVideoBackgroundUpdated', {
                             detail: { videoBackgroundUrl: videoBackgroundUrl }
                         }));
@@ -341,7 +353,7 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
         };
 
         fetchData();
-    }, [spaceID, spaceSettings.urlDisruptiveLogo, overrideSettings, user]); // Add user dependency
+    }, [spaceID, spaceSettings.urlDisruptiveLogo, overrideSettings, user, userLoading]); // Wait for userLoading to complete
 
     useEffect(() => {
         const checkBan = async () => {

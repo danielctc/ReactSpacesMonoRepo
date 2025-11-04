@@ -264,7 +264,7 @@ const ChatMessageList = ({ messages = [], currentUserId, isLoading = false, spac
   // Handle message deletion callback
   const handleMessageDelete = (messageId) => {
     // The message will be automatically removed from the list via the Firebase subscription
-    console.log('Message deleted:', messageId);
+    
   };
 
   // Auto-scroll to bottom when new messages arrive or on initial load

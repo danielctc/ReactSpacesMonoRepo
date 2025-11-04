@@ -1,5 +1,16 @@
-const functions = require('firebase-functions');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { setGlobalOptions } = require('firebase-functions/v2');
 const admin = require('firebase-admin');
+const { checkRateLimit, checkResourceRateLimit } = require('./rateLimiter');
+
+// Set global options for all functions
+setGlobalOptions({
+  region: 'us-central1',
+  memory: '256MiB',
+  timeoutSeconds: 60,
+  minInstances: 0,
+  maxInstances: 100,
+});
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
@@ -13,19 +24,24 @@ const db = admin.firestore();
  * POST /trackAnalytics
  * Body: { spaceId, eventType, eventData, sessionId? }
  */
-exports.trackAnalytics = functions.https.onCall(async (data, context) => {
+exports.trackAnalytics = onCall(async (request) => {
   // Verify user is authenticated
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to track analytics');
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated to track analytics');
   }
 
+  const data = request.data;
   const { spaceId, eventType, eventData, sessionId } = data;
-  const userId = context.auth.uid;
+  const userId = request.auth.uid;
 
   // Validate required fields
   if (!spaceId || !eventType) {
-    throw new functions.https.HttpsError('invalid-argument', 'spaceId and eventType are required');
+    throw new HttpsError('invalid-argument', 'spaceId and eventType are required');
   }
+
+  // Rate limiting: Check both user and space limits
+  await checkRateLimit(userId, 'analytics', spaceId);
+  await checkResourceRateLimit(spaceId, 'analytics');
 
   // Validate event type (prevent malicious event types)
   const validEventTypes = [
@@ -53,7 +69,7 @@ exports.trackAnalytics = functions.https.onCall(async (data, context) => {
   ];
 
   if (!validEventTypes.includes(eventType)) {
-    throw new functions.https.HttpsError('invalid-argument', 'Invalid event type');
+    throw new HttpsError('invalid-argument', 'Invalid event type');
   }
 
   try {
@@ -115,7 +131,7 @@ exports.trackAnalytics = functions.https.onCall(async (data, context) => {
 
   } catch (error) {
     console.error('Error tracking analytics:', error);
-    throw new functions.https.HttpsError('internal', 'Failed to track analytics event');
+    throw new HttpsError('internal', 'Failed to track analytics event');
   }
 });
 
@@ -124,18 +140,22 @@ exports.trackAnalytics = functions.https.onCall(async (data, context) => {
  * POST /createAnalyticsSession
  * Body: { spaceId, sessionData }
  */
-exports.createAnalyticsSession = functions.https.onCall(async (data, context) => {
+exports.createAnalyticsSession = onCall(async (request) => {
   // Verify user is authenticated
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to create analytics session');
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated to create analytics session');
   }
 
+  const data = request.data;
   const { spaceId, sessionData } = data;
-  const userId = context.auth.uid;
+  const userId = request.auth.uid;
 
   if (!spaceId) {
-    throw new functions.https.HttpsError('invalid-argument', 'spaceId is required');
+    throw new HttpsError('invalid-argument', 'spaceId is required');
   }
+
+  // Rate limiting: Prevent session spam
+  await checkRateLimit(userId, 'sessionCreate', spaceId);
 
   try {
     const sessionRef = db.collection('spaces').doc(spaceId).collection('analyticsSessions').doc();
@@ -160,7 +180,7 @@ exports.createAnalyticsSession = functions.https.onCall(async (data, context) =>
 
   } catch (error) {
     console.error('Error creating analytics session:', error);
-    throw new functions.https.HttpsError('internal', 'Failed to create analytics session');
+    throw new HttpsError('internal', 'Failed to create analytics session');
   }
 });
 
@@ -169,18 +189,22 @@ exports.createAnalyticsSession = functions.https.onCall(async (data, context) =>
  * POST /endAnalyticsSession
  * Body: { spaceId, sessionId }
  */
-exports.endAnalyticsSession = functions.https.onCall(async (data, context) => {
+exports.endAnalyticsSession = onCall(async (request) => {
   // Verify user is authenticated
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to end analytics session');
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated to end analytics session');
   }
 
+  const data = request.data;
   const { spaceId, sessionId } = data;
-  const userId = context.auth.uid;
+  const userId = request.auth.uid;
 
   if (!spaceId || !sessionId) {
-    throw new functions.https.HttpsError('invalid-argument', 'spaceId and sessionId are required');
+    throw new HttpsError('invalid-argument', 'spaceId and sessionId are required');
   }
+
+  // Rate limiting: Use default limits
+  await checkRateLimit(userId, 'default');
 
   try {
     const sessionRef = db.collection('spaces').doc(spaceId).collection('analyticsSessions').doc(sessionId);
@@ -188,7 +212,7 @@ exports.endAnalyticsSession = functions.https.onCall(async (data, context) => {
     // Verify session belongs to user
     const sessionDoc = await sessionRef.get();
     if (!sessionDoc.exists || sessionDoc.data().userId !== userId) {
-      throw new functions.https.HttpsError('permission-denied', 'Session not found or access denied');
+      throw new HttpsError('permission-denied', 'Session not found or access denied');
     }
 
     await sessionRef.update({
@@ -201,6 +225,6 @@ exports.endAnalyticsSession = functions.https.onCall(async (data, context) => {
 
   } catch (error) {
     console.error('Error ending analytics session:', error);
-    throw new functions.https.HttpsError('internal', 'Failed to end analytics session');
+    throw new HttpsError('internal', 'Failed to end analytics session');
   }
 }); 

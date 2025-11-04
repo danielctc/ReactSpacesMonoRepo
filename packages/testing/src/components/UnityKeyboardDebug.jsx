@@ -13,7 +13,7 @@ const UnityKeyboardDebug = () => {
   const addLog = (message) => {
     const timestamp = new Date().toISOString().substr(11, 8);
     setLogs(prev => [`[${timestamp}] ${message}`, ...prev.slice(0, 19)]);
-    console.log(`UnityKeyboardDebug: ${message}`);
+    
   };
   
   // Check Unity availability on mount

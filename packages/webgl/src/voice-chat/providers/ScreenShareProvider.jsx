@@ -27,7 +27,7 @@ export const ScreenShareProvider = ({
   useEffect(() => {
     if (!enabled) return;
     
-    console.log("Initializing screen share client");
+    
     
     // Create a separate client for screen sharing
     const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
@@ -46,16 +46,12 @@ export const ScreenShareProvider = ({
   // Start screen sharing
   const startScreenShare = async () => {
     if (!isReady || !clientRef.current || isScreenSharing) {
-      console.log("Cannot start screen sharing:", { 
-        isReady, 
-        hasClient: !!clientRef.current,
-        isScreenSharing
-      });
+      
       return;
     }
     
     try {
-      console.log("Starting screen share");
+      
       const client = clientRef.current;
       
       // Join channel with a different UID for screen sharing
@@ -92,16 +88,12 @@ export const ScreenShareProvider = ({
   // Stop screen sharing
   const stopScreenShare = async () => {
     if (!isScreenSharing || !screenTrack || !clientRef.current) {
-      console.log("Cannot stop screen sharing:", { 
-        isScreenSharing, 
-        hasScreenTrack: !!screenTrack,
-        hasClient: !!clientRef.current
-      });
+      
       return;
     }
     
     try {
-      console.log("Stopping screen share");
+      
       const client = clientRef.current;
       
       // Unpublish and close screen track

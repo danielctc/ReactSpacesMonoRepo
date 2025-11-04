@@ -21,13 +21,13 @@ const ScreenShareButton = ({ size = 'md', ...props }) => {
   // Listen for player instantiated event
   useEffect(() => {
     const handlePlayerInstantiated = () => {
-      console.log('ScreenShareButton: Player instantiated');
+      
       setIsPlayerReady(true);
     };
 
     // Check if player is already instantiated
     if (window.isPlayerInstantiated) {
-      console.log('ScreenShareButton: Player already instantiated');
+      
       setIsPlayerReady(true);
     }
 
@@ -80,7 +80,7 @@ const ScreenShareButton = ({ size = 'md', ...props }) => {
         error.message.includes("already in connecting/connected state") ||
         error.message.includes("INVALID_OPERATION")
       )) {
-        console.log("ScreenShareButton: Client already connected, trying again");
+        
         try {
           const result = await toggleScreenShare();
           

@@ -24,7 +24,7 @@ function AuthenticationButton() {
                 if (webglRoot) {
                     const spaceIdFromElement = webglRoot.getAttribute('data-space-id');
                     if (spaceIdFromElement) {
-                        console.log('AuthenticationButton: Found space ID from webgl-root element:', spaceIdFromElement);
+                        
                         return spaceIdFromElement;
                     }
                 }
@@ -33,18 +33,18 @@ function AuthenticationButton() {
                 const path = window.location.pathname;
                 const spaceSlugMatch = path.match(/\/(w|embed)\/([^\/]+)/);
                 if (spaceSlugMatch) {
-                    console.log('AuthenticationButton: Found space ID from URL path:', spaceSlugMatch[2]);
+                    
                     return spaceSlugMatch[2];
                 }
                 
                 const urlParams = new URLSearchParams(window.location.search);
                 const spaceIdFromParams = urlParams.get('spaceId') || urlParams.get('space');
                 if (spaceIdFromParams) {
-                    console.log('AuthenticationButton: Found space ID from URL params:', spaceIdFromParams);
+                    
                     return spaceIdFromParams;
                 }
                 
-                console.log('AuthenticationButton: No space ID found in DOM or URL');
+                
                 return null;
             } catch (error) {
                 console.error('AuthenticationButton: Error getting space ID:', error);
@@ -53,7 +53,7 @@ function AuthenticationButton() {
         };
         
         const detectedSpaceId = getCurrentSpaceId();
-        console.log('AuthenticationButton: Setting space ID to:', detectedSpaceId);
+        
         setSpaceId(detectedSpaceId);
     }, []);
     
@@ -61,27 +61,22 @@ function AuthenticationButton() {
     useEffect(() => {
         const checkGuestAccess = async () => {
             if (!spaceId) {
-                console.log('AuthenticationButton: No space ID available, skipping guest access check');
+                
                 return;
             }
             
-            console.log('AuthenticationButton: Fetching space data for space ID:', spaceId);
+            
             
             try {
                 const spaceData = await getSpaceItem(spaceId);
-                console.log('AuthenticationButton: Raw space data received:', spaceData);
-                console.log('AuthenticationButton: Space data loaded:', {
-                    spaceId: spaceId,
-                    allowGuestUsers: spaceData?.allowGuestUsers,
-                    hideGuestSignInButton: spaceData?.hideGuestSignInButton,
-                    showAuthButton: spaceData?.showAuthButton
-                });
+                
+                
                 setAllowGuestUsers(spaceData?.allowGuestUsers || false);
                 setHideGuestSignInButton(spaceData?.hideGuestSignInButton || false);
                 setShowAuthButton(spaceData?.showAuthButton !== undefined ? spaceData.showAuthButton : true);
             } catch (error) {
                 console.error('AuthenticationButton: Error fetching space data:', error);
-                console.log('AuthenticationButton: Cannot check guest access, defaulting to false');
+                
                 setAllowGuestUsers(false);
                 setHideGuestSignInButton(false);
             }
@@ -91,7 +86,7 @@ function AuthenticationButton() {
         
         // Listen for space settings changes
         const handleSpaceSettingsChanged = () => {
-            console.log('AuthenticationButton: Space settings changed, refreshing...');
+            
             checkGuestAccess();
         };
         
@@ -116,15 +111,15 @@ function AuthenticationButton() {
     
     // If we have a guest user, show sign in to upgrade (unless hidden by admin)
     if (currentUser && isGuestUser(currentUser)) {
-        console.log('AuthenticationButton: Guest user detected, hideGuestSignInButton:', hideGuestSignInButton);
+        
         
         // If admin has chosen to hide the sign-in button for guests, return nothing
         if (hideGuestSignInButton) {
-            console.log('AuthenticationButton: Hiding sign-in button for guest user');
+            
             return null;
         }
         
-        console.log('AuthenticationButton: Showing sign-in button for guest user');
+        
         return (
             <div>
                 <SignIn 

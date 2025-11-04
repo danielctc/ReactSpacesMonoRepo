@@ -1,6 +1,7 @@
 import React, { forwardRef, useEffect, useState, useContext, useMemo, useRef, useCallback, createContext } from 'react';
 import PropTypes from 'prop-types';
-import { Box, Image, PortalManager, Text, Heading, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Button, Flex } from "@chakra-ui/react";
+import { Box, Image, PortalManager, Text, Heading, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Button, Flex, IconButton, useToast } from "@chakra-ui/react";
+import { FaWrench } from 'react-icons/fa';
 import { Unity } from "react-unity-webgl";
 import { useUnity } from "./providers/UnityProvider";
 import { useSendUnityEvent, useUnityOnFirstSceneLoaded, useUnityOnRequestUser, useUnityOnNameplateClick } from "./hooks/unityEvents";
@@ -44,6 +45,8 @@ import { useUnityAnalytics } from './hooks/unityEvents/useUnityAnalytics';
 import { useAnalytics } from '@disruptive-spaces/shared/hooks/useAnalytics';
 import { ANALYTICS_EVENT_TYPES, ANALYTICS_CATEGORIES } from '@disruptive-spaces/shared/firebase/analyticsFirestore';
 import WebGLChatWindow from './components/chat/WebGLChatWindow';
+import { userBelongsToGroup } from '@disruptive-spaces/shared/firebase/userPermissions';
+import ContentAdminModal from './components/ContentAdminModal';
 
 // Get Agora App ID from environment variable
 const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID || "";
@@ -67,6 +70,8 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   const localPlayer = players.find(player => player.isLocalPlayer);
   const [isPlayerListVisible, setIsPlayerListVisible] = useState(true);
   const [isPlayerInstantiated, setIsPlayerInstantiated] = useState(true); // Default to true to ensure voice chat works
+  const [canEditSpace, setCanEditSpace] = useState(false); // Permission check for Edit Mode
+  const toast = useToast();
   
   // Get spaceID from settings or default
   const spaceID = settings.spaceID || 'default';
@@ -94,12 +99,15 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   // State to track if a modal is open (for keyboard focus management)
   const [isModalOpen, setIsModalOpen] = useState(false);
   
+  // State to track if Content Admin modal is open
+  const [isContentAdminOpen, setIsContentAdminOpen] = useState(false);
+  
   // Get sessionId from URL or default to spaceID
   const sessionId = useMemo(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const sessionIdFromUrl = urlParams.get('sessionId');
     const result = sessionIdFromUrl || spaceID;
-    console.log("WebGLRenderer: Using session ID:", result);
+    
     return result;
   }, [spaceID]);
   
@@ -110,19 +118,50 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     if (user?.uid) {
       getUserProfileData(user.uid).then(profile => {
         setUserProfile(profile);
-        console.log("WebGLRenderer: User profile loaded:", profile?.Nickname || "Unknown");
+        
       }).catch(err => {
         console.error("Error fetching user profile:", err);
       });
     }
   }, [user?.uid]);
   
+  // Check if user can edit space (owner or disruptiveAdmin)
+  useEffect(() => {
+    const checkEditPermissions = async () => {
+      if (user?.uid && spaceID) {
+        try {
+          const userProfile = await getUserProfileData(user.uid);
+          
+          // Check if user is an owner based on their groups
+          let isOwner = false;
+          if (userProfile.groups) {
+            const ownerGroupId = `space_${spaceID}_owners`;
+            isOwner = userProfile.groups.includes(ownerGroupId);
+          }
+          
+          // Check if user is a disruptiveAdmin
+          const isAdmin = await userBelongsToGroup(user.uid, 'disruptiveAdmin');
+          
+          // User can edit if they're an owner or admin
+          setCanEditSpace(isOwner || isAdmin);
+        } catch (error) {
+          console.error('Error checking edit permissions:', error);
+          setCanEditSpace(false);
+        }
+      } else {
+        setCanEditSpace(false);
+      }
+    };
+    
+    checkEditPermissions();
+  }, [user?.uid, spaceID]);
+  
   // Check if user is logged in and show sign-in modal if not (respecting guest access)
   useEffect(() => {
     const checkAuthenticationRequirement = async () => {
       // If there's a Unity error, always show sign-in modal
       if (error) {
-        console.log("WebGLRenderer: Unity error, showing sign-in modal");
+        
         setShowSignInModal(true);
         setIsModalOpen(true);
         return;
@@ -138,16 +177,16 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       try {
         const spaceData = await getSpaceItem(spaceID);
         if (spaceData && spaceData.allowGuestUsers === true) {
-          console.log("WebGLRenderer: Guest users confirmed allowed, not showing sign-in modal");
+          
           setShowSignInModal(false);
           // Guest user will be created automatically by UserProvider
         } else {
-          console.log("WebGLRenderer: Guest users not allowed or space data invalid, showing sign-in modal");
+          
           setShowSignInModal(true);
           setIsModalOpen(true);
         }
       } catch (error) {
-        console.log("WebGLRenderer: Cannot verify space guest access, showing sign-in modal for security");
+        
         // STRICT: Default to showing sign-in modal if we can't verify space settings
         setShowSignInModal(true);
         setIsModalOpen(true);
@@ -164,10 +203,10 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   
   // Handle player instantiation
   useEffect(() => {
-    console.log("WebGLRenderer: Setting up player instantiation listener");
+    
     
     const handlePlayerInstantiated = () => {
-      console.log("WebGLRenderer: Player instantiated event received");
+      
       setIsPlayerInstantiated(true);
       
       // Dispatch event for other components
@@ -179,7 +218,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     
     // Check if we already have a player instantiated flag from a previous mount
     if (window.isPlayerInstantiated) {
-      console.log("WebGLRenderer: Player was already instantiated from previous mount");
+      
       setIsPlayerInstantiated(true);
     }
     
@@ -188,7 +227,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     // Force player instantiation after a timeout if it hasn't happened yet
     const timeoutId = setTimeout(() => {
       if (!isPlayerInstantiated) {
-        console.log("WebGLRenderer: Forcing player instantiation after timeout");
+        
         setIsPlayerInstantiated(true);
         window.isPlayerInstantiated = true;
         window.dispatchEvent(new CustomEvent("PlayerInstantiated"));
@@ -204,12 +243,12 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   // Handle keyboard focus management
   useEffect(() => {
     const handleModalOpen = () => {
-      console.log("WebGLRenderer: Modal opened");
+      
       setIsModalOpen(true);
     };
 
     const handleModalClose = () => {
-      console.log("WebGLRenderer: Modal closed");
+      
       setIsModalOpen(false);
     };
 
@@ -238,7 +277,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       // Wait for 5 seconds before setting Unity ready state
       setTimeout(() => {
         setIsUnityReady(true);
-        console.log("WebGLRenderer: Unity is ready to receive messages.");
+        
       }, 5000);
     } else {
       console.warn("WebGLRenderer: Unity is NOT ready yet.");
@@ -253,7 +292,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       setTimeout(() => {
         if (window.unityInstance) {
           try {
-            console.log('WebGLRenderer: Disabling Unity keyboard capture on initialization');
+            
             window.unityInstance.SendMessage('WebGLInput', 'SetCaptureAllKeyboardInput', false);
           } catch (err) {
             console.error('WebGLRenderer: Error disabling Unity keyboard capture:', err);
@@ -269,7 +308,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     const webglRoot = document.getElementById('webgl-root');
     
     if (webglRoot) {
-      console.log('WebGLRenderer: Found webgl-root element, ensuring it is visible');
+      
       
       // Make sure it's visible
       webglRoot.style.display = 'block';
@@ -277,7 +316,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       // Set the space ID attribute if needed
       if (spaceID && webglRoot.getAttribute('data-space-id') !== spaceID) {
         webglRoot.setAttribute('data-space-id', spaceID);
-        console.log(`WebGLRenderer: Set data-space-id attribute to ${spaceID}`);
+        
       }
     } else {
       console.error('WebGLRenderer: Could not find webgl-root element');
@@ -296,7 +335,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       const unityCanvas = getUnityCanvas();
       
       if (unityCanvas) {
-        console.log('WebGLRenderer: Configuring Unity canvas for keyboard input');
+        
         
         // Set tabIndex to make canvas focusable (essential for keyboard input)
         unityCanvas.tabIndex = 1;
@@ -306,14 +345,14 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
         
         // Add event listener to re-enable keyboard capture when canvas is clicked
         unityCanvas.addEventListener('click', () => {
-          console.log('WebGLRenderer: Unity canvas clicked, enabling keyboard capture');
+          
           if (!isModalOpen) {
             // Use focusUnity which handles both focus and keyboard capture
             focusUnity(true);
           }
         });
         
-        console.log('WebGLRenderer: Unity canvas configured with tabIndex=1');
+        
       } else {
         console.warn('WebGLRenderer: Could not find Unity canvas to configure');
       }
@@ -327,7 +366,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     
     // Try again when Unity sends the 'unityReady' event
     const handleUnityReady = () => {
-      console.log('WebGLRenderer: Received unityReady event, configuring canvas');
+      
       configureUnityCanvas();
     };
     window.addEventListener('unityReady', handleUnityReady);
@@ -340,7 +379,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   
   // Handle clicks on Unity canvas to ensure keyboard input works
   const handleCanvasClick = useCallback(() => {
-    console.log('WebGLRenderer: Unity canvas clicked, enabling keyboard capture');
+    
     
     if (!isModalOpen) {
       focusUnity(true);
@@ -352,7 +391,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     if (isLoaded && unityProvider) {
       const canvas = getUnityCanvas();
       if (canvas) {
-        console.log('WebGLRenderer: Adding click handler to Unity canvas');
+        
         canvas.addEventListener('click', handleCanvasClick);
         
         return () => {
@@ -365,12 +404,12 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   // Add global click handler to manage focus when clicking outside of modals
   useEffect(() => {
     if (isLoaded && unityProvider) {
-      console.log('WebGLRenderer: Setting up global click handler for focus management');
+      
       
       const handleGlobalClick = (e) => {
         // Don't refocus if clicking inside a modal
         if (isModalOpen) {
-          console.log('WebGLRenderer: Modal is open, not refocusing Unity on click');
+          
           return;
         }
         
@@ -379,7 +418,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
             e.target.tagName === 'TEXTAREA' || 
             e.target.tagName === 'SELECT' ||
             e.target.tagName === 'BUTTON') {
-          console.log('WebGLRenderer: Clicked on form element, not refocusing Unity');
+          
           return;
         }
         
@@ -389,7 +428,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
             e.target.closest('[role="menu"]') ||
             e.target.closest('.chakra-popover__content') ||
             e.target.closest('[role="tooltip"]')) {
-          console.log('WebGLRenderer: Clicked inside modal/dialog content, not refocusing Unity');
+          
           return;
         }
         
@@ -407,7 +446,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
         
         // If clicking on UI overlay elements that should allow keyboard input to pass through
         if (isOverlayUI) {
-          console.log('WebGLRenderer: Clicked on UI overlay that should allow keyboard events');
+          
           
           // Ensure keyboard capture is enabled for Unity
           setTimeout(() => {
@@ -420,7 +459,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
         }
         
         // If clicked outside modals/forms/special UI, refocus the canvas
-        console.log('WebGLRenderer: Clicked outside forms/modals/special UI, refocusing Unity canvas');
+        
         
         // Wait a short time to ensure any UI state changes complete
         setTimeout(() => {
@@ -448,17 +487,17 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   // Handle user data sending to Unity
   useEffect(() => {
     const handleSendUserToUnity = (userData) => {
-      console.log("WebGLRenderer: Received 'sendUserToUnity' event");
-      console.log("WebGLRenderer: Sending to Unity via 'FirebaseUserFromReact':", userData);
-      console.log("WebGLRenderer: User data keys:", Object.keys(userData));
-      console.log("WebGLRenderer: RPM URL being sent:", userData.rpmURL);
-      console.log("WebGLRenderer: Nickname being sent:", userData.Nickname);
-      console.log("WebGLRenderer: Username being sent:", userData.username);
-      console.log("WebGLRenderer: Is Guest:", userData.isGuest);
-      console.log("WebGLRenderer: UID:", userData.uid);
+      
+      
+      
+      
+      
+      
+      
+      
       
       // Stringify the data to see exactly what Unity will receive
-      console.log("WebGLRenderer: JSON data being sent to Unity:", JSON.stringify(userData, null, 2));
+      
       
       sendUnityEvent('FirebaseUserFromReact', userData);
     };
@@ -474,10 +513,64 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
     setFullscreenRef(ref.current);
   }, [ref, setFullscreenRef]);
   
-  // Handle edit mode toggle
+  // Handle edit mode toggle from events
   const handleEditModeToggle = (editMode) => {
-    console.log('Edit mode toggled:', editMode);
+    
     setIsEditMode(editMode);
+  };
+  
+  // Handle edit mode button click - toggles Content Admin modal and edit mode
+  const handleEditModeButtonClick = () => {
+    // Check if user has permission to edit
+    if (!canEditSpace) {
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to edit this space. Only space owners can use Edit Mode.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+        position: "top",
+      });
+      return;
+    }
+    
+    // If modal is currently open, just close it (keep edit mode on)
+    if (isContentAdminOpen) {
+      setIsContentAdminOpen(false);
+      setIsModalOpen(false);
+      return;
+    }
+    
+    // If edit mode is off, turn it on and open modal
+    if (!isEditMode) {
+      setIsEditMode(true);
+      setIsContentAdminOpen(true);
+      setIsModalOpen(true);
+      
+      // Dispatch event to notify other components
+      const editModeEvent = new CustomEvent('editModeChanged', { 
+        detail: { enabled: true } 
+      });
+      window.dispatchEvent(editModeEvent);
+    } 
+    // If edit mode is on and modal is closed, turn off edit mode
+    else {
+      setIsEditMode(false);
+      
+      // Dispatch event to notify other components
+      const editModeEvent = new CustomEvent('editModeChanged', { 
+        detail: { enabled: false } 
+      });
+      window.dispatchEvent(editModeEvent);
+    }
+  };
+  
+  // Handle closing the Content Admin modal
+  const handleCloseContentAdmin = () => {
+    setIsContentAdminOpen(false);
+    setIsModalOpen(false);
+    
+    // Keep edit mode enabled when modal closes
   };
   
   // Handle player list toggle
@@ -488,18 +581,12 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   // Determine if voice chat should be enabled (only check for user)
   const showVoiceChat = user && settings.enableVoiceChat;
   
-  console.log("WebGLRenderer: Render with state:", {
-    user: !!user,
-    userId: user?.uid,
-    isPlayerInstantiated,
-    showVoiceChat,
-    sessionId
-  });
+  
   
   // Listen for Edit Mode changes
   useEffect(() => {
     const handleEditModeChange = (event) => {
-      console.log('Edit mode changed event:', event.detail);
+      
       setIsEditMode(event.detail.enabled);
     };
 
@@ -568,17 +655,13 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
   }, [clickedPortal, isEditMode, spaceID]);
 
   const handleClosePortalEditor = () => {
-    console.log('Closing portal editor');
+    
     setIsPortalEditorOpen(false);
     clearClickedPortal();
   };
 
   // Add debug logging for render
-  console.log('WebGLRenderer render state:', {
-    isPortalEditorOpen,
-    clickedPortal,
-    isEditMode
-  });
+  
   
   // Add catalogue hooks
   useSpaceCatalogueItems(spaceID);
@@ -629,6 +712,13 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
       {/* Add the CatalogueItemModalHandler (only active during edit mode) */}
       <CatalogueItemModalHandler spaceId={spaceID} isEditMode={isEditMode} />
 
+      {/* Content Admin Modal for Edit Mode */}
+      <ContentAdminModal 
+        isOpen={isContentAdminOpen} 
+        onClose={handleCloseContentAdmin} 
+        settings={{ spaceID }}
+      />
+
       <PortalManager containerRef={fullscreenRef.current ? fullscreenRef : document.body}>
         <div ref={ref} style={{ width: "100%", height: "100%", aspectRatio: "auto", position: "absolute" }}>
           {/* Top right buttons - Moved inside the fullscreen container - also changed aspact ratio from 16/9 and position to absolute from relative */}
@@ -658,6 +748,62 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
                 {/* Voice Chat Debug Panel - Disabled */}
                 {/* <VoiceChatDebugPanel /> */}
               </AgoraProvider>
+            )}
+            
+            {/* Edit Mode Button - Show only for space owners and admins */}
+            {canEditSpace && (
+              <Box
+                as="button"
+                onClick={handleEditModeButtonClick}
+                aria-label="Edit Mode"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                width="48px"
+                height="48px"
+                color="white"
+                bg={isEditMode 
+                  ? "linear-gradient(135deg, rgba(0, 0, 0, 0.45), rgba(0, 150, 255, 0.2), rgba(0, 0, 0, 0.35))" 
+                  : "linear-gradient(135deg, rgba(0, 0, 0, 0.5), rgba(20, 20, 20, 0.4))"
+                }
+                backdropFilter="blur(30px) saturate(200%) brightness(1.1)"
+                _hover={{ 
+                  bg: isEditMode 
+                    ? "linear-gradient(135deg, rgba(0, 0, 0, 0.55), rgba(0, 150, 255, 0.3), rgba(0, 0, 0, 0.45))" 
+                    : "linear-gradient(135deg, rgba(0, 0, 0, 0.6), rgba(20, 20, 20, 0.5))",
+                  transform: "scale(1.05)",
+                  backdropFilter: "blur(35px) saturate(220%) brightness(1.15)"
+                }}
+                cursor="pointer"
+                boxShadow={isEditMode 
+                  ? "0 0 20px 2px rgba(0, 150, 255, 0.8), 0 0 40px 4px rgba(0, 150, 255, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.4), inset 0 -1px 2px rgba(0, 0, 0, 0.3)" 
+                  : "0 4px 15px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.25), inset 0 -1px 2px rgba(0, 0, 0, 0.2)"
+                }
+                transition="all 0.3s ease"
+                border="1px solid"
+                borderColor={isEditMode ? "rgba(0, 150, 255, 0.4)" : "rgba(255, 255, 255, 0.2)"}
+                borderRadius="full"
+                position="relative"
+                _before={{
+                  content: '""',
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  borderRadius: "full",
+                  padding: "1px",
+                  background: isEditMode 
+                    ? "linear-gradient(135deg, rgba(0, 150, 255, 0.5), rgba(0, 200, 255, 0.2))" 
+                    : "linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1))",
+                  WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                  WebkitMaskComposite: "xor",
+                  maskComposite: "exclude",
+                  pointerEvents: "none"
+                }}
+              >
+                <FaWrench size="20px" />
+              </Box>
             )}
             
             <ProfileButton />
@@ -737,11 +883,11 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
           <NameplateModal
             isOpen={nameplateData !== null}
             onClose={() => {
-              console.log("🎮 Closing nameplate modal");
               resetNameplateData();
             }}
             playerName={nameplateData?.playerName || "Unknown Player"}
             playerId={nameplateData?.playerId || "Unknown ID"}
+            uid={nameplateData?.uid}
           />
           
           <UnityPlayerList 
@@ -845,7 +991,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
                             timestamp: new Date().toISOString()
                           });
                           
-                          console.log('🎯 Analytics: Portal navigation event tracked for:', clickedPortal.portalId, '→', targetSpaceId);
+                          
                         }
                         
                         // Navigate to the target space

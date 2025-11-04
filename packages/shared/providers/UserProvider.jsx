@@ -9,6 +9,7 @@ import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus'
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { createGuestUser, isGuestUser } from '@disruptive-spaces/shared/utils/guestUserGenerator';
+import { checkClientRateLimit } from '@disruptive-spaces/shared/utils/clientRateLimiter';
 
 export const UserContext = createContext(null);
 export const RegistrationContext = createContext(null);
@@ -43,6 +44,14 @@ export const UserProvider = ({ children }) => {
             // Check if we already have a guest user for this session
             if (guestUser && guestUser.guestSpaceId === spaceId) {
                 Logger.log('UserProvider: Guest user already exists for this space');
+                return;
+            }
+
+            // Client-side rate limiting: Prevent guest user spam
+            const rateLimitCheck = checkClientRateLimit('guestUserCreate', spaceId);
+            if (!rateLimitCheck.allowed) {
+                Logger.warn('UserProvider: Guest user creation rate limited:', rateLimitCheck.message);
+                console.warn(rateLimitCheck.message);
                 return;
             }
 
@@ -129,41 +138,90 @@ export const UserProvider = ({ children }) => {
     };
 
     useEffect(() => {
+        let isMounted = true;  // Track if component is still mounted
+        
         const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
             Logger.log('UserProvider: Firebase onAuthStateChanged() fired');
+            
             if (authUser) {
+                // Set user immediately with minimal data (don't wait for profile)
+                const minimalUser = {
+                    uid: authUser.uid,
+                    email: authUser.email,
+                    emailVerified: authUser.emailVerified,
+                    displayName: authUser.email?.split('@')[0] || 'User'
+                };
+                
+                if (isMounted) {
+                    setUser(minimalUser);
+                    currentUserRef.current = minimalUser;
+                    setLoading(false);  // Set loading false immediately so space data can load
+                }
+                
+                // Then fetch full profile in background (non-blocking)
                 try {
                     const userProfile = await getUserProfileData(authUser.uid);
+                    
+                    if (!isMounted) return;
+                    
                     const displayName = getDisplayName(userProfile);
                     const fullUserDetails = {
                         uid: authUser.uid,
                         email: authUser.email,
                         emailVerified: authUser.emailVerified,
                         ...userProfile,
-                        displayName
+                        displayName: displayName || minimalUser.displayName
                     };
-                    // Sensitive user details should not be logged
+                    
                     Logger.log(`UserProvider: User authenticated: ${authUser.uid}`);
                     setUser(fullUserDetails);
                     currentUserRef.current = fullUserDetails;
                     sendUserToUnity(fullUserDetails);
                 } catch (error) {
-                    Logger.error('UserProvider: Error fetching user profile data:', error);
+                    Logger.warn('UserProvider: Profile fetch failed, using minimal user data:', error.message);
+                    // Keep the minimal user we already set
+                    if (isMounted) {
+                        sendUserToUnity(minimalUser);
+                    }
                 }
             } else {
+                // No authenticated user
+                if (!isMounted) return;
+                
                 setUser(null);
                 currentUserRef.current = null;
+                setLoading(false);  // Set loading false immediately
                 
-                // Check if we should create a guest user
-                await checkAndCreateGuestUser();
+                // Check if we should create a guest user (non-blocking)
+                checkAndCreateGuestUser().catch(error => {
+                    Logger.error('UserProvider: Error creating guest user:', error);
+                });
             }
-            setLoading(false);
         });
+        
+
+        // ==================================================================================
+        // OVERRIDE FUNCTIONALITY - EVENT LISTENER
+        // ==================================================================================
+        // Listen for Override settings changes from SpaceManageModal
+        // When Override is toggled or URLs are updated, this automatically refreshes
+        // the user data sent to Unity with the new Override settings
+        // Event dispatched from: SpaceManageModal.jsx > handleOverrideToggle() and handleSaveOverrideSettings()
+        // ==================================================================================
+        const handleOverrideUpdate = (event) => {
+            Logger.log('UserProvider: Override settings updated, refreshing user data for Unity');
+            sendUserToUnity();
+        };
+
+        window.addEventListener('SpaceOverrideUpdated', handleOverrideUpdate);
+        // ==================================================================================
 
         return () => {
+            isMounted = false;  // Mark as unmounted
             if (unsubscribe) {
                 unsubscribe();
             }
+            window.removeEventListener('SpaceOverrideUpdated', handleOverrideUpdate);
         };
     }, []);
 
@@ -272,7 +330,7 @@ export const UserProvider = ({ children }) => {
             const authUser = userCredential.user;
             
             // We don't need to set user here as the onAuthStateChanged will handle that
-            Logger.log('UserProvider: User signed in successfully:', authUser.email);
+            Logger.log('UserProvider: User signed in successfully:', authUser.uid);  // Log UID instead of email
             return authUser;
         } catch (error) {
             Logger.error('UserProvider: Error signing in:', error);
@@ -304,6 +362,50 @@ export const UserProvider = ({ children }) => {
         
         if (targetUser) {
             const filteredUser = filterUserPropertiesForUnity(targetUser);
+            
+            // ==================================================================================
+            // OVERRIDE FUNCTIONALITY - TEMPORARY RPM URL REPLACEMENT
+            // ==================================================================================
+            // This section checks if the current space has Override enabled and temporarily
+            // replaces the user's RPM URL with one from the Override.customPlayers list.
+            // This is a TEMPORARY change - the user's actual Firestore profile is NOT modified.
+            // The override only applies while the user is in this specific space.
+            // Configured in: SpaceManageModal.jsx > Custom Tab > Override Settings
+            // Firebase path: spaces/{spaceId}/Override.enabled and Override.customPlayers
+            // ==================================================================================
+            try {
+                const spaceId = getCurrentSpaceId();
+                if (spaceId) {
+                    const spaceData = await getSpaceItem(spaceId);
+                    
+                    if (spaceData && spaceData.Override && spaceData.Override.enabled === true) {
+                        Logger.log("UserProvider: Override is enabled for space:", spaceId);
+                        
+                        // Check if there are custom player URLs
+                        if (spaceData.Override.customPlayers && spaceData.Override.customPlayers.length > 0) {
+                            // Get a random URL from the list (or implement your own logic)
+                            const randomIndex = Math.floor(Math.random() * spaceData.Override.customPlayers.length);
+                            const customPlayerUrl = spaceData.Override.customPlayers[randomIndex].url;
+                            
+                            if (customPlayerUrl) {
+                                Logger.log("UserProvider: Applying Override RPM URL:", customPlayerUrl);
+                                Logger.log("UserProvider: Original RPM URL was:", filteredUser.rpmURL);
+                                
+                                // Temporarily override the RPM URL (does NOT save to Firestore)
+                                filteredUser.rpmURL = customPlayerUrl;
+                            }
+                        } else {
+                            Logger.log("UserProvider: Override enabled but no custom player URLs configured");
+                        }
+                    }
+                }
+            } catch (overrideError) {
+                Logger.error("UserProvider: Error checking Override settings, using original RPM URL:", overrideError);
+                // Continue with original RPM URL if override check fails
+            }
+            // ==================================================================================
+            // END OVERRIDE FUNCTIONALITY
+            // ==================================================================================
             
             // Enhanced logging for debugging guest user data
             Logger.log("UserProvider: sendUserToUnity() - Raw user data:", {
@@ -458,7 +560,7 @@ export const UserProvider = ({ children }) => {
             const currentUser = auth.currentUser;
             if (currentUser && !currentUser.emailVerified) {
                 await sendEmailVerification(currentUser);
-                Logger.log('UserProvider: Verification email resent to:', currentUser.email);
+                Logger.log('UserProvider: Verification email resent to user:', currentUser.uid);  // Log UID instead of email
                 return true;
             }
             return false;

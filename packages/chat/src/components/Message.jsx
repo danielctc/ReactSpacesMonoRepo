@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 const MotionBox = motion(Box);
 
 const Message = ({ name, timestamp, text, isCurrentUser }) => {
-    console.log('Message props:', { name, timestamp, text, isCurrentUser });
+    
 
     const formattedTimestamp = timestamp && timestamp.toDate
         ? format(timestamp.toDate(), 'HH:mm')

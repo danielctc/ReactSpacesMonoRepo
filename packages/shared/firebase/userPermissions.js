@@ -39,7 +39,7 @@ export const isSpaceOwner = async (user, spaceId) => {
       const ownerGroupId = `space_${spaceId}_owners`;
       const isOwner = user.groups.includes(ownerGroupId);
       if (isOwner) {
-        console.log(`User ${user.uid} is an owner via groups property`);
+        
         return true;
       }
     }
@@ -55,7 +55,7 @@ export const isSpaceOwner = async (user, spaceId) => {
         const ownerGroupId = `space_${spaceId}_owners`;
         const isOwner = groups.includes(ownerGroupId);
         if (isOwner) {
-          console.log(`User ${user.uid} is an owner via Firebase token claims`);
+          
           return true;
         }
       } catch (tokenError) {

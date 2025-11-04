@@ -54,12 +54,12 @@ const ScreenShareDisplay = ({ userNickname }) => {
       setIsLoading(false);
     }, 5000);
     
-    console.log("Setting up screen share display with existing client:", client);
-    console.log("Current channel:", channel);
+    
+    
     
     // Check if client is connected
     const connectionState = client.connectionState;
-    console.log("Current connection state:", connectionState);
+    
     
     if (connectionState === 'CONNECTED') {
       setIsConnected(true);
@@ -69,7 +69,7 @@ const ScreenShareDisplay = ({ userNickname }) => {
       
       // Listen for connection state change
       const handleConnectionStateChange = (state) => {
-        console.log("Connection state changed:", state);
+        
         if (state === 'CONNECTED') {
           setIsConnected(true);
           setIsLoading(false);
@@ -122,16 +122,16 @@ const ScreenShareDisplay = ({ userNickname }) => {
         // If we have a valid userId, try to fetch the profile data
         if (userId) {
           try {
-            console.log('Trying to fetch nickname for user ID:', userId);
+            
             const profileData = await getUserProfileData(userId);
             
             if (profileData && profileData.Nickname) {
-              console.log('Found nickname in Firebase for user ID:', userId, 'Nickname:', profileData.Nickname);
+              
               newNicknames[screen.uid] = profileData.Nickname;
               hasChanges = true;
             } else if (extractedName) {
               // Use the extracted name if we couldn't get a nickname from Firebase
-              console.log('Using extracted name for user ID:', userId, 'Name:', extractedName);
+              
               newNicknames[screen.uid] = extractedName;
               hasChanges = true;
             } else {
@@ -176,19 +176,19 @@ const ScreenShareDisplay = ({ userNickname }) => {
   useEffect(() => {
     if (!client || !channel || !isConnected) return;
     
-    console.log("Setting up screen share event handlers");
+    
     
     // Set up event handlers for screen sharing
     const handleUserPublished = async (user, mediaType) => {
-      console.log('User published:', user.uid, mediaType, user);
+      
       
       if (mediaType === 'video') {
-        console.log('Remote video track detected:', user.uid);
+        
         
         try {
           // Subscribe to the remote video track
           await client.subscribe(user, mediaType);
-          console.log('Subscribed to remote video track:', user.uid);
+          
           
           // Add to remote screens list
           setRemoteScreens(prev => {
@@ -204,10 +204,10 @@ const ScreenShareDisplay = ({ userNickname }) => {
     };
     
     const handleUserUnpublished = (user, mediaType) => {
-      console.log('User unpublished:', user.uid, mediaType);
+      
       
       if (mediaType === 'video') {
-        console.log('Remote video track unpublished:', user.uid);
+        
         
         // Stop the track if it exists
         if (user.videoTrack) {
@@ -224,7 +224,7 @@ const ScreenShareDisplay = ({ userNickname }) => {
         // Make sure local screen share is still playing if it's active
         if (isScreenSharing && localScreenTrackRef.current && localScreenRef.current) {
           try {
-            console.log('Ensuring local screen track is still playing after remote user unpublished');
+            
             localScreenTrackRef.current.play(localScreenRef.current);
           } catch (error) {
             console.error('Error replaying local screen track:', error);
@@ -234,7 +234,7 @@ const ScreenShareDisplay = ({ userNickname }) => {
     };
     
     const handleUserLeft = (user) => {
-      console.log('User left:', user.uid);
+      
       
       // Stop the track if it exists
       const screen = remoteScreens.find(s => s.uid === user.uid);
@@ -252,7 +252,7 @@ const ScreenShareDisplay = ({ userNickname }) => {
       // Make sure local screen share is still playing if it's active
       if (isScreenSharing && localScreenTrackRef.current && localScreenRef.current) {
         try {
-          console.log('Ensuring local screen track is still playing after remote user left');
+          
           localScreenTrackRef.current.play(localScreenRef.current);
         } catch (error) {
           console.error('Error replaying local screen track:', error);
@@ -275,12 +275,12 @@ const ScreenShareDisplay = ({ userNickname }) => {
   
   // Play videos when screens change
   useEffect(() => {
-    console.log('Remote screens changed:', remoteScreens.length, remoteScreens);
+    
     
     remoteScreens.forEach(screen => {
       if (screen.videoTrack) {
         try {
-          console.log('Playing video track for:', screen.uid);
+          
           
           // Play the video track
           screen.videoTrack.play(`video-container-${screen.uid}`);
@@ -293,7 +293,7 @@ const ScreenShareDisplay = ({ userNickname }) => {
     // Make sure local screen share is still playing if it's active
     if (isScreenSharing && localScreenTrackRef.current && localScreenRef.current) {
       try {
-        console.log('Ensuring local screen track is still playing after remote screens changed');
+        
         localScreenTrackRef.current.play(localScreenRef.current);
       } catch (error) {
         console.error('Error replaying local screen track:', error);
@@ -303,11 +303,11 @@ const ScreenShareDisplay = ({ userNickname }) => {
   
   // Handle local screen share
   useEffect(() => {
-    console.log('Local screen sharing state changed:', isScreenSharing, screenTrack);
+    
     
     if (isScreenSharing && screenTrack && localScreenRef.current) {
       try {
-        console.log('Playing local screen track');
+        
         
         // Play the video track
         screenTrack.play(localScreenRef.current);
@@ -344,7 +344,7 @@ const ScreenShareDisplay = ({ userNickname }) => {
   
   // Handle closing a screen share
   const handleClose = (screenUid) => {
-    console.log('Closing screen share for:', screenUid);
+    
     
     const screen = remoteScreens.find(s => s.uid === screenUid);
     if (screen && screen.videoTrack) {
@@ -362,7 +362,7 @@ const ScreenShareDisplay = ({ userNickname }) => {
     // Make sure local screen share is still playing if it's active
     if (isScreenSharing && localScreenTrackRef.current && localScreenRef.current) {
       try {
-        console.log('Ensuring local screen track is still playing after closing remote screen');
+        
         localScreenTrackRef.current.play(localScreenRef.current);
       } catch (error) {
         console.error('Error replaying local screen track:', error);
@@ -372,13 +372,13 @@ const ScreenShareDisplay = ({ userNickname }) => {
   
   // Handle stopping local screen share
   const handleStopLocalScreenShare = () => {
-    console.log('Stopping local screen share');
+    
     toggleScreenShare();
   };
   
   // Get display name for a user ID
   const getDisplayName = (uid) => {
-    console.log('Getting display name for UID:', uid, 'type:', typeof uid);
+    
     
     // If it's the local user
     if (isScreenSharing && user && (uid === user.uid || uid === client?.uid)) {
@@ -412,14 +412,14 @@ const ScreenShareDisplay = ({ userNickname }) => {
   
   // Handle opening the modal for a screen
   const handleOpenModal = (screen) => {
-    console.log("Opening modal for remote screen", screen);
+    
     setActiveScreen(screen);
     onOpen();
   };
 
   // Handle opening the modal for local screen
   const handleOpenLocalModal = () => {
-    console.log("Opening modal for local screen");
+    
     setActiveScreen({ isLocal: true });
     onOpen();
   };
@@ -427,13 +427,13 @@ const ScreenShareDisplay = ({ userNickname }) => {
   // Effect to handle modal opening and closing
   useEffect(() => {
     if (isOpen && activeScreen) {
-      console.log("Modal opened, activeScreen:", activeScreen);
+      
       
       // Wait for the modal to be fully rendered
       setTimeout(() => {
         if (activeScreen.isLocal && localScreenTrackRef.current) {
           try {
-            console.log("Playing local screen in modal");
+            
             // Play the local screen in the modal
             localScreenTrackRef.current.play('modal-screen-container');
             setModalReady(true);
@@ -442,7 +442,7 @@ const ScreenShareDisplay = ({ userNickname }) => {
           }
         } else if (activeScreen.videoTrack) {
           try {
-            console.log("Playing remote screen in modal");
+            
             // Play the remote screen in the modal
             activeScreen.videoTrack.play('modal-screen-container');
             setModalReady(true);

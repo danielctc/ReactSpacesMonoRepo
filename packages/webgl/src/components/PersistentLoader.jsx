@@ -30,12 +30,7 @@ const PersistentLoader = ({ containerRef }) => {
 
   // Debug log when component mounts
   useEffect(() => {
-    Logger.log("PersistentLoader: Component mounted with spaceID:", spaceID);
-    Logger.log("PersistentLoader: Container ref:", containerRef);
-    
-    return () => {
-      Logger.log("PersistentLoader: Component unmounting");
-    };
+    return () => {};
   }, []);
 
   // Check for Unity errors
@@ -63,20 +58,14 @@ const PersistentLoader = ({ containerRef }) => {
   useEffect(() => {
     const fetchSpaceLogo = async () => {
       if (spaceID) {
-        Logger.log(`PersistentLoader: Fetching logo for space ${spaceID}`);
         try {
           const spaceData = await getSpaceItem(spaceID);
           if (spaceData && spaceData.logoUrl) {
-            Logger.log(`PersistentLoader: Found logo URL: ${spaceData.logoUrl}`);
             setSpaceLogo(spaceData.logoUrl);
-          } else {
-            Logger.log(`PersistentLoader: No logo URL found for space ${spaceID}`);
           }
         } catch (error) {
           Logger.error('PersistentLoader: Error fetching space logo:', error);
         }
-      } else {
-        Logger.warn('PersistentLoader: No spaceID provided, cannot fetch logo');
       }
     };
 
@@ -87,29 +76,22 @@ const PersistentLoader = ({ containerRef }) => {
   useEffect(() => {
     const handleLogoUpdate = (event) => {
       const { logoUrl } = event.detail;
-      Logger.log(`PersistentLoader: Logo update event received with URL: ${logoUrl}`);
       setSpaceLogo(logoUrl);
       
       // Update the logo element if it exists
       if (logoRef.current) {
         if (logoUrl) {
-          Logger.log('PersistentLoader: Updating logo element with new URL');
           logoRef.current.src = logoUrl;
           logoContainerRef.current.style.display = 'flex';
         } else {
-          Logger.log('PersistentLoader: Hiding logo element (no URL)');
           logoContainerRef.current.style.display = 'none';
         }
-      } else {
-        Logger.warn('PersistentLoader: Logo ref is null during update');
       }
     };
 
-    Logger.log('PersistentLoader: Adding SpaceLogoUpdated event listener');
     window.addEventListener('SpaceLogoUpdated', handleLogoUpdate);
     
     return () => {
-      Logger.log('PersistentLoader: Removing SpaceLogoUpdated event listener');
       window.removeEventListener('SpaceLogoUpdated', handleLogoUpdate);
     };
   }, []);
@@ -163,8 +145,6 @@ const PersistentLoader = ({ containerRef }) => {
         containerRef.current.removeChild(bannedEl);
       };
     }
-
-    Logger.log('PersistentLoader: Creating loader elements');
     
     // Create a div element for the loader
     const loaderElement = document.createElement('div');
@@ -183,7 +163,7 @@ const PersistentLoader = ({ containerRef }) => {
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: '50',
-      transition: 'opacity 0.8s ease-in-out',
+      transition: 'opacity 0.3s ease-in-out',
       pointerEvents: 'none',
       color: 'white',
       fontFamily: 'Arial, sans-serif',
@@ -193,12 +173,11 @@ const PersistentLoader = ({ containerRef }) => {
       borderRadius: '12px',
       boxShadow: '0 0 20px rgba(0, 0, 0, 0.3), inset 0 0 1px rgba(255, 255, 255, 0.3)',
       border: '1px solid rgba(255, 255, 255, 0.1)',
-      opacity: '0', // Start with opacity 0
+      opacity: '1', // Show immediately - Unity starts downloading right away
     });
     
     // Create a separate container for the space logo if available
     if (spaceLogo) {
-      Logger.log(`PersistentLoader: Creating logo element with URL: ${spaceLogo}`);
       const logoContainer = document.createElement('div');
       logoContainerRef.current = logoContainer;
       
@@ -212,11 +191,11 @@ const PersistentLoader = ({ containerRef }) => {
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: '50',
-        transition: 'opacity 0.8s ease-in-out',
+        transition: 'opacity 0.3s ease-in-out',
         pointerEvents: 'none',
         padding: '8px',
         width: '280px',
-        opacity: '0', // Start with opacity 0
+        opacity: '1', // Show immediately - Unity starts downloading right away
       });
       
       // Create logo image
@@ -234,9 +213,6 @@ const PersistentLoader = ({ containerRef }) => {
       
       // Add the logo container to the main container
       containerRef.current.appendChild(logoContainer);
-      Logger.log('PersistentLoader: Logo container added to main container');
-    } else {
-      Logger.log('PersistentLoader: No logo URL available, skipping logo creation');
     }
     
     // Create the animation style
@@ -249,7 +225,6 @@ const PersistentLoader = ({ containerRef }) => {
       }
     `;
     document.head.appendChild(style);
-    Logger.log('PersistentLoader: Animation styles added to document head');
     
     // Create stage text
     const stageText = document.createElement('div');
@@ -269,8 +244,8 @@ const PersistentLoader = ({ containerRef }) => {
     loaderLogoContainer.style.padding = '0px';
     loaderLogoContainer.style.overflow = 'hidden';
     loaderLogoContainer.style.boxSizing = 'border-box';
-    loaderLogoContainer.style.transition = 'opacity 0.8s ease-in-out';
-    loaderLogoContainer.style.opacity = '0'; // Start with opacity 0
+    loaderLogoContainer.style.transition = 'opacity 0.3s ease-in-out';
+    loaderLogoContainer.style.opacity = '1'; // Show immediately - Unity starts downloading right away
     
     // Create a single logo element with gradient
     const logoElement = document.createElement('div');
@@ -313,16 +288,9 @@ const PersistentLoader = ({ containerRef }) => {
     
     // Add the loader element to the container
     containerRef.current.appendChild(loaderElement);
-    Logger.log('PersistentLoader: Loader element added to container');
     
-    // Fade in the loader after 0.5 seconds
-    setTimeout(() => {
-      if (logoContainerRef.current) {
-        logoContainerRef.current.style.opacity = '1';
-      }
-      loaderElement.style.opacity = '1';
-      loaderLogoContainer.style.opacity = '1';
-    }, 500);
+    // Loader is already visible (opacity: 1) - no need to fade in
+    // Unity starts downloading immediately, so loader must be visible immediately
     
     // Function to update the progress display
     const updateProgress = (value) => {
@@ -335,15 +303,12 @@ const PersistentLoader = ({ containerRef }) => {
       
       // Update the progress text
       progressText.textContent = `${percentage}%`;
-      
-      Logger.log(`PersistentLoader: Progress updated to ${percentage}%`);
     };
     
     // Function to update the loading stage
     const updateLoadingStage = (stage) => {
       setLoadingStage(stage);
       stageText.textContent = stage;
-      Logger.log(`PersistentLoader: Loading stage updated to "${stage}"`);
     };
     
     // Define loading stages with corresponding progress values
@@ -367,7 +332,6 @@ const PersistentLoader = ({ containerRef }) => {
     // Function to handle progress updates
     const handleProgress = (event) => {
       const progressValue = event.detail.progress;
-      Logger.log(`PersistentLoader: Progress event received with value: ${progressValue}`);
       updateProgress(progressValue);
       
       // Update stage based on progress
@@ -382,7 +346,6 @@ const PersistentLoader = ({ containerRef }) => {
     
     // Function to handle first scene loaded
     const handleFirstSceneLoaded = () => {
-      Logger.log("PersistentLoader: First scene loaded event received");
       setIsFirstSceneLoaded(true);
       updateLoadingStage(loadingStages[1].stage);
       updateProgress(0.66);
@@ -390,12 +353,9 @@ const PersistentLoader = ({ containerRef }) => {
     
     // Function to handle player instantiation
     const handlePlayerInstantiated = () => {
-      Logger.log("PersistentLoader: Player instantiated event received");
-      
       // Immediately stop all other progress updates
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
-        Logger.log("PersistentLoader: Progress interval cleared");
       }
       
       setIsPlayerInstantiated(true);
@@ -404,7 +364,6 @@ const PersistentLoader = ({ containerRef }) => {
       
       // If there's an error, don't fade out the loader
       if (errorState) {
-        Logger.log("PersistentLoader: Keeping loader visible due to Unity error");
         return;
       }
       
@@ -441,16 +400,10 @@ const PersistentLoader = ({ containerRef }) => {
         setTimeout(() => {
           if (containerRef.current && containerRef.current.contains(loaderElement)) {
             containerRef.current.removeChild(loaderElement);
-            Logger.log("PersistentLoader: Loader element removed after fade");
-          } else {
-            Logger.warn("PersistentLoader: Could not remove loader element (not found in container)");
           }
           
           if (logoContainerRef.current && containerRef.current && containerRef.current.contains(logoContainerRef.current)) {
             containerRef.current.removeChild(logoContainerRef.current);
-            Logger.log("PersistentLoader: Logo container removed after fade");
-          } else if (logoContainerRef.current) {
-            Logger.warn("PersistentLoader: Could not remove logo container (not found in container)");
           }
         }, 1300); // Shorter wait time
       }, 400); // Shorter delay
@@ -458,24 +411,19 @@ const PersistentLoader = ({ containerRef }) => {
     
     // Check if player is already instantiated
     if (window.isPlayerInstantiated) {
-      Logger.log("PersistentLoader: Player was already instantiated");
       handlePlayerInstantiated();
     } else {
       // Subscribe to player instantiated event
-      Logger.log("PersistentLoader: Subscribing to playerInstantiated event");
       eventBus.subscribe(EventNames.playerInstantiated, handlePlayerInstantiated);
       
       // Also listen for the custom event
       const customEventHandler = () => handlePlayerInstantiated();
-      Logger.log("PersistentLoader: Adding PlayerInstantiated event listener");
       window.addEventListener("PlayerInstantiated", customEventHandler);
       
       // Listen for first scene loaded event
-      Logger.log("PersistentLoader: Adding firstSceneLoaded event listener");
       eventBus.subscribe(EventNames.firstSceneLoaded, handleFirstSceneLoaded);
       
       // Listen for progress updates
-      Logger.log("PersistentLoader: Adding UnityProgress event listener");
       window.addEventListener('UnityProgress', handleProgress);
       
       // Simulate progress updates if no events are received
@@ -503,13 +451,11 @@ const PersistentLoader = ({ containerRef }) => {
       
       // Force hide after a timeout (failsafe)
       const timeoutId = setTimeout(() => {
-        Logger.log("PersistentLoader: Forcing loader removal after timeout");
         handlePlayerInstantiated();
       }, 60000); // 60 seconds max
       
       return () => {
         // Clean up event listeners
-        Logger.log("PersistentLoader: Cleaning up event listeners");
         eventBus.unsubscribe(EventNames.playerInstantiated, handlePlayerInstantiated);
         window.removeEventListener("PlayerInstantiated", customEventHandler);
         eventBus.unsubscribe(EventNames.firstSceneLoaded, handleFirstSceneLoaded);
@@ -520,12 +466,10 @@ const PersistentLoader = ({ containerRef }) => {
         // Remove the elements if they still exist
         if (containerRef.current && containerRef.current.contains(loaderElement)) {
           containerRef.current.removeChild(loaderElement);
-          Logger.log("PersistentLoader: Loader element removed during cleanup");
         }
         
         if (logoContainerRef.current && containerRef.current && containerRef.current.contains(logoContainerRef.current)) {
           containerRef.current.removeChild(logoContainerRef.current);
-          Logger.log("PersistentLoader: Logo container removed during cleanup");
         }
       };
     }

@@ -14,7 +14,7 @@ import {
   useToast
 } from '@chakra-ui/react';
 import { useSendUnityEvent } from '../hooks/unityEvents/core/useSendUnityEvent';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 
 // Debounce utility
@@ -73,7 +73,7 @@ const CatalogueItemEditor = ({ isOpen, onClose, item, spaceId, style }) => {
         hotspotId: item.hotspotId
       });
       const itemRef = doc(db, 'spaces', spaceId, 'catalogue', item.hotspotId);
-      await updateDoc(itemRef, { deleted: true });
+      await deleteDoc(itemRef);
       
       toast({
         title: "Item Deleted",

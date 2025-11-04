@@ -191,7 +191,7 @@ export const useMediaScreenThumbnails = () => {
         
         // If thumbnailUrl is "refresh", fetch a fresh thumbnail
         if (thumbnailUrl === "refresh" && mediaScreenId) {
-          console.log(`Received request to refresh thumbnail for media screen ${mediaScreenId}`);
+          
           await refreshMediaScreenThumbnail(mediaScreenId);
         }
       } catch (error) {

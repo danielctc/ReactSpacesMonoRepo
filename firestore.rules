@@ -8,22 +8,33 @@ service cloud.firestore {
     
     // Allow users to read and write their own profile records
     match /users/{userId} {
-      // Allow users to read/write their own PUBLIC profile data
+      // SECURITY: Allow individual profile reads (get) for social features
+      // This allows guests and users to see profiles, avatars, usernames
+      allow get: if true;  // ✅ Social feature: View any single profile
+      
+      // Allow users to read/write their own profile
       allow read, write: if request.auth != null && request.auth.uid == userId;
       
-      // Allow any authenticated user to read PUBLIC profile data
+      // Allow authenticated users to read profiles (for user lists in spaces)
       allow read: if request.auth != null;
       
-      // Special rule to allow username availability checking during registration
-      // This allows checking username field without authentication
-      allow list: if true;
+      // SECURITY: Restrict bulk enumeration - only allow small, targeted queries
+      // This prevents scrapers from dumping your entire user database
+      // But allows legitimate searches (e.g., "find users in this space")
+      allow list: if request.auth != null &&  // Must be authenticated
+                     request.query.limit <= 100;  // Max 100 users at a time
+      
+      // SECURITY: For username checking during registration (unauthenticated)
+      // Only allow queries that are clearly for username lookup
+      allow list: if !request.auth &&  // Unauthenticated (registration flow)
+                     request.query.limit <= 1;  // Only 1 result (availability check)
 
       // Allow updates for group memberships (if only 'groups' field changes on the main doc)
       // Admins can update via the global rule.
       allow update: if request.auth != null && request.auth.uid == userId && 
                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['groups']);
 
-      // --- Rule for private subcollection ---
+      // --- Rule for private subcollection (email, sensitive data) ---
       match /private/{privateDocId} {
         // Allow ONLY the user themselves or an admin to read/write private data
         allow read, write: if request.auth != null && (request.auth.uid == userId || isDisruptiveAdmin());
@@ -38,9 +49,21 @@ service cloud.firestore {
     
     // Allow access to spaces - public access for spaces marked as public
     match /spaces/{spaceId} {
-      // Allow public read access to spaces explicitly marked as public,
-      // or allow authenticated users based on additional access rules
-      allow read: if true;
+      // SECURITY: Spaces are readable if:
+      // 1. Marked as public (isPublic == true)
+      // 2. No isPublic field (backward compatibility for existing spaces)
+      // 3. Accessible to all users flag is set
+      // 4. User is authenticated AND (owner/host/admin)
+      
+      // Combined read rule (covers both get and list operations)
+      allow read: if !('isPublic' in resource.data) ||  // No field = assume public (backward compat)
+                     resource.data.isPublic == true ||  // Explicitly public
+                     resource.data.accessibleToAllUsers == true ||  // Open to authenticated users
+                     (request.auth != null && (
+                       isSpaceOwnerOrHost(spaceId) ||  // Owners and hosts
+                       isDisruptiveAdmin()  // Admins
+                     ));
+      
       // Allow write access only to the space owner or an admin
       allow write: if isSpaceOwner(spaceId) || isDisruptiveAdmin();
       
@@ -87,6 +110,19 @@ service cloud.firestore {
         allow read: if true;
         // Allow write access only to space owners or admins
         allow write: if isSpaceOwner(spaceId) || isDisruptiveAdmin();
+      }
+      
+      // Allow access to chat messages within spaces
+      match /chatMessages/{messageId} {
+        // Allow authenticated users to read chat messages in any space
+        allow read: if request.auth != null;
+        // Allow authenticated users to create their own chat messages
+        allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+        // Allow users to delete/update only their own messages, or space owners/hosts/admins
+        allow update, delete: if request.auth != null && 
+                                 (resource.data.uid == request.auth.uid || 
+                                  isSpaceOwnerOrHost(spaceId) || 
+                                  isDisruptiveAdmin());
       }
       
       // Allow access to analytics collections

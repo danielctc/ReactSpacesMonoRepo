@@ -79,7 +79,7 @@ function SpacesListPage() {
     async function fetchSpaces() {
       try {
         setLoading(true);
-        console.log("Fetching spaces from Firebase...");
+        
         
         // Query for all spaces without any filters to ensure we get all data
         const spacesQuery = query(
@@ -87,13 +87,13 @@ function SpacesListPage() {
           limit(50)
         );
         
-        console.log("Executing Firebase query:", spacesQuery);
+        
         const querySnapshot = await getDocs(spacesQuery);
-        console.log("Query snapshot size:", querySnapshot.size);
+        
         
         // Log each document for debugging
         querySnapshot.forEach((doc) => {
-          console.log("Found space document:", doc.id, doc.data());
+          
         });
         
         const spacesData = [];
@@ -115,7 +115,7 @@ function SpacesListPage() {
           }
         });
         
-        console.log(`Found ${spacesData.length} spaces in Firebase:`, spacesData);
+        
         
         // Sort spaces by createdAt date in JavaScript instead of in the query
         spacesData.sort((a, b) => {
@@ -127,7 +127,7 @@ function SpacesListPage() {
         // Always include the potato space data
         const potatoExists = spacesData.some(space => space.id === 'thepotato');
         if (!potatoExists) {
-          console.log("Adding potato space data to the list");
+          
           spacesData.push(potatoSpaceData);
         }
         
@@ -148,7 +148,7 @@ function SpacesListPage() {
         
         // If there's a permissions error or index error, use sample data instead
         if (err.code === 'permission-denied' || err.message.includes('requires an index')) {
-          console.log('Using sample spaces data due to Firebase error:', err.message);
+          
           // Always include the potato space data with sample data
           setSpaces([...sampleSpaces, potatoSpaceData]);
         } else {

@@ -119,21 +119,7 @@ const useVoiceChat = () => {
 
   // Log the context for debugging (in useEffect to avoid render issues)
   useEffect(() => {
-    console.log("useVoiceChat context:", { 
-      contextIsVoiceEnabled, 
-      localVoiceEnabled,
-      contextIsScreenSharing,
-      localScreenSharing,
-      isJoined, 
-      users: users.length, 
-      error, 
-      isReady,
-      channel,
-      appId,
-      hasMicrophoneTrack: !!microphoneTrack,
-      trackMuted: microphoneTrack?.muted,
-      hasScreenTrack: !!contextScreenTrack
-    });
+    
   }, [
     contextIsVoiceEnabled, 
     localVoiceEnabled, 
@@ -152,9 +138,9 @@ const useVoiceChat = () => {
   // Custom toggleVoice function that updates local state
   const handleToggleVoice = async () => {
     try {
-      console.log("useVoiceChat: Toggling voice from:", localVoiceEnabled);
+      
       const newState = await toggleVoice();
-      console.log("useVoiceChat: Toggle result:", newState);
+      
       
       // Update local state if newState is defined
       if (newState !== undefined) {
@@ -180,9 +166,9 @@ const useVoiceChat = () => {
   // Custom toggleScreenShare function that updates local state
   const handleToggleScreenShare = async () => {
     try {
-      console.log("useVoiceChat: Toggling screen share from:", localScreenSharing);
+      
       const newState = await contextToggleScreenShare();
-      console.log("useVoiceChat: Screen share toggle result:", newState);
+      
       
       // Update local state if newState is defined
       if (newState !== undefined) {
@@ -292,7 +278,7 @@ const useVoiceChat = () => {
         await client.publish(newMicrophoneTrack);
       }
       
-      console.log('Microphone device changed successfully');
+      
     } catch (error) {
       console.error('Error changing microphone device:', error);
       throw error;

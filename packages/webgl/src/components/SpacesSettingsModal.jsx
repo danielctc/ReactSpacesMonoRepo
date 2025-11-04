@@ -156,19 +156,19 @@ const VoiceChatSettingsModal = ({ isOpen, onClose, containerRef }) => {
   const handleMicrophoneChange = (e) => {
     const deviceId = e.target.value;
     setSelectedMicrophoneId(deviceId);
-    console.log('Microphone changed to:', deviceId);
+    
   };
   
   // Handle microphone volume change
   const handleMicrophoneVolumeChange = (value) => {
     setMicrophoneVolume(value);
-    console.log('Microphone volume set to:', value);
+    
   };
   
   // Handle speaker volume change
   const handleSpeakerVolumeChange = (value) => {
     setSpeakerVolume(value);
-    console.log('Speaker volume set to:', value);
+    
   };
   
   // Toggle microphone

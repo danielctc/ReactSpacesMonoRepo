@@ -12,7 +12,7 @@ const Messages = ({ spaceID }) => {
 
     useEffect(() => {
         const unsubscribe = subscribeToSpaceChatMessages(spaceID, (newMessages) => {
-            console.log('New messages received:', newMessages);
+            
             setMessages((prevMessages) => [...prevMessages, ...newMessages]);
             Logger.log('Messages updated:', newMessages);
         });

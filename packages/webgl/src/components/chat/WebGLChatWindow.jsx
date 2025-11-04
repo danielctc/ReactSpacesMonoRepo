@@ -121,7 +121,7 @@ const WebGLChatWindow = ({ spaceID, isVisible = true }) => {
   useEffect(() => {
     const handleTextChatSettingChanged = (event) => {
       if (event.detail && event.detail.spaceId === spaceID) {
-        console.log('Text chat setting changed:', event.detail.textChatDisabled);
+        
         setTextChatDisabled(event.detail.textChatDisabled);
         
         // If chat is disabled and currently open, close it
@@ -145,7 +145,7 @@ const WebGLChatWindow = ({ spaceID, isVisible = true }) => {
 
   return (
     <Box
-      position="fixed"
+      position="absolute"
       bottom="20px"
       left="20px"
       zIndex="1000"

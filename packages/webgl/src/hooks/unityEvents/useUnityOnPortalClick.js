@@ -17,14 +17,14 @@ export const useUnityOnPortalClick = () => {
   });
 
   useEffect(() => {
-    console.log('Setting up portal click listener...');
+    
     
     const handlePortalClick = async (data) => {
-      console.log('Portal click event received:', data);
+      
       try {
         // Parse the data if it's a string
         const portalData = typeof data === 'string' ? JSON.parse(data) : data;
-        console.log('Parsed portal data:', portalData);
+        
         setClickedPortal(portalData);
         
         // Track portal click in analytics
@@ -43,7 +43,7 @@ export const useUnityOnPortalClick = () => {
               timestamp: new Date().toISOString()
             });
             
-            console.log('🎯 Analytics: Portal click event tracked for:', portalData.portalId, 'targeting:', targetSpaceName || targetSpaceId);
+            
           } catch (analyticsError) {
             console.error('🎯 Analytics: Error tracking portal click:', analyticsError);
             // Fallback analytics without target space name
@@ -57,7 +57,7 @@ export const useUnityOnPortalClick = () => {
                 isEditMode: true,
                 timestamp: new Date().toISOString()
               });
-              console.log('🎯 Analytics: Portal click event tracked (fallback) for:', portalData.portalId);
+              
             } catch (fallbackError) {
               console.error('🎯 Analytics: Failed to track portal click even with fallback:', fallbackError);
             }
@@ -72,7 +72,7 @@ export const useUnityOnPortalClick = () => {
     const unsubscribe = listenToUnityMessage("PortalClicked", handlePortalClick);
     
     return () => {
-      console.log('Cleaning up portal click listener');
+      
       if (typeof unsubscribe === "function") {
         unsubscribe();
       }
@@ -80,7 +80,7 @@ export const useUnityOnPortalClick = () => {
   }, [listenToUnityMessage, isReady, user, spaceID, trackUnityEvent]);
 
   const clearClickedPortal = () => {
-    console.log('Clearing clicked portal state');
+    
     setClickedPortal(null);
   };
 

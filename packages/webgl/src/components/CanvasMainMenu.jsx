@@ -32,13 +32,10 @@ import {
   ModalBody,
   ModalCloseButton,
   Icon,
-  Switch,
-  FormControl,
-  FormLabel,
   Tooltip,
 } from "@chakra-ui/react";
 import { HamburgerIcon } from "@chakra-ui/icons";
-import { FaUsers, FaDesktop, FaEdit, FaCog, FaStar, FaCrown, FaShieldAlt, FaVideo, FaCubes } from 'react-icons/fa';
+import { FaUsers, FaStar, FaCrown, FaShieldAlt } from 'react-icons/fa';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
@@ -51,7 +48,6 @@ import SpacesSettingsModal from './SpacesSettingsModal';
 import SpaceManageModal from './SpaceManageModal';
 import ReadyPlayerMeModal from './ReadyPlayerMeModal';
 import AuthenticationButton from './AuthenticationButton';
-import ContentAdminModal from './ContentAdminModal';
 
 export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) => {
   const { fullscreenRef } = useFullscreenContext();
@@ -61,7 +57,6 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
   const [openControlsModal, setOpenControlsModal] = useState(false);
   const [openAvatarModal, setOpenAvatarModal] = useState(false);
   const [openManageSpaceModal, setOpenManageSpaceModal] = useState(false); // New state for Manage Space modal
-  const [isContentAdminOpen, setIsContentAdminOpen] = useState(false); // State for ContentAdminModal
   const [profileData, setProfileData] = useState(null);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
   const [canEditSpace, setCanEditSpace] = useState(false); // Permission check for Edit Mode
@@ -224,7 +219,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
     // Listen for voice setting changes
     const handleVoiceSettingChanged = (event) => {
       if (event.detail && typeof event.detail.voiceDisabled === 'boolean') {
-        console.log("Voice setting changed:", event.detail.voiceDisabled);
+        
         setVoiceDisabled(event.detail.voiceDisabled);
       }
     };
@@ -254,17 +249,6 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
     fetchProfileData();
   };
 
-  // Handler to close the Content Admin modal and ensure edit mode is off
-  const handleCloseContentAdmin = () => {
-    setIsContentAdminOpen(false);
-  };
-
-  // Function to open the Content Admin modal
-  const handleOpenContentAdminModal = () => {
-    setIsContentAdminOpen(true);
-    handleCloseMenu(); // Close the main menu
-  };
-
   const handleTogglePlayerList = (e) => {
     // Stop event propagation to prevent menu from closing
     e.stopPropagation();
@@ -280,45 +264,6 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
     setIsOpen(false);
   };
 
-  const handleToggleEditMode = (e) => {
-    // Stop event propagation to prevent menu from closing
-    e.stopPropagation();
-    
-    // Check if user has permission to edit (owner or disruptiveAdmin)
-    if (!canEditSpace) {
-      toast({
-        title: "Permission Denied",
-        description: "You don't have permission to edit this space. Only space owners can use Edit Mode.",
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-        position: "top",
-      });
-      return;
-    }
-    
-    const newEditModeState = !editModeEnabled;
-    setEditModeEnabled(newEditModeState);
-    
-    // Dispatch a custom event that other components can listen for
-    const editModeEvent = new CustomEvent('editModeChanged', { 
-      detail: { enabled: newEditModeState } 
-    });
-    window.dispatchEvent(editModeEvent);
-    
-    // Show toast notification
-    toast({
-      title: newEditModeState ? "Edit Mode Enabled" : "Edit Mode Disabled",
-      description: newEditModeState 
-        ? "You can now make changes to the scene." 
-        : "Scene editing is now disabled.",
-      status: newEditModeState ? "info" : "success",
-      duration: 3000,
-      isClosable: true,
-      position: "top",
-    });
-  };
-
   return (
     <>
       <Menu isOpen={isOpen} onClose={() => setIsOpen(false)}>
@@ -328,8 +273,11 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
           aria-label="Main menu"
           variant="ghost"
           color="white"
-          bg={isOpen ? "whiteAlpha.400" : "whiteAlpha.200"}
-          _hover={{ bg: isOpen ? "whiteAlpha.500" : "whiteAlpha.300" }}
+          bg={isOpen ? "rgba(0,0,0,0.4)" : "rgba(0,0,0,0.4)"}
+          backdropFilter="blur(10px)"
+          _hover={{ 
+            bg: isOpen ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0.3)"
+          }}
           size="md"
           onClick={() => setIsOpen(!isOpen)}
         />
@@ -428,45 +376,24 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
                   onClick={handleTogglePlayerList}
                 />
                 
-                {/* Show edit button if user is an owner or disruptiveAdmin */}
-                {canEditSpace && (
-                  <IconButton
-                    icon={<FaEdit />}
-                    variant="ghost"
-                    colorScheme={editModeEnabled ? "green" : "whiteAlpha"}
-                    size="sm"
-                    aria-label="Edit Mode"
-                    _hover={{ bg: 'whiteAlpha.200' }}
-                    onClick={handleToggleEditMode}
-                  />
-                )}
+                <IconButton
+                  icon={<Box w="4" h="4" />}
+                  variant="ghost"
+                  colorScheme="whiteAlpha"
+                  size="sm"
+                  aria-label="Action 2"
+                  _hover={{ bg: 'whiteAlpha.200' }}
+                />
                 
-                {/* Placeholder Button 3 - Show only when edit mode is OFF */}
-                {!editModeEnabled && (
-                  <IconButton
-                    icon={<Box w="4" h="4" />} // Placeholder icon
-                    variant="ghost"
-                    colorScheme="whiteAlpha"
-                    size="sm"
-                    aria-label="Action 3" // Kept for consistency, but represents empty slot
-                    _hover={{ bg: 'whiteAlpha.200' }}
-                    isDisabled // Disable it as it does nothing when edit mode is off
-                  />
-                )}
-
-                {/* Catalogue Button - Show only when edit mode is ON */}
-                {editModeEnabled && (
-                  <IconButton
-                    icon={<FaCubes />} // Catalogue icon
-                    variant="ghost"
-                    colorScheme="whiteAlpha"
-                    size="sm"
-                    aria-label="Catalogue"
-                    _hover={{ bg: 'whiteAlpha.200' }}
-                    onClick={handleOpenContentAdminModal} // Open modal
-                  />
-                )}
-
+                <IconButton
+                  icon={<Box w="4" h="4" />}
+                  variant="ghost"
+                  colorScheme="whiteAlpha"
+                  size="sm"
+                  aria-label="Action 3"
+                  _hover={{ bg: 'whiteAlpha.200' }}
+                />
+                
                 <IconButton
                   icon={<Box w="4" h="4" />}
                   variant="ghost"
@@ -480,30 +407,6 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
               <Divider borderColor="whiteAlpha.300" />
 
               <VStack align="stretch" spacing={1}>
-                {/* Edit Mode Toggle - Show for space owners and disruptiveAdmins */}
-                {canEditSpace && (
-                  <HStack 
-                    p={1.5} 
-                    borderRadius="md" 
-                    _hover={{ bg: "whiteAlpha.200" }}
-                    // onClick={(e) => e.stopPropagation()} // Removed: Allow menu to close or let switch handle propagation
-                    justify="space-between"
-                  >
-                    <Text fontSize="sm">Edit Mode</Text>
-                    <Switch 
-                      id="edit-mode-toggle" 
-                      isChecked={editModeEnabled}
-                      onChange={handleToggleEditMode}
-                      colorScheme="green"
-                      sx={{
-                        '& .chakra-switch__track': {
-                          bg: editModeEnabled ? 'green.500' : 'black'
-                        }
-                      }}
-                    />
-                  </HStack>
-                )}
-                
                 {/* Manage Space option - Show for space owners and disruptiveAdmins */}
                 {canEditSpace && (
                 <Text 
@@ -533,7 +436,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
                 >
                   Settings
                 </Text>
-                <Text 
+                {/* <Text 
                   fontSize="sm" 
                   cursor="pointer" 
                   _hover={{ bg: "whiteAlpha.200" }} 
@@ -542,7 +445,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
                   onClick={handleControlsModalToggle}
                 >
                   Controls
-                </Text>
+                </Text> */}
                 <Text 
                   fontSize="sm" 
                   cursor="pointer" 
@@ -569,12 +472,6 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
       
       {/* Manage Space Modal */}
       <SpaceManageModal isOpen={openManageSpaceModal} onClose={handleManageSpaceToggle} />
-      {/* Content Admin Modal */}
-      <ContentAdminModal 
-        isOpen={isContentAdminOpen} 
-        onClose={handleCloseContentAdmin} 
-        settings={{ spaceID }}
-      />
     </>
   );
 };

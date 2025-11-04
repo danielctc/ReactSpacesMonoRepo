@@ -16,14 +16,14 @@ export const useUnityOnPortalNavigate = () => {
   });
 
   useEffect(() => {
-    console.log('Setting up portal navigation listener...');
+    
     
     const handlePortalNavigate = async (data) => {
-      console.log('🔵 PORTAL CLICKED BY PLAYER (non-edit mode)');
+      
       try {
         // Parse the data if it's a string
         const portalData = typeof data === 'string' ? JSON.parse(data) : data;
-        console.log('Portal data:', portalData);
+        
 
         if (!portalData.portalId) {
           console.error('Portal ID is missing from portal data');
@@ -48,7 +48,7 @@ export const useUnityOnPortalNavigate = () => {
         }
 
         if (targetSpaceId) {
-          console.log('Navigating to space:', targetSpaceId, `(${targetSpaceName || 'Unknown space name'})`);
+          
           
           // Track portal navigation analytics before navigating
           if (isReady && user && portalData) {
@@ -64,7 +64,7 @@ export const useUnityOnPortalNavigate = () => {
                 timestamp: new Date().toISOString()
               });
               
-              console.log('🎯 Analytics: Portal navigation event tracked for:', portalData.portalId, '→', targetSpaceName || targetSpaceId);
+              
             } catch (analyticsError) {
               console.error('🎯 Analytics: Error tracking portal navigation:', analyticsError);
             }
@@ -84,7 +84,7 @@ export const useUnityOnPortalNavigate = () => {
     const unsubscribe = listenToUnityMessage("PortalNavigate", handlePortalNavigate);
     
     return () => {
-      console.log('Cleaning up portal navigation listener');
+      
       if (typeof unsubscribe === "function") {
         unsubscribe();
       }

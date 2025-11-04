@@ -121,7 +121,7 @@ const SpaceTagsManager = ({ spaceID }) => {
     
     try {
       const result = await initializeDefaultTags();
-      console.log('Tag initialization result:', result);
+      
       setInitializeSuccess(result);
       toast({
         title: 'Tags initialized',

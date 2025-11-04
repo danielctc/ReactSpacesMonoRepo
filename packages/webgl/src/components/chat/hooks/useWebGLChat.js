@@ -62,9 +62,16 @@ export const useWebGLChat = (spaceID) => {
           const bTime = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
           return aTime - bTime;
         });
-        
-        Logger.log('useWebGLChat: Setting messages:', sortedMessages.length);
-        setMessages(sortedMessages);
+
+        // Filter messages to only show those from the last 24 hours
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const recentMessages = sortedMessages.filter(message => {
+          const messageTime = message.timestamp?.toDate ? message.timestamp.toDate() : new Date(message.timestamp);
+          return messageTime >= twentyFourHoursAgo;
+        });
+
+        Logger.log('useWebGLChat: Setting messages:', recentMessages.length, 'of', sortedMessages.length, 'total (filtered last 24h)');
+        setMessages(recentMessages);
         setIsLoading(false);
         clearTimeout(loadingTimeout);
       }, (error) => {
