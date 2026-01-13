@@ -15,7 +15,7 @@ export const Logger = {
     log: (...args) => {
         if (!isProduction) {
             const modifiedArgs = args.map((arg, index) => index === 0 && typeof arg === 'string' ? `\n${arg}` : arg);
-            
+            console.log(`[LOG] [${formatTime()}] `, ...modifiedArgs);
         }
     },
     error: (...args) => {
