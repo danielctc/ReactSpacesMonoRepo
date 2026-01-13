@@ -7,6 +7,9 @@
  * - Send messages to Unity GameObjects
  * - Send events to ReactIncomingEvent handler
  *
+ * Uses UnityInstanceContext from react-unity-webgl when available,
+ * falls back to window.unityInstance for compatibility.
+ *
  * Usage:
  *   const { isReady, sendMessage, sendEvent } = useUnityMessaging();
  *
@@ -20,42 +23,57 @@
  *   sendEvent('PlaceVideoCanvas', { canvasId: '123', videoUrl: 'https://...' });
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Logger } from '@spaces/shared/logging/react-log';
+import { useState, useEffect, useCallback, useMemo, useContext } from 'react';
+import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { UnityInstanceContext } from '../providers/UnityProvider';
 
 /**
- * Get the Unity instance from any of its possible locations
+ * Get the Unity instance from window (fallback for outside context)
  */
-const getUnityInstance = () => {
+const getWindowUnityInstance = () => {
   return window.unityInstance || window.gameInstance || window.reactUnityInstance;
 };
 
 /**
  * Hook for Unity communication
+ * Prefers UnityInstanceContext, falls back to window.unityInstance
  * @returns {Object} Unity messaging utilities
  */
 export function useUnityMessaging() {
-  const [isReady, setIsReady] = useState(!!getUnityInstance());
+  // Try to get from React context first (react-unity-webgl pattern)
+  const unityContext = useContext(UnityInstanceContext);
 
-  // Watch for Unity instance to become available
+  // Use context if available, otherwise check window
+  const contextIsLoaded = unityContext?.isLoaded;
+  const contextSendMessage = unityContext?.sendMessage;
+
+  const [windowInstanceReady, setWindowInstanceReady] = useState(!!getWindowUnityInstance());
+
+  // Derive isReady from context or window fallback
+  const isReady = contextIsLoaded ?? windowInstanceReady;
+
+  // Watch for window.unityInstance as fallback (if not using context)
   useEffect(() => {
+    // Skip polling if we have context
+    if (unityContext) return;
+
     // Check immediately
-    if (getUnityInstance()) {
-      setIsReady(true);
+    if (getWindowUnityInstance()) {
+      setWindowInstanceReady(true);
       return;
     }
 
     // Poll for Unity instance (it loads asynchronously)
     const checkInterval = setInterval(() => {
-      if (getUnityInstance()) {
-        setIsReady(true);
+      if (getWindowUnityInstance()) {
+        setWindowInstanceReady(true);
         clearInterval(checkInterval);
       }
     }, 100);
 
     // Listen for custom event that some Unity loaders dispatch
     const handleUnityReady = () => {
-      setIsReady(true);
+      setWindowInstanceReady(true);
       clearInterval(checkInterval);
     };
     window.addEventListener('unityReady', handleUnityReady);
@@ -64,17 +82,35 @@ export function useUnityMessaging() {
       clearInterval(checkInterval);
       window.removeEventListener('unityReady', handleUnityReady);
     };
-  }, []);
+  }, [unityContext]);
 
   /**
    * Send a message to a Unity GameObject
+   * Prefers context sendMessage (react-unity-webgl), falls back to window.unityInstance
    * @param {string} gameObjectName - Name of the GameObject
    * @param {string} methodName - Name of the method to call
    * @param {*} [value] - Optional value to pass
    * @returns {boolean} Whether the message was sent
    */
   const sendMessage = useCallback((gameObjectName, methodName, value) => {
-    const instance = getUnityInstance();
+    // Prefer context sendMessage (from react-unity-webgl)
+    if (contextSendMessage) {
+      try {
+        if (value !== undefined) {
+          contextSendMessage(gameObjectName, methodName, value);
+        } else {
+          contextSendMessage(gameObjectName, methodName);
+        }
+        Logger.log(`[useUnityMessaging] Sent via context: ${gameObjectName}.${methodName}`);
+        return true;
+      } catch (error) {
+        Logger.error(`[useUnityMessaging] Context error:`, error);
+        return false;
+      }
+    }
+
+    // Fallback to window.unityInstance
+    const instance = getWindowUnityInstance();
     if (!instance) {
       Logger.warn(`[useUnityMessaging] Unity not ready, cannot send: ${gameObjectName}.${methodName}`);
       return false;
@@ -86,13 +122,13 @@ export function useUnityMessaging() {
       } else {
         instance.SendMessage(gameObjectName, methodName);
       }
-      Logger.log(`[useUnityMessaging] Sent: ${gameObjectName}.${methodName}`);
+      Logger.log(`[useUnityMessaging] Sent via window: ${gameObjectName}.${methodName}`);
       return true;
     } catch (error) {
       Logger.error(`[useUnityMessaging] Error sending message:`, error);
       return false;
     }
-  }, []);
+  }, [contextSendMessage]);
 
   /**
    * Send an event to ReactIncomingEvent handler
@@ -101,25 +137,39 @@ export function useUnityMessaging() {
    * @returns {boolean} Whether the event was sent
    */
   const sendEvent = useCallback((eventName, data) => {
-    const instance = getUnityInstance();
+    const payload = JSON.stringify({
+      eventName,
+      data: JSON.stringify(data)
+    });
+
+    // Prefer context sendMessage
+    if (contextSendMessage) {
+      try {
+        contextSendMessage('ReactIncomingEvent', 'HandleEvent', payload);
+        Logger.log(`[useUnityMessaging] Sent event via context: ${eventName}`);
+        return true;
+      } catch (error) {
+        Logger.error(`[useUnityMessaging] Context error sending event:`, error);
+        return false;
+      }
+    }
+
+    // Fallback to window.unityInstance
+    const instance = getWindowUnityInstance();
     if (!instance) {
       Logger.warn(`[useUnityMessaging] Unity not ready, cannot send event: ${eventName}`);
       return false;
     }
 
     try {
-      const payload = {
-        eventName,
-        data: JSON.stringify(data)
-      };
-      instance.SendMessage('ReactIncomingEvent', 'HandleEvent', JSON.stringify(payload));
-      Logger.log(`[useUnityMessaging] Sent event: ${eventName}`);
+      instance.SendMessage('ReactIncomingEvent', 'HandleEvent', payload);
+      Logger.log(`[useUnityMessaging] Sent event via window: ${eventName}`);
       return true;
     } catch (error) {
       Logger.error(`[useUnityMessaging] Error sending event:`, error);
       return false;
     }
-  }, []);
+  }, [contextSendMessage]);
 
   /**
    * Send raw JSON string to ReactIncomingEvent (for pre-serialized data)
@@ -128,25 +178,39 @@ export function useUnityMessaging() {
    * @returns {boolean} Whether the event was sent
    */
   const sendRawEvent = useCallback((eventName, jsonData) => {
-    const instance = getUnityInstance();
+    const payload = JSON.stringify({
+      eventName,
+      data: jsonData
+    });
+
+    // Prefer context sendMessage
+    if (contextSendMessage) {
+      try {
+        contextSendMessage('ReactIncomingEvent', 'HandleEvent', payload);
+        Logger.log(`[useUnityMessaging] Sent raw event via context: ${eventName}`);
+        return true;
+      } catch (error) {
+        Logger.error(`[useUnityMessaging] Context error sending raw event:`, error);
+        return false;
+      }
+    }
+
+    // Fallback to window.unityInstance
+    const instance = getWindowUnityInstance();
     if (!instance) {
       Logger.warn(`[useUnityMessaging] Unity not ready, cannot send raw event: ${eventName}`);
       return false;
     }
 
     try {
-      const payload = JSON.stringify({
-        eventName,
-        data: jsonData
-      });
       instance.SendMessage('ReactIncomingEvent', 'HandleEvent', payload);
-      Logger.log(`[useUnityMessaging] Sent raw event: ${eventName}`);
+      Logger.log(`[useUnityMessaging] Sent raw event via window: ${eventName}`);
       return true;
     } catch (error) {
       Logger.error(`[useUnityMessaging] Error sending raw event:`, error);
       return false;
     }
-  }, []);
+  }, [contextSendMessage]);
 
   /**
    * Disable Unity input (for modals, overlays, etc.)
