@@ -58,6 +58,7 @@ service cloud.firestore {
       // Combined read rule (covers both get and list operations)
       allow read: if !('isPublic' in resource.data) ||  // No field = assume public (backward compat)
                      resource.data.isPublic == true ||  // Explicitly public
+                     resource.data.allowGuestUsers == true ||  // Guest access enabled (React app field)
                      resource.data.accessibleToAllUsers == true ||  // Open to authenticated users
                      (request.auth != null && (
                        isSpaceOwnerOrHost(spaceId) ||  // Owners and hosts
