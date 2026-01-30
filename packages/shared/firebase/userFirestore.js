@@ -3,6 +3,7 @@ import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/
 import { auth, db } from '@disruptive-spaces/shared/firebase/firebase';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { isUsernameSafe } from '@disruptive-spaces/shared/utils/profanityFilter';
+import { getDefaultAvatarForUsername } from '@disruptive-spaces/shared/firebase/firebaseStorage';
 
 // Function to generate a username from first and last name with random numbers
 const generateUsername = (firstName, lastName) => {
@@ -137,14 +138,18 @@ const registerUser = async (email, password, additionalData) => {
         }
         
         // IMPORTANT: Capture all field values before user creation
+        const username = additionalData.username || "";
         const capturedData = {
             firstName: additionalData.firstName || "",
             lastName: additionalData.lastName || "",
             companyName: additionalData.companyName || "",
             linkedInProfile: additionalData.linkedInProfile || "",
-            username: additionalData.username || "",
+            username: username,
             Nickname: additionalData.Nickname || "",
-            rpmURL: additionalData.rpmURL || "https://models.readyplayer.me/67c8408d38f7924e15a8bd0a.glb",
+            // Assign deterministic default avatar based on username
+            avatarUrl: additionalData.avatarUrl || getDefaultAvatarForUsername(username),
+            // Keep rpmURL for legacy support
+            rpmURL: additionalData.rpmURL || "",
         };
         
         // Log that data was captured without showing values
@@ -201,7 +206,8 @@ const registerUser = async (email, password, additionalData) => {
             if (!existingData.username) fieldsToUpdate.username = capturedData.username;
             if (!existingData.companyName) fieldsToUpdate.companyName = capturedData.companyName;
             if (!existingData.linkedInProfile) fieldsToUpdate.linkedInProfile = capturedData.linkedInProfile;
-            if (!existingData.rpmURL) fieldsToUpdate.rpmURL = capturedData.rpmURL;
+            if (!existingData.avatarUrl) fieldsToUpdate.avatarUrl = capturedData.avatarUrl;
+            if (!existingData.rpmURL && capturedData.rpmURL) fieldsToUpdate.rpmURL = capturedData.rpmURL;
             
             // Only update if there are fields to update
             if (Object.keys(fieldsToUpdate).length > 0) {
@@ -270,7 +276,8 @@ const registerUser = async (email, password, additionalData) => {
             Nickname: capturedData.Nickname,
             username: capturedData.username,
             companyName: capturedData.companyName,
-            linkedInProfile: capturedData.linkedInProfile
+            linkedInProfile: capturedData.linkedInProfile,
+            avatarUrl: capturedData.avatarUrl
         };
         
         Logger.log('userFirestore: Registration complete, returning user data');

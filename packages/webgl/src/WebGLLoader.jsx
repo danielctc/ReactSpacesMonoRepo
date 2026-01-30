@@ -250,6 +250,50 @@ const WebGLLoader = ({ spaceID, overrideSettings }) => {
         // Add delay after auth completes to ensure Firestore rules are evaluated
         // This prevents permission-denied errors that appear as "not found"
         const fetchData = async () => {
+            // LOCAL DEV: Check for local dev builds first (bypasses Firestore)
+            const localDevBuilds = {
+                'spacessdk': {
+                    loaderUrl: '/devBuilds/spacessdk/Build/SpacesMetaverse_SDK.loader.js',
+                    dataUrl: '/devBuilds/spacessdk/Build/SpacesMetaverse_SDK.data',
+                    frameworkUrl: '/devBuilds/spacessdk/Build/SpacesMetaverse_SDK.framework.js',
+                    codeUrl: '/devBuilds/spacessdk/Build/SpacesMetaverse_SDK.wasm',
+                    allowGuestUsers: true,
+                    showAuthButton: true,
+                    showDisruptiveLogo: false,
+                    showHelpButton: true,
+                    enableVoiceChat: true,
+                }
+            };
+
+            // Use local config if available (dev mode only)
+            if (localDevBuilds[spaceID] && (import.meta.env.DEV || window.location.hostname === 'localhost')) {
+                Logger.log(`WebGLLoader: Using LOCAL dev build for ${spaceID}`);
+                const itemData = localDevBuilds[spaceID];
+
+                setUnityConfig(prevConfig => ({
+                    ...prevConfig,
+                    spaceID: spaceID,
+                    loaderUrl: itemData.loaderUrl,
+                    dataUrl: itemData.dataUrl,
+                    frameworkUrl: itemData.frameworkUrl,
+                    codeUrl: itemData.codeUrl,
+                }));
+
+                setSpaceSettings(prevSettings => ({
+                    ...prevSettings,
+                    showAuthButton: itemData.showAuthButton,
+                    showDisruptiveLogo: itemData.showDisruptiveLogo,
+                    showHelpButton: itemData.showHelpButton,
+                    enableVoiceChat: itemData.enableVoiceChat,
+                    spaceID: spaceID,
+                    ...(overrideSettings || {})
+                }));
+
+                setRequiresAuth(false);
+                setIsLoading(false);
+                return;
+            }
+
             // For guest users (unauthenticated), wait longer for Firestore to be ready
             // Firestore needs time to initialize rules for unauthenticated queries
             const delay = user ? 300 : 800; // Longer delay for guests

@@ -1,5 +1,5 @@
-import React, { useState, useContext } from 'react';
-import { 
+import React, { useState, useContext, useMemo } from 'react';
+import {
     Modal,
     ModalOverlay,
     ModalContent,
@@ -8,25 +8,30 @@ import {
     ModalCloseButton,
     VStack,
     Text,
-    useDisclosure,
     Portal,
     SimpleGrid,
     Box,
     Image,
     Icon,
-    useColorModeValue
+    useColorModeValue,
+    useToast,
+    Spinner,
+    Badge
 } from "@chakra-ui/react";
 import { FaPlus } from 'react-icons/fa';
 import ReadyPlayerMeModal from './ReadyPlayerMeModal';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
-import { updateRpmUrlInFirestore } from '@disruptive-spaces/shared/firebase/userFirestore';
+import { uploadAvatarFromUrl, DEFAULT_AVATARS, getDefaultAvatarForUsername } from '@disruptive-spaces/shared/firebase/firebaseStorage';
 import { useSendUnityEvent } from "../hooks/unityEvents/core/useSendUnityEvent";
+import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 function AvatarModal({ isOpen, onClose }) {
     const [showRPM, setShowRPM] = useState(false);
     const [selectedAvatar, setSelectedAvatar] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
     const { user } = useContext(UserContext);
     const sendUnityEvent = useSendUnityEvent();
+    const toast = useToast();
 
     const handleCreateClick = (e) => {
         e.stopPropagation();
@@ -39,35 +44,66 @@ function AvatarModal({ isOpen, onClose }) {
     };
 
     const handleAvatarSelect = async (avatar) => {
+        if (!user?.uid) {
+            Logger.error('No authenticated user found to update avatar.');
+            toast({
+                title: 'Error',
+                description: 'You must be signed in to change your avatar.',
+                status: 'error',
+                duration: 3000,
+            });
+            return;
+        }
+
         setSelectedAvatar(avatar);
-        
-        if (user && user.uid) {
-            try {
-                await updateRpmUrlInFirestore(user.uid, avatar.url);
-                sendUnityEvent("AvatarUrlFromReact", { url: avatar.url });
-                onClose();
-            } catch (error) {
-                console.error('Error updating RPM URL:', error);
-            }
-        } else {
-            console.error('No authenticated user found to update rpmURL.');
+        setIsUploading(true);
+
+        try {
+            // Upload GLB to Firebase Storage and get our URL
+            const firebaseUrl = await uploadAvatarFromUrl(user.uid, avatar.url);
+            Logger.log('Avatar uploaded to Firebase Storage:', firebaseUrl);
+
+            // Send to Unity
+            sendUnityEvent("AvatarUrlFromReact", { url: firebaseUrl });
+
+            toast({
+                title: 'Avatar Updated',
+                description: 'Your avatar has been saved.',
+                status: 'success',
+                duration: 2000,
+            });
+
+            onClose();
+        } catch (error) {
+            Logger.error('Error uploading avatar:', error);
+            toast({
+                title: 'Upload Failed',
+                description: 'Failed to save avatar. Please try again.',
+                status: 'error',
+                duration: 3000,
+            });
+        } finally {
+            setIsUploading(false);
         }
     };
 
     const borderColor = useColorModeValue('gray.200', 'whiteAlpha.300');
     const hoverBg = 'rgba(0, 0, 0, 0.3)';
 
-    const avatarOptions = [
-        { id: 1, url: "https://models.readyplayer.me/67c8408d38f7924e15a8bd0a.glb", name: "Default Avatar 1" },
-        { id: 2, url: "https://models.readyplayer.me/67c8576838e3cf57cc697c15.glb", name: "Default Avatar 2" },
-        { id: 3, url: "https://models.readyplayer.me/67c884144c4878c55e515ff5.glb", name: "Default Avatar 3" },
-        { id: 4, url: "https://models.readyplayer.me/67c885af25f4d62e75c0ff1e.glb", name: "Default Avatar 4" },
-        { id: 5, url: "https://models.readyplayer.me/67c8860f4c4878c55e5189b6.glb", name: "Default Avatar 5" },
-        { id: 6, url: "https://models.readyplayer.me/67c8869db6d0b438b7abd822.glb", name: "Default Avatar 6" },
-        { id: 7, url: "https://models.readyplayer.me/67c886ed28ee0e0bfac89688.glb", name: "Default Avatar 7" },
-        { id: 8, url: "https://models.readyplayer.me/67c88731795ea3e2e6ea84db.glb", name: "Default Avatar 8" },
-        { id: 9, url: "https://models.readyplayer.me/67c8878b0cdc0f22383f0f8f.glb", name: "Default Avatar 9" },
-    ];
+    // Build avatar options from shared DEFAULT_AVATARS constant
+    const avatarOptions = useMemo(() =>
+        DEFAULT_AVATARS.map((url, index) => ({
+            id: index + 1,
+            url,
+            name: `Avatar ${index + 1}`
+        })),
+    []);
+
+    // Get the user's deterministic default avatar based on username
+    const userDefaultAvatar = useMemo(() => {
+        const username = user?.username || user?.uid || '';
+        return getDefaultAvatarForUsername(username);
+    }, [user?.username, user?.uid]);
 
     return (
         <>
@@ -120,39 +156,69 @@ function AvatarModal({ isOpen, onClose }) {
                                         </VStack>
                                     </Box>
 
-                                    {avatarOptions.map((avatar) => (
-                                        <Box
-                                            key={avatar.id}
-                                            position="relative"
-                                            cursor="pointer"
-                                            borderWidth="2px"
-                                            borderColor={selectedAvatar?.id === avatar.id ? "blue.400" : borderColor}
-                                            borderRadius="lg"
-                                            overflow="hidden"
-                                            onClick={() => handleAvatarSelect(avatar)}
-                                            _hover={{ bg: hoverBg }}
-                                            transition="all 0.2s"
-                                            aspectRatio="1"
-                                        >
-                                            <Image
-                                                src={avatar.url.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75")}
-                                                alt={avatar.name}
-                                                width="100%"
-                                                height="100%"
-                                                objectFit="cover"
-                                            />
+                                    {avatarOptions.map((avatar) => {
+                                        const isUserDefault = avatar.url === userDefaultAvatar;
+                                        return (
                                             <Box
-                                                position="absolute"
-                                                bottom="0"
-                                                left="0"
-                                                right="0"
-                                                p={1}
-                                                bg="rgba(0, 0, 0, 0.7)"
+                                                key={avatar.id}
+                                                position="relative"
+                                                cursor={isUploading ? "not-allowed" : "pointer"}
+                                                borderWidth="2px"
+                                                borderColor={selectedAvatar?.id === avatar.id ? "blue.400" : isUserDefault ? "green.400" : borderColor}
+                                                borderRadius="lg"
+                                                overflow="hidden"
+                                                onClick={() => !isUploading && handleAvatarSelect(avatar)}
+                                                _hover={{ bg: isUploading ? undefined : hoverBg }}
+                                                transition="all 0.2s"
+                                                aspectRatio="1"
+                                                opacity={isUploading && selectedAvatar?.id !== avatar.id ? 0.5 : 1}
                                             >
-                                                <Text fontSize="xs">{avatar.name}</Text>
+                                                <Image
+                                                    src={avatar.url.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75")}
+                                                    alt={avatar.name}
+                                                    width="100%"
+                                                    height="100%"
+                                                    objectFit="cover"
+                                                />
+                                                {isUploading && selectedAvatar?.id === avatar.id && (
+                                                    <Box
+                                                        position="absolute"
+                                                        top="0"
+                                                        left="0"
+                                                        right="0"
+                                                        bottom="0"
+                                                        display="flex"
+                                                        alignItems="center"
+                                                        justifyContent="center"
+                                                        bg="rgba(0, 0, 0, 0.6)"
+                                                    >
+                                                        <Spinner color="white" size="lg" />
+                                                    </Box>
+                                                )}
+                                                {isUserDefault && (
+                                                    <Badge
+                                                        position="absolute"
+                                                        top={1}
+                                                        right={1}
+                                                        colorScheme="green"
+                                                        fontSize="2xs"
+                                                    >
+                                                        Your Default
+                                                    </Badge>
+                                                )}
+                                                <Box
+                                                    position="absolute"
+                                                    bottom="0"
+                                                    left="0"
+                                                    right="0"
+                                                    p={1}
+                                                    bg="rgba(0, 0, 0, 0.7)"
+                                                >
+                                                    <Text fontSize="xs">{avatar.name}</Text>
+                                                </Box>
                                             </Box>
-                                        </Box>
-                                    ))}
+                                        );
+                                    })}
                                 </SimpleGrid>
                             </VStack>
                         </ModalBody>

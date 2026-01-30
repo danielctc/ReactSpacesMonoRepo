@@ -42,19 +42,44 @@
     }
   </style>
 
+  <!-- Unity-React Bridge: Dispatches events to react-unity-webgl -->
+  <script>
+    (function() {
+      // Event queue for debugging
+      window.__UNITY_EVENT_QUEUE__ = [];
+
+      // dispatchReactUnityEvent - called by Unity jslib
+      // react-unity-webgl v10+ creates this function when Unity loads
+      // This polyfill handles events that arrive before Unity fully loads
+      window.dispatchReactUnityEvent = function(eventName, eventData) {
+        console.log('[Unity Bridge] Event:', eventName, eventData ? '(with data)' : '');
+
+        // Queue for debugging
+        window.__UNITY_EVENT_QUEUE__.push({ name: eventName, data: eventData, time: Date.now() });
+        if (window.__UNITY_EVENT_QUEUE__.length > 50) window.__UNITY_EVENT_QUEUE__.shift();
+
+        // Dispatch as CustomEvent - react-unity-webgl addEventListener hooks into this
+        var event = new CustomEvent(eventName, { detail: eventData });
+        window.dispatchEvent(event);
+      };
+
+      console.log('[Unity Bridge] Polyfill ready');
+    })();
+  </script>
 </head>
 
 <body>
-  <!--SpaceMetaverse_SDK_Firebase-->
-  <div id="root" data-space-id="SpacesMetaverse_SDK" data-theme="default">
-    <div id="header-auth-root" data-space-id="SpacesMetaverse_SDK" data-theme="default"></div>
+  <!--spacessdk - Local Development Build-->
+  <div id="root" data-space-id="spacessdk" data-theme="default">
+    <div id="header-auth-root" data-space-id="spacessdk" data-theme="default"></div>
     <div class="container" style="border: 1px solid red;">
-      <div id="webgl-root" data-space-id="SpacesMetaverse_SDK" data-theme="default" style="width: 100%; height: 100%;">
+      <div id="webgl-root" data-space-id="spacessdk" data-theme="default" style="width: 100%; height: 100%;">
       </div>
-      <div id="chat-root" data-space-id="SpacesMetaverse_SDK" data-theme="default"></div>
+      <div id="chat-root" data-space-id="spacessdk" data-theme="default"></div>
     </div>
   </div>
 
+  <!-- Full application -->
   <script type="module" src="/src/main.jsx"></script>
 
 
