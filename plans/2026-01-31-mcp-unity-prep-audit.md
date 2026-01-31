@@ -33,6 +33,12 @@
 - `/users/{uid}` - Publicly readable (social features)
 - `/users/{uid}/private` - Owner-only access (emails, sensitive data)
 
+**CORS / Embedding:**
+
+- Flexible CORS allows embedding in external websites
+- Embed URL: `/embed/{space-slug}` (e.g. `/embed/td-synnex-lenovo360-home`)
+- Website URL: `/w/{space-slug}` (e.g. `/w/td-synnex-lenovo360-home`)
+
 ### Issues to Address
 
 | #   | Issue                            | File                         | Severity  | Notes                         |
