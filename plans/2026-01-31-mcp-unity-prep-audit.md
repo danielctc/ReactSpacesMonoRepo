@@ -25,11 +25,15 @@
 
 ### Clarified Items (Not Issues)
 
-| Item                            | Status           | Explanation                   |
-| ------------------------------- | ---------------- | ----------------------------- |
-| 'users' group bypass            | ✅ By Design     | Allows anonymous/guest access |
-| No space ownership in analytics | ✅ Experimental  | Not production code           |
-| No storage.rules in repo        | ✅ Separate Repo | Rules in ReactSpacesAdmin     |
+| Item                            | Status           | Explanation                                       |
+| ------------------------------- | ---------------- | ------------------------------------------------- |
+| 'users' group bypass            | ✅ By Design     | Allows anonymous/guest access, isolated by design |
+| No space ownership in analytics | ✅ Experimental  | Not production code, free to modify               |
+| No storage.rules in repo        | ✅ Separate Repo | Rules in ReactSpacesAdmin                         |
+| Full page reload on signin      | ✅ Intentional   | Forces WebGL to reload properly                   |
+| Guest RPM URL hardcoded         | ✅ Test Script   | Useful for unauthenticated users                  |
+| `packages/chat/` package        | ⚠️ OLD           | Replaced by `webgl/src/components/chat/`          |
+| `packages/website/` package     | ⚠️ REDUNDANT     | Replaced by spaces-website repo                   |
 
 ### When Download Completes
 

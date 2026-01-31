@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mcp-unity": {
+      "command": "npx",
+      "args": ["-y", "mcp-unity"],
+      "env": {
+        "UNITY_PORT": "8090"
+      }
+    }
+  }
+}
