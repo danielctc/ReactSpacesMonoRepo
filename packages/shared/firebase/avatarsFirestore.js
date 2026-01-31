@@ -19,6 +19,22 @@ const AVATARS_COLLECTION = 'avatars';
 const AVATAR_STORAGE_PATH = 'avatars/collection';
 
 /**
+ * Converts Firestore Timestamps to ISO strings for React compatibility.
+ * @param {Object} data - Document data that may contain Timestamp fields.
+ * @returns {Object} Data with timestamps converted to strings.
+ */
+const serializeTimestamps = (data) => {
+  const result = { ...data };
+  if (result.createdAt?.toDate) {
+    result.createdAt = result.createdAt.toDate().toISOString();
+  }
+  if (result.updatedAt?.toDate) {
+    result.updatedAt = result.updatedAt.toDate().toISOString();
+  }
+  return result;
+};
+
+/**
  * Fetches all active avatars from the collection, ordered by sortOrder.
  * @returns {Promise<Array>} Array of avatar objects with id included.
  */
@@ -32,7 +48,7 @@ export const getAllAvatars = async () => {
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
+    return snapshot.docs.map(doc => serializeTimestamps({
       id: doc.id,
       ...doc.data()
     }));
@@ -52,7 +68,7 @@ export const getAllAvatarsAdmin = async () => {
     const q = query(avatarsRef, orderBy('sortOrder', 'asc'));
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
+    return snapshot.docs.map(doc => serializeTimestamps({
       id: doc.id,
       ...doc.data()
     }));
@@ -76,10 +92,10 @@ export const getAvatarById = async (avatarId) => {
       return null;
     }
 
-    return {
+    return serializeTimestamps({
       id: snapshot.id,
       ...snapshot.data()
-    };
+    });
   } catch (error) {
     Logger.error('Failed to fetch avatar:', avatarId, error);
     throw error;
