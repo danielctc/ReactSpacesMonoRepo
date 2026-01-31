@@ -15,6 +15,24 @@
 - **Admin Repo:** [ReactSpacesAdmin](https://github.com/spacesmetaverse/ReactSpacesAdmin)
 - **Storage Rules:** Defined in admin repo, deployed separately
 
+### Security Model
+
+**Two user types:**
+
+- **Authenticated users** - Full login, can interact with all features
+- **Guest users** - No auth required, permitted in spaces with `allowGuestUsers: true`
+
+**Space permissions (Firebase `groups` collection):**
+
+- `space_{id}_owners` - Space owners
+- `space_{id}_hosts` - Space hosts
+- `disruptiveAdmin` - Platform-wide admin access
+
+**Privacy model:**
+
+- `/users/{uid}` - Publicly readable (social features)
+- `/users/{uid}/private` - Owner-only access (emails, sensitive data)
+
 ### Issues to Address
 
 | #   | Issue                            | File                         | Severity  | Notes                         |
