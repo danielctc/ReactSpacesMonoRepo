@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Spaces Metaverse - Virtual Spaces for Collaboration" />
+    <meta name="theme-color" content="#0080ff" />
+    <title>Spaces Metaverse</title>
+
+    <!-- CRITICAL: Portal same-tab navigation override - MUST be first script -->
+    <script>
+      (function() {
+        // Save original window.open BEFORE any other scripts load
+        var _originalOpen = window.open;
+
+        // Override window.open to intercept portal navigation
+        window.open = function(url, target, features) {
+          // Check if this is an internal space URL
+          if (url && typeof url === 'string' && url.indexOf('/w/') !== -1) {
+            console.log('[Portal Intercept HTML] Redirecting to same tab:', url);
+
+            // Save transition state to localStorage
+            try {
+              var match = url.match(/\/w\/([^/?#]+)/);
+              var targetSpaceId = match ? match[1] : null;
+              var currentMatch = window.location.pathname.match(/\/w\/([^/?#]+)/);
+              var currentSpaceId = currentMatch ? currentMatch[1] : 'unknown';
+
+              var transition = {
+                fromSpaceId: currentSpaceId,
+                toSpaceId: targetSpaceId,
+                portalId: 'html-intercept',
+                fromUrl: window.location.href,
+                timestamp: Date.now()
+              };
+              localStorage.setItem('portal_transition', JSON.stringify(transition));
+            } catch (e) {
+              console.error('[Portal Intercept HTML] Error saving transition:', e);
+            }
+
+            // Add fade-out animation class
+            document.body.classList.add('portal-transitioning');
+
+            // Navigate in same tab after brief fade
+            setTimeout(function() {
+              window.location.href = url;
+            }, 400);
+
+            return null; // Don't open new window
+          }
+
+          // For all other URLs, use original behavior
+          return _originalOpen.call(window, url, target, features);
+        };
+
+        console.log('[Portal Intercept HTML] window.open override installed');
+      })();
+    </script>
+
+    <!-- Portal transition CSS for fade animation -->
+    <style>
+      @keyframes portalFadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; background-color: black; }
+      }
+      body.portal-transitioning {
+        animation: portalFadeOut 400ms ease-out forwards;
+        pointer-events: none;
+      }
+    </style>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect">
+    <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin="anonymous">
+    <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js" type="text/javascript"></script>
+    <script type="text/javascript">WebFont.load({ google: { families: ["Montserrat:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic","Lato:100,100italic,300,300italic,400,400italic,700,700italic,900,900italic"] } });</script>
+    
+    <!-- Webflow CSS -->
+    <link href="./css/normalize.css" rel="stylesheet" type="text/css">
+    <link href="./css/webflow.css" rel="stylesheet" type="text/css">
+    <link href="./css/spaces-website-0e0e51.webflow.css" rel="stylesheet" type="text/css">
+    
+    <!-- header-auth-links -->
+    <script type="module" crossorigin src="https://disruptive-metaverse.web.app/header-auth-links/assets/main.v0.9.22.js"></script>
+    
+    <!-- webgl -->
+    <script type="module" crossorigin src="https://disruptive-metaverse.web.app/webgl/assets/main.v0.9.22.js"></script>
+    
+    <!-- Unity Keyboard Focus Styles -->
+    <style>
+      /* When the unity-focused class is present on the body, only prevent keyboard scrolling but allow mouse scrolling */
+      body.unity-focused {
+        /* Remove overflow: hidden to allow mouse scrolling */
+        overflow: auto;
+        /* Add a specific CSS variable to indicate Unity has focus for JavaScript to use */
+        --unity-has-focus: 1;
+      }
+      
+      /* Add CSS targetting the actual Unity canvas element to improve its focus appearance */
+      body.unity-focused canvas {
+        outline: none !important; /* Remove default focus outline */
+        border: none !important;
+      }
+      
+      /* Improve focus handling for Unity container */
+      #webgl-root {
+        position: relative;
+        z-index: 1;
+      }
+      
+      /* Ensure overlay UI properly appears above Unity */
+      .webgl-overlay, .game-ui, .player-list, .unity-ui-overlay {
+        position: relative;
+        z-index: 2;
+      }
+    </style>
+    
+    <!-- Custom Keyboard Handling Script -->
+    <script>
+      // Add a script to only prevent arrow key scrolling, not mouse scrolling
+      document.addEventListener('DOMContentLoaded', function() {
+        // List of keys that should be prevented from scrolling the page
+        const navigationKeys = [
+          'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+          'Space', 'PageUp', 'PageDown', 'Home', 'End',
+          // Include WASD for games that use these for movement
+          'KeyW', 'KeyA', 'KeyS', 'KeyD'
+        ];
+        
+        // Handle keydown events
+        document.addEventListener('keydown', function(e) {
+          // Only prevent default if Unity has focus (check for CSS variable)
+          if (getComputedStyle(document.body).getPropertyValue('--unity-has-focus') === '1') {
+            // Get the key or code from the event
+            const key = e.key || e.code;
+            
+            // Check if we should prevent this key's default behavior
+            if (navigationKeys.includes(key) || 
+                navigationKeys.includes(e.code) || 
+                // Handle space key which might be " " instead of "Space"
+                (key === ' ')) {
+              
+              // Only prevent if not typing in an input element
+              if (!e.target.tagName || 
+                  !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) {
+                
+                console.log(`Preventing page scroll for key: ${key}`);
+                e.preventDefault();
+              }
+            }
+          }
+        }, { capture: true }); // Use capture phase to catch events before they bubble
+      });
+    </script>
+    <script type="module" crossorigin src="./assets/main.v0.9.22.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index.v0.9.22.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="header-auth-root" data-theme="default" style="display: none;"></div>
+  </body>
+</html> 

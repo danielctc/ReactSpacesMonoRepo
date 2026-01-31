@@ -17,7 +17,7 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {
-      input: resolve(__dirname, 'src/main.jsx'), // Specify your main entry file
+      input: resolve(__dirname, 'index.html'),
       output: {
         // Include the semantic version from package.json and a short hash for cache busting
         entryFileNames: `assets/main.v${version}.js`,

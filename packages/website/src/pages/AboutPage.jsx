@@ -26,15 +26,15 @@ const AboutPage = () => {
   // Default content to use if CMS content is not available
   const defaultContent = {
     title: 'About Spaces',
-    description: 'Learn about the Spaces platform, our vision, and how we empower virtual collaboration and connection.',
+    description: 'Learn about Disruptive Spaces, our vision, and how we help teams connect in virtual environments.',
     tagline: 'A platform for creating virtual spaces that bring people together.',
     whoWeAre: {
       title: 'Who We Are',
-      content: 'We create metaverses that are simple, accessible, and limitless. Our platform is focused on ease of use, designed for everyone, and built for creativity and connection.'
+      content: 'We build metaverses that are simple, accessible, and limitless. Our platform focuses on ease of use, works for everyone, and supports creativity and connection.'
     },
     ourVision: {
       title: 'Our Vision',
-      content: 'To empower everyone to build their own virtual spaces, tailored to their needs. Whether you need public or private options, fully customizable environments, our platform offers limitless possibilities.'
+      content: 'Everyone should be able to build their own virtual space, tailored to their needs. Public or private, fully customisable - the possibilities are endless.'
     },
     whatWeOffer: {
       title: 'What We Offer',
@@ -42,12 +42,12 @@ const AboutPage = () => {
     },
     howItWorks: {
       title: 'How It Works',
-      content: 'Accessible on any device, our metaverses are easy to customize and share. No downloads required - everything runs seamlessly in web browsers with simple tools for building and sharing.'
+      content: 'Accessible on any device, easy to customise and share. No downloads required - everything runs in web browsers with simple tools for building and sharing.'
     },
     contactSection: {
-      title: 'Reach Out',
-      intro: 'Interested in learning more about our spaces? Have questions about how it works? We\'d love to hear from you and help you get started on your journey.',
-      callToAction: 'Fill out the form and we\'ll get back to you as soon as possible.'
+      title: 'Get in Touch',
+      intro: 'Interested in learning more? Have questions about how it works? We would love to hear from you and help you get started.',
+      callToAction: 'Fill out the form and we will get back to you as soon as possible.'
     },
     images: {
       topImage: '/images/Space-office-example-2-min.jpg',

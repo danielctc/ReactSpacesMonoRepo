@@ -96,6 +96,22 @@ const HeroVideo = ({ videoSrc }) => {
   );
 };
 
+// Default content to use if CMS content is not available
+const defaultContent = {
+  title: 'Disruptive Spaces - Virtual Environments for Teams',
+  description: 'Create and customise virtual spaces for meetings, events, and collaboration. No downloads required.',
+  heroHeading: 'Your Space. Your Way.',
+  videoSrc: '',
+  missionHeading: 'What We Do',
+  missionTitle: 'Virtual spaces that actually work',
+  missionPoints: [
+    'Host meetings, events, and training in fully customisable 3D environments.',
+    'Works in any browser. No downloads, no plugins, no fuss.',
+    'Public spaces for open events or private rooms for your team.'
+  ],
+  learnMoreText: 'See how it works'
+};
+
 const HomePage = () => {
   const { content, loading, getContent } = useWebsiteContent();
   const [pageContent, setPageContent] = useState(null);
@@ -116,8 +132,11 @@ const HomePage = () => {
     loadHomePage();
   }, [content, getContent]);
 
-  // Return loading spinner while content is being fetched
-  if (loading || !pageContent) {
+  // Use CMS content if available, otherwise use defaults
+  const displayContent = pageContent || defaultContent;
+
+  // Show spinner only during initial load, not when using defaults
+  if (loading && !pageContent) {
     return (
       <Center h="100vh">
         <Spinner size="xl" />
@@ -128,19 +147,19 @@ const HomePage = () => {
   return (
     <>
       <Helmet>
-        <title>{pageContent.title}</title>
-        <meta name="description" content={pageContent.description} />
+        <title>{displayContent.title}</title>
+        <meta name="description" content={displayContent.description} />
       </Helmet>
 
       {/* Hero Section with Video Background */}
-      <Box 
-        position="relative" 
+      <Box
+        position="relative"
         height={{ base: "100vh", md: "100vh" }}
         width="100%"
         overflow="hidden"
       >
         {/* Video Background */}
-        <HeroVideo videoSrc={pageContent.videoSrc} />
+        <HeroVideo videoSrc={displayContent.videoSrc} />
 
         {/* Dark Overlay */}
         <Box 
@@ -170,7 +189,7 @@ const HomePage = () => {
             fontWeight="bold"
             textAlign="center"
           >
-            {pageContent.heroHeading}
+            {displayContent.heroHeading}
           </Heading>
         </Flex>
       </Box>
@@ -190,27 +209,27 @@ const HomePage = () => {
                 color="gray.500"
                 mb={3}
               >
-                {pageContent.missionHeading}
+                {displayContent.missionHeading}
               </Heading>
-              <Heading 
-                as="h1" 
-                fontSize={{ base: "4xl", md: "5xl" }} 
+              <Heading
+                as="h1"
+                fontSize={{ base: "4xl", md: "5xl" }}
                 fontWeight="bold"
               >
-                {pageContent.missionTitle}
+                {displayContent.missionTitle}
               </Heading>
             </GridItem>
             
             <GridItem>
               <Box mb={8}>
-                {pageContent.missionPoints?.map((point, index) => (
-                  <Text key={index} fontSize="xl" mb={3}>{point}</Text>
+                {displayContent.missionPoints?.map((point) => (
+                  <Text key={point} fontSize="xl" mb={3}>{point}</Text>
                 ))}
               </Box>
-              
+
               <Flex align="center">
                 <RouterLink to="/about" style={{ color: '#0080ff', fontWeight: 500, marginRight: '10px' }}>
-                  {pageContent.learnMoreText}
+                  {displayContent.learnMoreText}
                 </RouterLink>
                 <Box as="svg" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#0080ff">
                   <path d="M10 20A10 10 0 1 0 0 10a10 10 0 0 0 10 10zM8.711 4.3l5.7 5.766L8.7 15.711l-1.4-1.422 4.289-4.242-4.3-4.347z" />

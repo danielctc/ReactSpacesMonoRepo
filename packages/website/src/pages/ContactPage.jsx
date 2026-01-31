@@ -113,7 +113,7 @@ const ContactPage = () => {
       // Show success message
       toast({
         title: 'Message sent!',
-        description: "We've received your message and will get back to you soon.",
+        description: "We have received your message and will get back to you soon.",
         status: 'success',
         duration: 5000,
         isClosable: true,
@@ -145,7 +145,7 @@ const ContactPage = () => {
     <>
       <Helmet>
         <title>Contact Us - Disruptive Spaces</title>
-        <meta name="description" content="Get in touch with the Disruptive Spaces team for inquiries, demos, or support." />
+        <meta name="description" content="Get in touch with the Disruptive Spaces team for enquiries, demos, or support." />
       </Helmet>
 
       <Box as="section" py={20}>
@@ -166,7 +166,7 @@ const ContactPage = () => {
               fontSize={'xl'}
               mx={'auto'}
             >
-              Have questions about our platform? Want to schedule a demo? We'd love to hear from you.
+              Have questions about our platform? Want to schedule a demo? We would love to hear from you.
             </Text>
           </Stack>
 
@@ -211,7 +211,7 @@ const ContactPage = () => {
 
                 <Flex align="center">
                   <Icon as={BsPhone} mr={2} color={'brand.500'} />
-                  <Text fontWeight="medium">+1 (555) 123-4567</Text>
+                  <Text fontWeight="medium">020 3371 8430</Text>
                 </Flex>
 
                 <Flex align="center">
@@ -225,7 +225,7 @@ const ContactPage = () => {
                 <Flex align="center">
                   <Icon as={BsGlobe} mr={2} color={'brand.500'} />
                   <Text fontWeight="medium">
-                    Operating Hours: Monday-Friday, 9AM-6PM GMT
+                    Monday to Friday, 9am to 6pm GMT
                   </Text>
                 </Flex>
               </Stack>

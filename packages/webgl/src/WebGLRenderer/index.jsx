@@ -238,8 +238,12 @@ const WebGLRenderer = forwardRef(({
 
       // Wait for animation then navigate
       setTimeout(() => {
-        if (targetSpaceSlug) {
-          window.location.href = `/w/${targetSpaceSlug}`;
+        const navigateTo = targetSpaceSlug || targetSpaceId;
+        if (navigateTo) {
+          window.location.href = `/w/${navigateTo}`;
+        } else {
+          // Fallback: remove transition class if no destination
+          document.body.classList.remove('portal-transitioning');
         }
         handleClosePortalPrompt();
       }, 400);

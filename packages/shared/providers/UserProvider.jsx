@@ -452,10 +452,10 @@ export const UserProvider = ({ children }) => {
         const filteredUser = {};
         // Add uid to the list of properties to send
         const propertiesForUnity = [...userProperties, 'uid'];
-        
+
         Logger.log("UserProvider: Properties to send to Unity:", propertiesForUnity);
         Logger.log("UserProvider: Available properties in user object:", Object.keys(userObject));
-        
+
         propertiesForUnity.forEach(field => {
             if (userObject.hasOwnProperty(field)) {
                 filteredUser[field] = userObject[field];
@@ -464,7 +464,22 @@ export const UserProvider = ({ children }) => {
                 Logger.log(`UserProvider: Field '${field}' not found in user object`);
             }
         });
-        
+
+        // Ensure Nickname is always set for nameplate display
+        if (!filteredUser.Nickname || filteredUser.Nickname.trim() === '') {
+            // Fallback chain: firstName+lastName → displayName → username → "User"
+            if (filteredUser.firstName && filteredUser.lastName) {
+                filteredUser.Nickname = `${filteredUser.firstName}${filteredUser.lastName.charAt(0).toUpperCase()}`;
+            } else if (userObject.displayName) {
+                filteredUser.Nickname = userObject.displayName;
+            } else if (filteredUser.username) {
+                filteredUser.Nickname = filteredUser.username;
+            } else {
+                filteredUser.Nickname = 'User';
+            }
+            Logger.log("UserProvider: Set Nickname fallback to:", filteredUser.Nickname);
+        }
+
         Logger.log("UserProvider: Final filtered user object:", filteredUser);
         return filteredUser;
     };
