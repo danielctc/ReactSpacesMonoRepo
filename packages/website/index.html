@@ -7,7 +7,69 @@
     <meta name="description" content="Spaces Metaverse - Virtual Spaces for Collaboration" />
     <meta name="theme-color" content="#0080ff" />
     <title>Spaces Metaverse</title>
-    
+
+    <!-- CRITICAL: Portal same-tab navigation override - MUST be first script -->
+    <script>
+      (function() {
+        // Save original window.open BEFORE any other scripts load
+        var _originalOpen = window.open;
+
+        // Override window.open to intercept portal navigation
+        window.open = function(url, target, features) {
+          // Check if this is an internal space URL
+          if (url && typeof url === 'string' && url.indexOf('/w/') !== -1) {
+            console.log('[Portal Intercept HTML] Redirecting to same tab:', url);
+
+            // Save transition state to localStorage
+            try {
+              var match = url.match(/\/w\/([^/?#]+)/);
+              var targetSpaceId = match ? match[1] : null;
+              var currentMatch = window.location.pathname.match(/\/w\/([^/?#]+)/);
+              var currentSpaceId = currentMatch ? currentMatch[1] : 'unknown';
+
+              var transition = {
+                fromSpaceId: currentSpaceId,
+                toSpaceId: targetSpaceId,
+                portalId: 'html-intercept',
+                fromUrl: window.location.href,
+                timestamp: Date.now()
+              };
+              localStorage.setItem('portal_transition', JSON.stringify(transition));
+            } catch (e) {
+              console.error('[Portal Intercept HTML] Error saving transition:', e);
+            }
+
+            // Add fade-out animation class
+            document.body.classList.add('portal-transitioning');
+
+            // Navigate in same tab after brief fade
+            setTimeout(function() {
+              window.location.href = url;
+            }, 400);
+
+            return null; // Don't open new window
+          }
+
+          // For all other URLs, use original behavior
+          return _originalOpen.call(window, url, target, features);
+        };
+
+        console.log('[Portal Intercept HTML] window.open override installed');
+      })();
+    </script>
+
+    <!-- Portal transition CSS for fade animation -->
+    <style>
+      @keyframes portalFadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; background-color: black; }
+      }
+      body.portal-transitioning {
+        animation: portalFadeOut 400ms ease-out forwards;
+        pointer-events: none;
+      }
+    </style>
+
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin="anonymous">
