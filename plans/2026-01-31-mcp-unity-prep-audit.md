@@ -8,16 +8,28 @@
 
 ## Executive Summary
 
-### Critical Issues (Fix Before Production)
+### Architecture Note
 
-| #   | Issue                            | File                         | Severity    |
-| --- | -------------------------------- | ---------------------------- | ----------- |
-| 1   | 'users' group bypass active      | userPermissions.ts:166-172   | 🔴 CRITICAL |
-| 2   | No space ownership verification  | analytics.js:29, 143         | 🔴 CRITICAL |
-| 3   | No storage.rules file            | (missing)                    | 🟠 HIGH     |
-| 4   | Empty Firestore indexes          | firestore.indexes.json       | 🟠 HIGH     |
-| 5   | Event name typo (trailing space) | useUnityOnRequestForMedia.js | 🟠 HIGH     |
-| 6   | alert() in production code       | useUnityOnRequestForMedia.js | 🟠 HIGH     |
+**This monorepo is frontend-only.** Backend storage and security rules are managed in a separate repository:
+
+- **Admin Repo:** [ReactSpacesAdmin](https://github.com/spacesmetaverse/ReactSpacesAdmin)
+- **Storage Rules:** Defined in admin repo, deployed separately
+
+### Issues to Address
+
+| #   | Issue                            | File                         | Severity  | Notes                         |
+| --- | -------------------------------- | ---------------------------- | --------- | ----------------------------- |
+| 1   | Event name typo (trailing space) | useUnityOnRequestForMedia.js | 🟠 HIGH   | Will cause event mismatch     |
+| 2   | alert() in production code       | useUnityOnRequestForMedia.js | 🟠 HIGH   | Should use Logger             |
+| 3   | Empty Firestore indexes          | firestore.indexes.json       | 🟡 MEDIUM | Analytics queries may be slow |
+
+### Clarified Items (Not Issues)
+
+| Item                            | Status           | Explanation                   |
+| ------------------------------- | ---------------- | ----------------------------- |
+| 'users' group bypass            | ✅ By Design     | Allows anonymous/guest access |
+| No space ownership in analytics | ✅ Experimental  | Not production code           |
+| No storage.rules in repo        | ✅ Separate Repo | Rules in ReactSpacesAdmin     |
 
 ### When Download Completes
 
