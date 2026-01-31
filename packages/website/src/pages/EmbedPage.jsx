@@ -7,8 +7,6 @@ import WebGLLoader from '@disruptive-spaces/webgl';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserProvider } from '@disruptive-spaces/shared/providers/UserProvider';
 import { FullScreenProvider } from '@disruptive-spaces/shared/providers/FullScreenProvider';
-import { SpaceNavigationProvider } from '@disruptive-spaces/shared/providers/SpaceNavigationProvider';
-import { SpaceTransition } from '@disruptive-spaces/webgl/src/components/SpaceTransition';
 
 // For development only - use the actual space ID for the potato website
 const POTATO_SPACE_ID = 'thepotato';
@@ -215,10 +213,7 @@ const EmbedPage = () => {
         {(actualSpaceId || webglBuildId) && (
           <UserProvider>
             <FullScreenProvider>
-              <SpaceNavigationProvider initialSpaceId={isPotatoWebsite ? POTATO_SPACE_ID : actualSpaceId || webglBuildId}>
-                <SpaceTransition />
-                <WebGLLoader spaceID={isPotatoWebsite ? POTATO_SPACE_ID : actualSpaceId || webglBuildId} />
-              </SpaceNavigationProvider>
+              <WebGLLoader spaceID={isPotatoWebsite ? POTATO_SPACE_ID : actualSpaceId || webglBuildId} />
             </FullScreenProvider>
           </UserProvider>
         )}

@@ -1,0 +1,33 @@
+/* Portal Navigation Transitions
+ * Provides smooth fade-out/fade-in animations for portal navigation
+ * to prevent flicker and create seamless transitions between spaces
+ */
+
+/* Fade out before navigation - applied to body */
+body.portal-transitioning {
+  animation: portalFadeOut 400ms ease-out forwards;
+}
+
+@keyframes portalFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    background-color: black;
+  }
+}
+
+/* Portal continuation loader styling */
+.portal-continuation {
+  animation: portalFadeIn 300ms ease-in;
+}
+
+@keyframes portalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

@@ -8,6 +8,7 @@ import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore
 import { EventNames, eventBus } from '@disruptive-spaces/shared/events/EventBus';
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { ANALYTICS_EVENT_TYPES, ANALYTICS_CATEGORIES } from '@disruptive-spaces/shared/firebase/analyticsFirestore';
+import { saveTransition } from '@disruptive-spaces/shared/utils/portal-transition';
 
 // Hooks
 import { useSendUnityEvent } from '../hooks/unityEvents';
@@ -47,7 +48,12 @@ import WebGLChatWindow from '../components/chat/WebGLChatWindow';
  * WebGLRenderer - Main Unity WebGL rendering component.
  * Refactored from 1046 lines to modular hooks and components.
  */
-const WebGLRenderer = forwardRef(({ settings }, ref) => {
+const WebGLRenderer = forwardRef(({
+  settings,
+  isPortalTransition = false,
+  transitionData = null,
+  onTransitionComplete = null,
+}, ref) => {
   const spaceID = settings.spaceID || 'default';
 
   // Core state hook
@@ -115,6 +121,13 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
 
   // Auto-sync avatar to Unity on player spawn
   useAutoAvatarSync();
+
+  // Call transition complete callback when Unity finishes loading during portal transition
+  useEffect(() => {
+    if (isPlayerInstantiated && isPortalTransition && onTransitionComplete) {
+      onTransitionComplete();
+    }
+  }, [isPlayerInstantiated, isPortalTransition, onTransitionComplete]);
 
   // Fullscreen setup
   const { setFullscreenRef, fullscreenRef } = useFullscreenContext();
@@ -211,13 +224,28 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
         navigationType: 'confirmed',
         timestamp: new Date().toISOString(),
       });
-    }
 
-    if (targetSpaceSlug) {
-      window.open(`https://www.spacesmetaverse.com/w/${targetSpaceSlug}`, '_blank', 'noopener');
-    }
+      // Save transition state for smooth portal navigation
+      saveTransition({
+        fromSpaceId: spaceID,
+        toSpaceId: targetSpaceId,
+        portalId: clickedPortal.portalId,
+        fromUrl: window.location.href
+      });
 
-    handleClosePortalPrompt();
+      // Add fade-out animation
+      document.body.classList.add('portal-transitioning');
+
+      // Wait for animation then navigate
+      setTimeout(() => {
+        if (targetSpaceSlug) {
+          window.location.href = `/w/${targetSpaceSlug}`;
+        }
+        handleClosePortalPrompt();
+      }, 400);
+    } else {
+      handleClosePortalPrompt();
+    }
   };
 
   // Voice chat check
@@ -348,7 +376,7 @@ const WebGLRenderer = forwardRef(({ settings }, ref) => {
               height="100%"
               style={{ display: 'none' }}
             >
-              <LoaderProgress />
+              <LoaderProgress isPortalTransition={isPortalTransition} />
             </Box>
           </Box>
 
@@ -447,6 +475,9 @@ WebGLRenderer.propTypes = {
     enableVoiceChat: PropTypes.bool,
     spaceID: PropTypes.string,
   }),
+  isPortalTransition: PropTypes.bool,
+  transitionData: PropTypes.object,
+  onTransitionComplete: PropTypes.func,
 };
 
 export default WebGLRenderer;

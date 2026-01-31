@@ -1,5 +1,5 @@
 // @jsxImportSource react
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 import { Box } from "@chakra-ui/react";
@@ -10,6 +10,7 @@ import { UnityProvider } from "./providers/UnityProvider";
 import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { fetchHttpUrlFromGsUrl } from '@disruptive-spaces/shared/firebase/firebaseStorage';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { getTransition, clearTransition } from '@disruptive-spaces/shared/utils/portal-transition';
 
 import WebGLRenderer from "./WebGLRenderer";
 
@@ -235,6 +236,21 @@ const WebGLLoader = ({ spaceID: propSpaceID, overrideSettings }) => {
 
     // Use context spaceId if available (during navigation), otherwise use prop
     const spaceID = currentSpaceId || propSpaceID;
+
+    // Check for portal transition on mount
+    const [portalTransition, setPortalTransition] = useState(() => {
+        const transition = getTransition();
+        // Only use transition if it matches the current space we're loading
+        return (transition && transition.toSpaceId === spaceID) ? transition : null;
+    });
+
+    const isPortalTransition = !!portalTransition;
+
+    // Callback to clear transition when load completes
+    const handleTransitionComplete = useCallback(() => {
+        clearTransition();
+        setPortalTransition(null);
+    }, []);
 
     // Setup Unity configuration
     const [unityConfig, setUnityConfig] = useState({
@@ -486,7 +502,13 @@ const WebGLLoader = ({ spaceID: propSpaceID, overrideSettings }) => {
             ) : (
                 // Render UnityProvider only after data has been fetched AND authentication is verified
                 <UnityProvider {...unityConfig}>
-                    <WebGLRenderer ref={fullscreenRef} settings={spaceSettings} />
+                    <WebGLRenderer
+                        ref={fullscreenRef}
+                        settings={spaceSettings}
+                        isPortalTransition={isPortalTransition}
+                        transitionData={portalTransition}
+                        onTransitionComplete={handleTransitionComplete}
+                    />
                 </UnityProvider>
             )}
         </>

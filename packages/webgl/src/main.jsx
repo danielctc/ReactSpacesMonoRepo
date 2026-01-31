@@ -6,6 +6,7 @@ import { loadTheme } from '@disruptive-spaces/shared/themes/loadTheme';
 import { UserProvider } from "@disruptive-spaces/shared/providers/UserProvider";
 import { FullScreenProvider } from "@disruptive-spaces/shared/providers/FullScreenProvider";
 import WebGLLoader from "./WebGLLoader"; // Adjust the import path as necessary
+import "./styles/portal-transitions.css";
 
 // Export everything from exports.js
 export * from './exports';

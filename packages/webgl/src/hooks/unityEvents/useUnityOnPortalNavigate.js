@@ -5,24 +5,12 @@ import { ANALYTICS_EVENT_TYPES, ANALYTICS_CATEGORIES } from '@disruptive-spaces/
 import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 import { useUnity } from '../../providers/UnityProvider';
 import { fetchPortalAnalyticsData } from '../../utils/portalAnalyticsUtils';
-
-// Optional import for single-tab navigation
-let useSpaceNavigation;
-try {
-  const module = require('@disruptive-spaces/shared/providers/SpaceNavigationProvider');
-  useSpaceNavigation = module.useSpaceNavigation;
-} catch {
-  // SpaceNavigationProvider not available - provide no-op hook
-  useSpaceNavigation = () => null;
-}
+import { saveTransition } from '@disruptive-spaces/shared/utils/portal-transition';
 
 export const useUnityOnPortalNavigate = () => {
   const { user } = useContext(UserContext);
   const listenToUnityMessage = useListenForUnityEvent();
   const { spaceID } = useUnity();
-
-  // Try to get space navigation context for single-tab navigation
-  const spaceNavContext = useSpaceNavigation();
 
   const { trackUnityEvent, isReady } = useAnalytics(spaceID, {
     enableDebugLogs: true
@@ -61,8 +49,8 @@ export const useUnityOnPortalNavigate = () => {
         }
 
         if (targetSpaceId) {
-          
-          
+
+
           // Track portal navigation analytics before navigating
           if (isReady && user && portalData) {
             try {
@@ -76,25 +64,28 @@ export const useUnityOnPortalNavigate = () => {
                 navigationType: 'direct', // This is direct navigation without modal
                 timestamp: new Date().toISOString()
               });
-              
-              
+
+
             } catch (analyticsError) {
               console.error('🎯 Analytics: Error tracking portal navigation:', analyticsError);
             }
           }
-          
-          // Navigate to the target space
-          // Use single-tab navigation if available, otherwise fall back to full page reload
-          if (spaceNavContext?.navigateToSpace) {
-            console.log('Using single-tab navigation to:', targetSpaceId);
-            await spaceNavContext.navigateToSpace(targetSpaceId, {
-              portalId: portalData.portalId,
-              sourceSpaceId: spaceID
-            });
-          } else {
-            console.log('Falling back to full page reload for:', targetSpaceId);
-            window.location.href = `/?spaceId=${targetSpaceId}`;
-          }
+
+          // Save transition state for portal navigation
+          saveTransition({
+            fromSpaceId: spaceID,
+            toSpaceId: targetSpaceId,
+            portalId: portalData.portalId,
+            fromUrl: window.location.href
+          });
+
+          // Add fade-out class for portal transition animation
+          document.body.classList.add('portal-transitioning');
+
+          // Wait for fade animation then navigate
+          setTimeout(() => {
+            window.location.href = `/w/${targetSpaceId}`;
+          }, 400);
         } else {
           console.error('Could not determine target space ID from portal:', portalData.portalId);
         }
@@ -107,10 +98,10 @@ export const useUnityOnPortalNavigate = () => {
     const unsubscribe = listenToUnityMessage("PortalNavigate", handlePortalNavigate);
     
     return () => {
-      
+
       if (typeof unsubscribe === "function") {
         unsubscribe();
       }
     };
-  }, [listenToUnityMessage, isReady, user, spaceID, trackUnityEvent, spaceNavContext]);
+  }, [listenToUnityMessage, isReady, user, spaceID, trackUnityEvent]);
 }; 

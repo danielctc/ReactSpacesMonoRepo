@@ -23,8 +23,6 @@ import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import WebGLLoader from '@disruptive-spaces/webgl/src/WebGLLoader';
 import { UserProvider } from '@disruptive-spaces/shared/providers/UserProvider';
 import { FullScreenProvider } from '@disruptive-spaces/shared/providers/FullScreenProvider';
-import { SpaceNavigationProvider } from '@disruptive-spaces/shared/providers/SpaceNavigationProvider';
-import { SpaceTransition } from '@disruptive-spaces/webgl/src/components/SpaceTransition';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -338,10 +336,7 @@ function SpacePage() {
             {webglSpaceId && (
               <UserProvider>
                 <FullScreenProvider>
-                  <SpaceNavigationProvider initialSpaceId={webglSpaceId}>
-                    <SpaceTransition />
-                    <WebGLLoader spaceID={webglSpaceId} />
-                  </SpaceNavigationProvider>
+                  <WebGLLoader spaceID={webglSpaceId} />
                 </FullScreenProvider>
               </UserProvider>
             )}
