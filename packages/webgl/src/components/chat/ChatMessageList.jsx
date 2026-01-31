@@ -95,12 +95,19 @@ const ChatMessage = ({ message, isCurrentUser, spaceID, onMessageDelete }) => {
     return date.toLocaleDateString();
   };
 
-  // Get avatar URL (convert .glb to .png thumbnail if needed)
-  const getAvatarUrl = (rpmURL) => {
-    if (!rpmURL) return null;
-    return rpmURL.includes('.glb') 
-      ? rpmURL.replace('.glb', '.png?scene=fullbody-portrait-closeupfront&w=640&q=75')
-      : rpmURL;
+  // Get avatar URL with fallback chain
+  const getAvatarUrl = (message) => {
+    // Prefer avatarThumbnailUrl (new system)
+    if (message.avatarThumbnailUrl) {
+      return message.avatarThumbnailUrl;
+    }
+    // Fallback to rpmURL conversion (legacy)
+    if (message.rpmURL) {
+      return message.rpmURL.includes('.glb')
+        ? message.rpmURL.replace('.glb', '.png?scene=fullbody-portrait-closeupfront&w=640&q=75')
+        : message.rpmURL;
+    }
+    return null;
   };
 
   // Get user initials for fallback
@@ -133,7 +140,7 @@ const ChatMessage = ({ message, isCurrentUser, spaceID, onMessageDelete }) => {
       {/* Avatar - Small and compact */}
       <Avatar
         size="xs"
-        src={getAvatarUrl(message.rpmURL)}
+        src={getAvatarUrl(message)}
         name={getUserInitials(message.user)}
         bg="whiteAlpha.300"
         color="white"

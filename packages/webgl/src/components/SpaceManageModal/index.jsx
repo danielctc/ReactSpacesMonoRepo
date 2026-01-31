@@ -21,6 +21,7 @@ import {
   FiUsers,
   FiVideo,
   FiTool,
+  FiUser,
 } from 'react-icons/fi';
 
 import { useSpaceManage } from './hooks/useSpaceManage';
@@ -32,6 +33,7 @@ import {
   UsersTab,
   StreamingTab,
   CustomTab,
+  AvatarsTab,
 } from './tabs';
 
 /**
@@ -171,6 +173,17 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                 <Icon as={FiTool} mb={1} />
                 <Text fontSize="xs">Custom</Text>
               </Tab>
+              <Tab
+                display="flex"
+                flexDirection="column"
+                alignItems="center"
+                py={3}
+                _selected={{ bg: 'whiteAlpha.100', color: 'blue.300' }}
+                _hover={{ bg: 'whiteAlpha.50' }}
+              >
+                <Icon as={FiUser} mb={1} />
+                <Text fontSize="xs">Avatars</Text>
+              </Tab>
             </TabList>
 
             <TabPanels
@@ -282,6 +295,8 @@ const SpaceManageModal = ({ isOpen, onClose }) => {
                 handleOverrideToggle={state.handleOverrideToggle}
                 handleSaveOverrideSettings={state.handleSaveOverrideSettings}
               />
+
+              <AvatarsTab />
             </TabPanels>
           </Tabs>
         </ModalBody>

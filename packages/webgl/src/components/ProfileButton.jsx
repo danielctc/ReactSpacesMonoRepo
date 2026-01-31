@@ -1,9 +1,37 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useCallback } from "react";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { Box, Avatar, Text, Tooltip } from "@chakra-ui/react";
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
 import AvatarModal from './AvatarModal';
+
+// Helper to get avatar thumbnail URL with fallback (outside component to avoid dependency issues)
+const getAvatarThumbnail = (profile) => {
+  // Prefer avatarThumbnailUrl (new system)
+  if (profile?.avatarThumbnailUrl) {
+    return profile.avatarThumbnailUrl;
+  }
+  // Fallback to rpmURL conversion (legacy)
+  if (profile?.rpmURL) {
+    return profile.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75");
+  }
+  return null;
+};
+
+const getInitials = (firstName, lastName) => {
+  if (!firstName || !lastName) return "?";
+  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+};
+
+const getGuestInitials = (username) => {
+  if (!username) return "G";
+  // For "Visitor_1234" format, return "V1"
+  if (username.startsWith("Visitor_")) {
+    const number = username.split("_")[1];
+    return `V${number ? number.charAt(0) : ""}`;
+  }
+  return username.charAt(0).toUpperCase();
+};
 
 function ProfileButton() {
   const { fullscreenRef } = useFullscreenContext();
@@ -15,32 +43,15 @@ function ProfileButton() {
   const [profileData, setProfileData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const getInitials = (firstName, lastName) => {
-    if (!firstName || !lastName) return "?";
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
-
-  const getGuestInitials = (username) => {
-    if (!username) return "G";
-    // For "Visitor_1234" format, return "V1"
-    if (username.startsWith("Visitor_")) {
-      const number = username.split("_")[1];
-      return `V${number ? number.charAt(0) : ""}`;
-    }
-    return username.charAt(0).toUpperCase();
-  };
-
-  const fetchProfileData = async () => {
+  const fetchProfileData = useCallback(async () => {
     setIsLoading(true);
-    
+
     // Handle authenticated users
     if (user?.uid) {
       try {
         const userProfile = await getUserProfileData(user.uid);
         setProfileData({
-          rpmURL: userProfile.rpmURL ? 
-            userProfile.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75") 
-            : null,
+          avatarUrl: getAvatarThumbnail(userProfile),
           firstName: userProfile.firstName,
           lastName: userProfile.lastName,
           isGuest: false
@@ -52,23 +63,21 @@ function ProfileButton() {
     // Handle guest users
     else if (currentUser && isGuestUser(currentUser)) {
       setProfileData({
-        rpmURL: currentUser.rpmURL ? 
-          currentUser.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75") 
-          : null,
+        avatarUrl: getAvatarThumbnail(currentUser),
         firstName: "Guest",
         lastName: "User",
         username: currentUser.username || currentUser.Nickname,
         isGuest: true
       });
     }
-    
-    setIsLoading(false);
-  };
 
-  // Initial fetch
+    setIsLoading(false);
+  }, [user?.uid, currentUser, isGuestUser]);
+
+  // Initial fetch and refetch when user changes
   useEffect(() => {
     fetchProfileData();
-  }, [user?.uid, currentUser?.uid, currentUser?.rpmURL]);
+  }, [fetchProfileData]);
 
   useEffect(() => {
     const handlePlayerInstantiated = () => {
@@ -115,14 +124,14 @@ function ProfileButton() {
           cursor={profileData?.isGuest ? "default" : "pointer"}
           onClick={profileData?.isGuest ? undefined : handleModalToggle}
         >
-          <Avatar 
-            src={!isLoading ? profileData?.rpmURL : undefined}
+          <Avatar
+            src={!isLoading ? profileData?.avatarUrl : undefined}
             size="md"
             borderRadius="full"
             bg="white"
-            name={!isLoading && profileData ? 
-              (profileData.isGuest ? 
-                getGuestInitials(profileData.username) : 
+            name={!isLoading && profileData ?
+              (profileData.isGuest ?
+                getGuestInitials(profileData.username) :
                 getInitials(profileData.firstName, profileData.lastName)
               ) : " "
             }

@@ -350,7 +350,7 @@ const updateRpmUrlInFirestore = async (userId, newRpmUrl) => {
         const userDocRef = doc(db, 'users', userId);
 
         // Perform the update with the new rpmURL
-        await updateDoc(userDocRef, { 
+        await updateDoc(userDocRef, {
             rpmURL: newRpmUrl,
             lastUpdated: new Date().toISOString() // Add timestamp to force refresh
         });
@@ -358,6 +358,36 @@ const updateRpmUrlInFirestore = async (userId, newRpmUrl) => {
         Logger.log('userFirestore: rpmURL updated successfully.');
     } catch (error) {
         Logger.error('userFirestore: Error updating rpmURL:', error);
+        throw error;
+    }
+};
+
+/**
+ * Updates user's avatar selection from the avatar collection.
+ * Updates all avatar-related fields for consistency.
+ * @param {string} userId - The user's Firebase UID.
+ * @param {string} avatarId - The avatar document ID from avatars collection.
+ * @param {string} glbUrl - The GLB model URL for Unity.
+ * @param {string} thumbnailUrl - The PNG thumbnail URL for UI display.
+ * @returns {Promise<void>}
+ */
+const updateUserAvatar = async (userId, avatarId, glbUrl, thumbnailUrl) => {
+    try {
+        Logger.log(`userFirestore: Updating avatar for user ID: ${userId} to avatar: ${avatarId}`);
+        const userDocRef = doc(db, 'users', userId);
+
+        await updateDoc(userDocRef, {
+            avatarId,
+            avatarUrl: glbUrl,
+            avatarThumbnailUrl: thumbnailUrl,
+            // Keep rpmURL in sync for backwards compatibility
+            rpmURL: glbUrl,
+            lastUpdated: new Date().toISOString()
+        });
+
+        Logger.log('userFirestore: Avatar updated successfully.');
+    } catch (error) {
+        Logger.error('userFirestore: Error updating avatar:', error);
         throw error;
     }
 };
@@ -477,11 +507,12 @@ const updateUsername = async (userId, newUsername) => {
     }
 };
 
-export { 
-    getUserProfileData, 
+export {
+    getUserProfileData,
     getUserPrivateData,
-    registerUser, 
+    registerUser,
     updateRpmUrlInFirestore,
+    updateUserAvatar,
     onUserRpmUrlChange,
     userBelongsToGroup,
     addUserToGroup,

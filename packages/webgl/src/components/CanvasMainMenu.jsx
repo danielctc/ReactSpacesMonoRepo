@@ -46,7 +46,6 @@ import AgoraRTC from 'agora-rtc-sdk-ng';
 import SpacesControlsModal from './SpacesControlsModal';
 import SpacesSettingsModal from './SpacesSettingsModal';
 import SpaceManageModal from './SpaceManageModal';
-import ReadyPlayerMeModal from './ReadyPlayerMeModal';
 import AuthenticationButton from './AuthenticationButton';
 
 export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) => {
@@ -55,7 +54,6 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
   const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openControlsModal, setOpenControlsModal] = useState(false);
-  const [openAvatarModal, setOpenAvatarModal] = useState(false);
   const [openManageSpaceModal, setOpenManageSpaceModal] = useState(false); // New state for Manage Space modal
   const [profileData, setProfileData] = useState(null);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
@@ -242,11 +240,6 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
   const handleManageSpaceToggle = () => {
     setOpenManageSpaceModal(!openManageSpaceModal);
     handleCloseMenu();
-  };
-  const handleModalClose = () => {
-    setOpenAvatarModal(false);
-    // Fetch new profile data when modal closes
-    fetchProfileData();
   };
 
   const handleTogglePlayerList = (e) => {
@@ -468,8 +461,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
       {/* Modals */}
       {openControlsModal && <SpacesControlsModal open={openControlsModal} onClose={handleControlsModalToggle} />}
       {isSettingsOpen && <SpacesSettingsModal open={isSettingsOpen} onClose={handleSettingsToggle} containerRef={containerRef} />}
-      {openAvatarModal && <ReadyPlayerMeModal open={openAvatarModal} onClose={handleModalClose} />}
-      
+
       {/* Manage Space Modal */}
       <SpaceManageModal isOpen={openManageSpaceModal} onClose={handleManageSpaceToggle} />
     </>

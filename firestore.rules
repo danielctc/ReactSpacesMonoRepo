@@ -163,7 +163,13 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isDisruptiveAdmin();
     }
-    
+
+    // Allow public read access to avatar collection, admin-only write
+    match /avatars/{avatarId} {
+      allow read: if true;
+      allow write: if isDisruptiveAdmin();
+    }
+
     // Allow access to chat messages for spaces - keep these private
     match /chatMessages/{messageId} {
       // Ensure chat message access is limited to relevant spaces
