@@ -13,17 +13,14 @@
   "dependencies": {
     "@chakra-ui/icons": "^2.1.1",
     "@chakra-ui/react": "^2.8.2",
-    "@disruptive-spaces/shared": "file:../shared",
+    "@disruptive-spaces/shared": "workspace:*",
     "@emotion/react": "^11.11.3",
     "@emotion/styled": "^11.11.0",
     "framer-motion": "^10.17.12",
-    "npm": "^10.2.4",
     "prop-types": "^15.8.1",
     "react-hook-form": "^7.51.3",
     "react-icons": "^4.11.0",
-    "react-unity-webgl": "^10.1.5",
-    "run": "^1.4.0",
-    "watch": "^0.13.0"
+    "react-unity-webgl": "^10.1.5"
   },
   "peerDependencies": {
     "react": "^18.2.0",

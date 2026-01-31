@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowJs": true,
+    "checkJs": false,
+    "forceConsistentCasingInFileNames": true,
+    "useDefineForClassFields": true,
+    "baseUrl": ".",
+    "paths": {
+      "@disruptive-spaces/shared/*": ["packages/shared/*"],
+      "@disruptive-spaces/webgl/*": ["packages/webgl/src/*"],
+      "@disruptive-spaces/chat/*": ["packages/chat/src/*"]
+    }
+  },
+  "include": [
+    "packages/*/src/**/*",
+    "packages/shared/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/dist",
+    "**/*.backup"
+  ],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/webgl" },
+    { "path": "./packages/chat" },
+    { "path": "./packages/header-auth-links" },
+    { "path": "./packages/testing" }
+  ]
+}

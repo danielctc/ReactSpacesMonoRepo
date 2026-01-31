@@ -317,12 +317,20 @@ export const UserProvider = ({ children }) => {
     const signIn = async (email, password, captchaToken) => {
         try {
             Logger.log('UserProvider: Signing in user');
-            
-            // Verify captchaToken is provided
-            if (!captchaToken) {
+
+            // LOCAL DEV: Allow 'dev-bypass' token in development mode
+            const isDevBypass = captchaToken === 'dev-bypass' &&
+                (import.meta.env.DEV || window.location.hostname === 'localhost');
+
+            // Verify captchaToken is provided (unless dev bypass)
+            if (!captchaToken && !isDevBypass) {
                 throw new Error("CAPTCHA verification is required");
             }
-            
+
+            if (isDevBypass) {
+                Logger.warn('UserProvider: CAPTCHA bypassed for local development');
+            }
+
             // Here we could verify the captchaToken with a server-side API if needed
             // For now, we'll just proceed with the sign-in
             

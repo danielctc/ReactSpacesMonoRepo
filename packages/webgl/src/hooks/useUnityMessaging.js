@@ -34,6 +34,9 @@ const getWindowUnityInstance = () => {
   return window.unityInstance || window.gameInstance || window.reactUnityInstance;
 };
 
+// Alias for backwards compatibility with standalone utilities
+const getUnityInstance = getWindowUnityInstance;
+
 /**
  * Hook for Unity communication
  * Prefers UnityInstanceContext, falls back to window.unityInstance

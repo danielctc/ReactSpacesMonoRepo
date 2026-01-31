@@ -1,16 +1,33 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
 import { version } from './package.json';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const rootDir = path.resolve(__dirname, '../..');
 
 export default defineConfig({
   plugins: [react()],
   base: './', // Use relative paths
   resolve: {
     alias: {
-      // Define aliases here
+      // CRITICAL: Force single React instance across all packages
+      'react': path.resolve(rootDir, 'node_modules/react'),
+      'react-dom': path.resolve(rootDir, 'node_modules/react-dom'),
+      'react/jsx-runtime': path.resolve(rootDir, 'node_modules/react/jsx-runtime'),
+      'react/jsx-dev-runtime': path.resolve(rootDir, 'node_modules/react/jsx-dev-runtime'),
+      // Shared package alias
       '@disruptive-spaces/shared': path.resolve(__dirname, '../shared')
-    }
+    },
+    // Dedupe React - ensures single copy
+    dedupe: ['react', 'react-dom', 'framer-motion', '@chakra-ui/react']
+  },
+  optimizeDeps: {
+    // Pre-bundle these to avoid duplicate resolution
+    include: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+    // Force re-optimization
+    force: true
   },
   build: {
     emptyOutDir: true,

@@ -126,26 +126,46 @@ export const UnityProvider = ({
   useEffect(() => {
     if (isLoaded) {
       Logger.log(`${DEBUG_PREFIX} Unity instance loaded for:`, spaceID);
-      
+
       // Register Unity instance globally for unityKeyboard.js
       const unityInstanceForKeyboard = {
         SendMessage: sendMessage,
         Module: unityProvider?.Module
       };
-      
+
       window.unityInstance = unityInstanceForKeyboard;
-      
+
       // Call registerUnityInstance if it exists
       if (window.registerUnityInstance) {
         window.registerUnityInstance(unityInstanceForKeyboard);
       }
-      
+
       // Start keep-alive if page is hidden
       if (document.hidden) {
         startKeepAlive();
       }
     }
   }, [isLoaded, spaceID, sendMessage, unityProvider]);
+
+  // FALLBACK: Register Unity instance when sendMessage becomes available
+  // This handles cases where isLoaded doesn't fire but Unity is actually ready
+  useEffect(() => {
+    if (sendMessage && !window.unityInstance) {
+      Logger.log(`${DEBUG_PREFIX} Fallback: Registering Unity instance via sendMessage availability`);
+
+      const unityInstanceForKeyboard = {
+        SendMessage: sendMessage,
+        Module: unityProvider?.Module
+      };
+
+      window.unityInstance = unityInstanceForKeyboard;
+
+      // Call registerUnityInstance if it exists
+      if (window.registerUnityInstance) {
+        window.registerUnityInstance(unityInstanceForKeyboard);
+      }
+    }
+  }, [sendMessage, unityProvider]);
 
   // Monitor errors
   useEffect(() => {

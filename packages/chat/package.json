@@ -13,13 +13,10 @@
   "dependencies": {
     "@chakra-ui/icons": "^2.1.1",
     "@chakra-ui/react": "^2.8.2",
-    "@disruptive-spaces/shared": "file:../shared",
+    "@disruptive-spaces/shared": "workspace:*",
     "date-fns": "^3.6.0",
-    "framer-motion": "^11.2.6",
-    "npm": "^10.2.4",
-    "prop-types": "^15.8.1",
-    "run": "^1.4.0",
-    "watch": "^0.13.0"
+    "framer-motion": "^10.17.12",
+    "prop-types": "^15.8.1"
   },
   "peerDependencies": {
     "react": "^18.2.0",

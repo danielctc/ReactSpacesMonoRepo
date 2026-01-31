@@ -1,0 +1,5 @@
+node_modules
+dist
+builds
+pnpm-lock.yaml
+*.min.js

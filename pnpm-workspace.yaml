@@ -1,0 +1,8 @@
+packages:
+  - 'packages/*'
+  - 'functions'
+
+# Force React packages to resolve to root
+catalog:
+  react: "^18.2.0"
+  react-dom: "^18.2.0"

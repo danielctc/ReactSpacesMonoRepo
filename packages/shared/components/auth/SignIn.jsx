@@ -41,8 +41,13 @@ import { EmailIcon, LockIcon } from "@chakra-ui/icons";
 // Note: reCAPTCHA site keys are PUBLIC and safe to include in code
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || "6Le4oQUrAAAAAHe0GMH5Z0tpuqTV2qqDzK9Yk4Uv";
 
-if (!import.meta.env.VITE_RECAPTCHA_SITE_KEY && import.meta.env.DEV) {
-    console.warn('DEV MODE: Using fallback reCAPTCHA key. Set VITE_RECAPTCHA_SITE_KEY in .env for production.');
+// LOCAL DEV: Bypass reCAPTCHA in development mode
+const SKIP_RECAPTCHA = import.meta.env.DEV || window.location.hostname === 'localhost';
+
+if (SKIP_RECAPTCHA) {
+    console.warn('DEV MODE: reCAPTCHA bypassed for local development.');
+} else if (!import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
+    console.warn('Using fallback reCAPTCHA key. Set VITE_RECAPTCHA_SITE_KEY in .env for production.');
 }
 
 function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialIsOpen = false }) {
@@ -104,7 +109,8 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
     };
 
     const handleSignIn = async (data) => {
-        if (!captchaToken) {
+        // Skip captcha check in local development
+        if (!SKIP_RECAPTCHA && !captchaToken) {
             toast({
                 title: "Verification Required",
                 description: "Please complete the reCAPTCHA verification.",
@@ -119,7 +125,9 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
         setIsSubmitting(true);
 
         try {
-            await signIn(data.email, data.password, captchaToken);
+            // Use 'dev-bypass' token in local development
+            const token = SKIP_RECAPTCHA ? 'dev-bypass' : captchaToken;
+            await signIn(data.email, data.password, token);
             Logger.log('User: Sign-in process complete.');
             setIsOpen(false);
 
@@ -388,15 +396,17 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
                                     </Link>
                                 </Box>
 
-                                {/* Add reCAPTCHA */}
-                                <Flex width="100%" justifyContent="center" my={4}>
-                                    <ReCAPTCHA
-                                        ref={recaptchaRef}
-                                        sitekey={RECAPTCHA_SITE_KEY}
-                                        onChange={handleCaptchaChange}
-                                        theme="dark"
-                                    />
-                                </Flex>
+                                {/* Add reCAPTCHA - Hidden in local dev */}
+                                {!SKIP_RECAPTCHA && (
+                                    <Flex width="100%" justifyContent="center" my={4}>
+                                        <ReCAPTCHA
+                                            ref={recaptchaRef}
+                                            sitekey={RECAPTCHA_SITE_KEY}
+                                            onChange={handleCaptchaChange}
+                                            theme="dark"
+                                        />
+                                    </Flex>
+                                )}
                             </VStack>
                         </ModalBody>
 
@@ -408,7 +418,7 @@ function SignIn({ mode = 'button', label = 'Sign In', buttonProps = {}, initialI
                                 width="100%"
                                 isLoading={isSubmitting}
                                 loadingText="Signing In"
-                                isDisabled={!captchaToken}
+                                isDisabled={!SKIP_RECAPTCHA && !captchaToken}
                             >
                                 Sign In
                             </Button>
