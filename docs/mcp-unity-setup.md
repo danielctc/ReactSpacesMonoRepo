@@ -196,12 +196,59 @@ Once connected, these tools become available:
 - [CoplayDev/unity-mcp Wiki](https://github.com/CoplayDev/unity-mcp/wiki/2.-Fix-Unity-MCP-and-Claude-Code)
 - [MCP Protocol Spec](https://modelcontextprotocol.io)
 
+## Quick Setup (Automated)
+
+Run the setup script from this project:
+
+```bash
+./.claude/scripts/setup-unity-mcp.sh
+```
+
+This will:
+
+1. Find the MCP Unity package in the Unity project
+2. Create symlink at `/tmp/mcp-unity-server`
+3. Update `.claude/.mcp.json` and `~/.claude.json`
+4. Test the connection
+
+## Using Unity MCP Tools
+
+Since Claude Code VSCode extension doesn't auto-spawn MCP servers from config, use the MCP management scripts:
+
+```bash
+# List all available tools
+npx tsx .claude/skills/mcp-management/scripts/cli.ts list-tools
+
+# Call a tool
+npx tsx .claude/skills/mcp-management/scripts/cli.ts call-tool mcp-unity get_scene_info '{}'
+
+# Get Unity console logs
+npx tsx .claude/skills/mcp-management/scripts/cli.ts call-tool mcp-unity get_console_logs '{"logType": "error", "limit": 50}'
+
+# Select a GameObject
+npx tsx .claude/skills/mcp-management/scripts/cli.ts call-tool mcp-unity select_gameobject '{"objectName": "Main Camera"}'
+```
+
 ## Quick Reference for LLMs
 
-When setting up MCP Unity for a user:
+**For Claude Code instances working with this project:**
 
-1. Find the `Server~/build/index.js` in Unity's PackageCache
-2. Add to `~/.claude.json` with correct `command`, `args`, and `cwd`
-3. Handle spaces in paths with symlinks
-4. Restart Claude Code
-5. Verify with `ToolSearch` for "unity" tools
+1. **First-time setup:** Run `./.claude/scripts/setup-unity-mcp.sh`
+2. **Verify Unity server:** Check `curl -s -o /dev/null -w "%{http_code}" http://localhost:8090` returns `501`
+3. **Test bridge:** Run from project root: `npx tsx .claude/skills/mcp-management/scripts/cli.ts list-tools`
+4. **Call Unity tools:** Use the cli.ts script (see above)
+
+**Config locations:**
+
+- Project: `.claude/.mcp.json`
+- Global: `~/.claude.json`
+- Symlink: `/tmp/mcp-unity-server` → Unity PackageCache Server~
+
+**30 available tools include:**
+
+- Scene: `create_scene`, `load_scene`, `save_scene`, `get_scene_info`
+- Objects: `select_gameobject`, `get_gameobject`, `update_gameobject`, `delete_gameobject`
+- Transform: `move_gameobject`, `rotate_gameobject`, `scale_gameobject`, `set_transform`
+- Components: `update_component`, `create_prefab`
+- Editor: `execute_menu_item`, `recompile_scripts`, `run_tests`
+- Logs: `get_console_logs`, `send_console_log`
