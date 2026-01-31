@@ -6,11 +6,24 @@ import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 import { useUnity } from '../../providers/UnityProvider';
 import { fetchPortalAnalyticsData } from '../../utils/portalAnalyticsUtils';
 
+// Optional import for single-tab navigation
+let useSpaceNavigation;
+try {
+  const module = require('@disruptive-spaces/shared/providers/SpaceNavigationProvider');
+  useSpaceNavigation = module.useSpaceNavigation;
+} catch {
+  // SpaceNavigationProvider not available - provide no-op hook
+  useSpaceNavigation = () => null;
+}
+
 export const useUnityOnPortalNavigate = () => {
   const { user } = useContext(UserContext);
   const listenToUnityMessage = useListenForUnityEvent();
   const { spaceID } = useUnity();
-  
+
+  // Try to get space navigation context for single-tab navigation
+  const spaceNavContext = useSpaceNavigation();
+
   const { trackUnityEvent, isReady } = useAnalytics(spaceID, {
     enableDebugLogs: true
   });
@@ -71,7 +84,17 @@ export const useUnityOnPortalNavigate = () => {
           }
           
           // Navigate to the target space
-          window.location.href = `/?spaceId=${targetSpaceId}`;
+          // Use single-tab navigation if available, otherwise fall back to full page reload
+          if (spaceNavContext?.navigateToSpace) {
+            console.log('Using single-tab navigation to:', targetSpaceId);
+            await spaceNavContext.navigateToSpace(targetSpaceId, {
+              portalId: portalData.portalId,
+              sourceSpaceId: spaceID
+            });
+          } else {
+            console.log('Falling back to full page reload for:', targetSpaceId);
+            window.location.href = `/?spaceId=${targetSpaceId}`;
+          }
         } else {
           console.error('Could not determine target space ID from portal:', portalData.portalId);
         }
@@ -89,5 +112,5 @@ export const useUnityOnPortalNavigate = () => {
         unsubscribe();
       }
     };
-  }, [listenToUnityMessage, isReady, user, spaceID, trackUnityEvent]);
+  }, [listenToUnityMessage, isReady, user, spaceID, trackUnityEvent, spaceNavContext]);
 }; 

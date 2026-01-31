@@ -13,6 +13,17 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
 import WebGLRenderer from "./WebGLRenderer";
 
+// Optional import for single-tab navigation context
+// Uses try/catch to avoid breaking when provider is not available
+let useSpaceNavigation;
+try {
+    const module = require('@disruptive-spaces/shared/providers/SpaceNavigationProvider');
+    useSpaceNavigation = module.useSpaceNavigation;
+} catch {
+    // SpaceNavigationProvider not available - provide no-op hook
+    useSpaceNavigation = () => null;
+}
+
 // Define a fallback MultipleView class if it doesn't exist
 // This ensures there's always a MultipleView available
 if (typeof window !== 'undefined' && !window.MultipleView) {
@@ -209,13 +220,21 @@ if (typeof window !== 'undefined' && !window._hisPlayerInitialized) {
     };
 }
 
-const WebGLLoader = ({ spaceID, overrideSettings }) => {
+const WebGLLoader = ({ spaceID: propSpaceID, overrideSettings }) => {
 
     const fullscreenRef = useRef(null);
     const [isLoading, setIsLoading] = useState(true); // Initial loading state set to true
     const { loading: userLoading, isUserBannedFromSpace, user } = useContext(UserContext);
     const [banned, setBanned] = useState(false);
     const [requiresAuth, setRequiresAuth] = useState(false);
+
+    // Single-tab navigation context (optional - for portal transitions without page reload)
+    // Progress tracking is handled in UnityProvider, we just need spaceId here
+    const spaceNav = useSpaceNavigation?.() || {};
+    const { currentSpaceId } = spaceNav;
+
+    // Use context spaceId if available (during navigation), otherwise use prop
+    const spaceID = currentSpaceId || propSpaceID;
 
     // Setup Unity configuration
     const [unityConfig, setUnityConfig] = useState({

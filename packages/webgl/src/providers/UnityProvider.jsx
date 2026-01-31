@@ -2,6 +2,17 @@ import React, { createContext, useContext, useEffect, useRef } from "react";
 import { useUnityContext } from "react-unity-webgl";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
+// Optional import for SpaceNavigationProvider
+// If not available, we create a no-op hook
+let useSpaceNavigation;
+try {
+  const module = require('@disruptive-spaces/shared/providers/SpaceNavigationProvider');
+  useSpaceNavigation = module.useSpaceNavigation;
+} catch {
+  // SpaceNavigationProvider not available - provide no-op hook
+  useSpaceNavigation = () => null;
+}
+
 const DEBUG_PREFIX = '[UnityProvider]';
 export const UnityInstanceContext = createContext();
 
@@ -26,6 +37,7 @@ export const UnityProvider = ({
     sendMessage,
     addEventListener,
     removeEventListener,
+    unload,
     error
   } = useUnityContext({
     loaderUrl: loaderUrl,
@@ -33,6 +45,32 @@ export const UnityProvider = ({
     frameworkUrl: frameworkUrl,
     codeUrl: codeUrl
   });
+
+  // Try to get SpaceNavigation context (optional integration)
+  const spaceNavContext = useSpaceNavigation();
+
+  // Register unload function with SpaceNavigationProvider if available
+  useEffect(() => {
+    if (spaceNavContext?.registerUnload && unload) {
+      Logger.log('[UnityProvider] Registering unload function with SpaceNavigationProvider');
+      spaceNavContext.registerUnload(unload);
+    }
+  }, [spaceNavContext, unload]);
+
+  // Report loading progress to SpaceNavigationProvider (for transition UI)
+  useEffect(() => {
+    if (spaceNavContext?.onLoadProgress && loadingProgression > 0) {
+      spaceNavContext.onLoadProgress(loadingProgression);
+    }
+  }, [spaceNavContext, loadingProgression]);
+
+  // Report load complete to SpaceNavigationProvider
+  useEffect(() => {
+    if (spaceNavContext?.onLoadComplete && isLoaded) {
+      Logger.log('[UnityProvider] Notifying SpaceNavigationProvider of load complete');
+      spaceNavContext.onLoadComplete();
+    }
+  }, [spaceNavContext, isLoaded]);
 
   // Create a unified context value that includes both Unity context and spaceID
   const unityInstance = {
@@ -42,6 +80,7 @@ export const UnityProvider = ({
     sendMessage,
     addEventListener,
     removeEventListener,
+    unload,
     error,
     spaceID // Include spaceID in the context
   };
