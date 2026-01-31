@@ -7,6 +7,8 @@ import WebGLLoader from '@disruptive-spaces/webgl';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { UserProvider } from '@disruptive-spaces/shared/providers/UserProvider';
 import { FullScreenProvider } from '@disruptive-spaces/shared/providers/FullScreenProvider';
+import { SpaceNavigationProvider } from '@disruptive-spaces/shared/providers/SpaceNavigationProvider';
+import { SpaceTransition } from '@disruptive-spaces/webgl/src/components/SpaceTransition';
 
 // For development only - use the actual space ID for the potato website
 const POTATO_SPACE_ID = 'thepotato';
@@ -163,13 +165,16 @@ const EmbedPage = () => {
 
   // Render error state
   if (error) {
+    // Log error to console for debugging
+    console.error('EmbedPage Error:', error, 'Slug:', spaceSlug, 'ActualSpaceId:', actualSpaceId, 'WebglBuildId:', webglBuildId);
+
     return (
-      <Flex 
-        width="100%" 
-        height="100vh" 
-        justifyContent="center" 
-        alignItems="center" 
-        bg="gray.900" 
+      <Flex
+        width="100%"
+        height="100vh"
+        justifyContent="center"
+        alignItems="center"
+        bg="gray.900"
         color="white"
         flexDirection="column"
         p={4}
@@ -177,8 +182,11 @@ const EmbedPage = () => {
         <Text fontSize="xl" fontWeight="bold" mb={4}>
           {error}
         </Text>
-        <Text>
+        <Text mb={2}>
           The requested space could not be loaded. Please check the URL and try again.
+        </Text>
+        <Text fontSize="sm" color="gray.500">
+          Slug: {spaceSlug}
         </Text>
       </Flex>
     );
@@ -207,7 +215,10 @@ const EmbedPage = () => {
         {(actualSpaceId || webglBuildId) && (
           <UserProvider>
             <FullScreenProvider>
-              <WebGLLoader spaceID={isPotatoWebsite ? POTATO_SPACE_ID : actualSpaceId || webglBuildId} />
+              <SpaceNavigationProvider initialSpaceId={isPotatoWebsite ? POTATO_SPACE_ID : actualSpaceId || webglBuildId}>
+                <SpaceTransition />
+                <WebGLLoader spaceID={isPotatoWebsite ? POTATO_SPACE_ID : actualSpaceId || webglBuildId} />
+              </SpaceNavigationProvider>
             </FullScreenProvider>
           </UserProvider>
         )}
