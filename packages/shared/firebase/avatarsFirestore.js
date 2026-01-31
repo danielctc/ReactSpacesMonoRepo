@@ -36,9 +36,15 @@ const serializeTimestamps = (data) => {
 
 /**
  * Fetches all active avatars from the collection, ordered by sortOrder.
+ * Optionally filters by space and user groups.
+ * @param {Object} options - Filter options
+ * @param {string} [options.spaceId] - Current space ID to filter by
+ * @param {string[]} [options.userGroups] - User's groups to filter by
  * @returns {Promise<Array>} Array of avatar objects with id included.
  */
-export const getAllAvatars = async () => {
+export const getAllAvatars = async (options = {}) => {
+  const { spaceId, userGroups = [] } = options;
+
   try {
     const avatarsRef = collection(db, AVATARS_COLLECTION);
     const q = query(
@@ -48,10 +54,35 @@ export const getAllAvatars = async () => {
     );
 
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => serializeTimestamps({
+    let avatars = snapshot.docs.map(doc => serializeTimestamps({
       id: doc.id,
       ...doc.data()
     }));
+
+    // Filter by space if spaceId provided
+    if (spaceId) {
+      avatars = avatars.filter(avatar => {
+        // If no allowedSpaces, avatar is available everywhere
+        if (!avatar.allowedSpaces || avatar.allowedSpaces.length === 0) {
+          return true;
+        }
+        return avatar.allowedSpaces.includes(spaceId);
+      });
+    }
+
+    // Filter by user groups if provided
+    if (userGroups.length > 0) {
+      avatars = avatars.filter(avatar => {
+        // If no allowedGroups, avatar is available to everyone
+        if (!avatar.allowedGroups || avatar.allowedGroups.length === 0) {
+          return true;
+        }
+        // Check if user has any of the allowed groups
+        return avatar.allowedGroups.some(group => userGroups.includes(group));
+      });
+    }
+
+    return avatars;
   } catch (error) {
     Logger.error('Failed to fetch avatars:', error);
     throw error;
@@ -123,6 +154,8 @@ export const createAvatar = async (avatarData) => {
       category: avatarData.category || 'default',
       sortOrder: avatarData.sortOrder ?? 0,
       isActive: true,
+      allowedSpaces: avatarData.allowedSpaces || [], // Empty = all spaces
+      allowedGroups: avatarData.allowedGroups || [], // Empty = all groups
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };

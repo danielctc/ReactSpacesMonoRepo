@@ -1,7 +1,7 @@
 // @jsxImportSource react
 import React, { useState, useEffect, Component } from "react";
 import ReactDOM from "react-dom/client";
-import { ChakraProvider, Box, Flex, VStack, AspectRatio, Text, Container, Button } from "@chakra-ui/react";
+import { ChakraProvider, Box, Flex, VStack, AspectRatio, Text, Container } from "@chakra-ui/react";
 import { loadTheme } from "@disruptive-spaces/shared/themes/loadTheme";
 import { UserProvider } from "@disruptive-spaces/shared/providers/UserProvider";
 import { FullScreenProvider } from "@disruptive-spaces/shared/providers/FullScreenProvider";
@@ -76,11 +76,11 @@ if (rootElement) {
                 <UserProvider>
                     <FullScreenProvider>
                         <VStack spacing={4} align="stretch">
-                            <Flex 
-                                justify="space-between" 
-                                align="center" 
-                                p={4} 
-                                bg="gray.700" 
+                            <Flex
+                                justify="space-between"
+                                align="center"
+                                p={4}
+                                bg="gray.700"
                                 m={0}
                                 position="relative"
                                 zIndex="100"

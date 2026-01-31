@@ -187,7 +187,9 @@ function AvatarAdminPanel() {
             await updateAvatar(editingAvatar.id, {
                 name: editingAvatar.name,
                 category: editingAvatar.category,
-                isActive: editingAvatar.isActive
+                isActive: editingAvatar.isActive,
+                allowedSpaces: editingAvatar.allowedSpaces || [],
+                allowedGroups: editingAvatar.allowedGroups || []
             });
 
             toast({
@@ -517,6 +519,44 @@ function AvatarAdminPanel() {
                                             </option>
                                         ))}
                                     </Select>
+                                </FormControl>
+                                <FormControl>
+                                    <FormLabel fontSize="sm">Allowed Spaces</FormLabel>
+                                    <Input
+                                        value={(editingAvatar.allowedSpaces || []).join(', ')}
+                                        onChange={(e) => setEditingAvatar({
+                                            ...editingAvatar,
+                                            allowedSpaces: e.target.value
+                                                .split(',')
+                                                .map(s => s.trim())
+                                                .filter(s => s.length > 0)
+                                        })}
+                                        placeholder="Leave empty for all spaces"
+                                        bg="whiteAlpha.100"
+                                        fontSize="sm"
+                                    />
+                                    <Text fontSize="xs" color="whiteAlpha.600" mt={1}>
+                                        Comma-separated space IDs (empty = all spaces)
+                                    </Text>
+                                </FormControl>
+                                <FormControl>
+                                    <FormLabel fontSize="sm">Allowed Groups</FormLabel>
+                                    <Input
+                                        value={(editingAvatar.allowedGroups || []).join(', ')}
+                                        onChange={(e) => setEditingAvatar({
+                                            ...editingAvatar,
+                                            allowedGroups: e.target.value
+                                                .split(',')
+                                                .map(s => s.trim())
+                                                .filter(s => s.length > 0)
+                                        })}
+                                        placeholder="Leave empty for all users"
+                                        bg="whiteAlpha.100"
+                                        fontSize="sm"
+                                    />
+                                    <Text fontSize="xs" color="whiteAlpha.600" mt={1}>
+                                        Comma-separated group names (empty = all users)
+                                    </Text>
                                 </FormControl>
                             </VStack>
                         )}

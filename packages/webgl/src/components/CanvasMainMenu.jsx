@@ -47,6 +47,7 @@ import SpacesControlsModal from './SpacesControlsModal';
 import SpacesSettingsModal from './SpacesSettingsModal';
 import SpaceManageModal from './SpaceManageModal';
 import AuthenticationButton from './AuthenticationButton';
+import AvatarModal from './AvatarModal';
 
 export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) => {
   const { fullscreenRef } = useFullscreenContext();
@@ -55,6 +56,7 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openControlsModal, setOpenControlsModal] = useState(false);
   const [openManageSpaceModal, setOpenManageSpaceModal] = useState(false); // New state for Manage Space modal
+  const [openAvatarModal, setOpenAvatarModal] = useState(false); // Avatar selection modal
   const [profileData, setProfileData] = useState(null);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
   const [canEditSpace, setCanEditSpace] = useState(false); // Permission check for Edit Mode
@@ -242,6 +244,11 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
     handleCloseMenu();
   };
 
+  const handleAvatarToggle = () => {
+    setOpenAvatarModal(!openAvatarModal);
+    handleCloseMenu();
+  };
+
   const handleTogglePlayerList = (e) => {
     // Stop event propagation to prevent menu from closing
     e.stopPropagation();
@@ -419,16 +426,29 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
                   <ScreenShareMenuOption onClose={handleCloseMenu} />
                 )}
                 
-                <Text 
-                  fontSize="sm" 
-                  cursor="pointer" 
-                  _hover={{ bg: "whiteAlpha.200" }} 
-                  p={1.5} 
+                <Text
+                  fontSize="sm"
+                  cursor="pointer"
+                  _hover={{ bg: "whiteAlpha.200" }}
+                  p={1.5}
                   borderRadius="md"
                   onClick={handleSettingsToggle}
                 >
                   Settings
                 </Text>
+                {/* Avatar option - only show for authenticated users */}
+                {user && !profileData?.isGuest && (
+                <Text
+                  fontSize="sm"
+                  cursor="pointer"
+                  _hover={{ bg: "whiteAlpha.200" }}
+                  p={1.5}
+                  borderRadius="md"
+                  onClick={handleAvatarToggle}
+                >
+                  Avatar
+                </Text>
+                )}
                 {/* <Text 
                   fontSize="sm" 
                   cursor="pointer" 
@@ -464,6 +484,9 @@ export const CanvasMainMenu = ({ onTogglePlayerList, spaceID, containerRef }) =>
 
       {/* Manage Space Modal */}
       <SpaceManageModal isOpen={openManageSpaceModal} onClose={handleManageSpaceToggle} />
+
+      {/* Avatar Selection Modal */}
+      <AvatarModal isOpen={openAvatarModal} onClose={handleAvatarToggle} spaceId={spaceID} />
     </>
   );
 };

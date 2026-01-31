@@ -24,7 +24,7 @@ import { updateUserAvatar } from '@disruptive-spaces/shared/firebase/userFiresto
 import { useSendUnityEvent } from "../hooks/unityEvents/core/useSendUnityEvent";
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 
-function AvatarModal({ isOpen, onClose }) {
+function AvatarModal({ isOpen, onClose, spaceId }) {
     const [avatars, setAvatars] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedAvatar, setSelectedAvatar] = useState(null);
@@ -39,7 +39,14 @@ function AvatarModal({ isOpen, onClose }) {
     const fetchAvatars = useCallback(async () => {
         setIsLoading(true);
         try {
-            const avatarList = await getAllAvatars();
+            // Get user's groups for filtering
+            const userGroups = currentUser?.groups || [];
+
+            // Fetch avatars with space and group filtering
+            const avatarList = await getAllAvatars({
+                spaceId,
+                userGroups
+            });
             setAvatars(avatarList);
             Logger.log('AvatarModal: Fetched avatars:', avatarList.length);
         } catch (error) {
@@ -53,7 +60,7 @@ function AvatarModal({ isOpen, onClose }) {
         } finally {
             setIsLoading(false);
         }
-    }, [toast]);
+    }, [toast, spaceId, currentUser?.groups]);
 
     // Fetch avatars from Firestore when modal opens
     useEffect(() => {

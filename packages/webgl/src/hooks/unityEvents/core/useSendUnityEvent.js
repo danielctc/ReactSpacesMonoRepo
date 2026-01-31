@@ -3,7 +3,9 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { useUnity } from "../../../providers/UnityProvider";
 
 export const useSendUnityEvent = () => {
-    const { sendMessage, isLoaded } = useUnity(); // Access isLoaded from the Unity context
+    const unityContext = useUnity(); // May be undefined if no UnityProvider
+    const sendMessage = unityContext?.sendMessage;
+    const isLoaded = unityContext?.isLoaded ?? false;
     const messageQueueRef = useRef([]);
 
     const processQueue = useCallback(() => {
