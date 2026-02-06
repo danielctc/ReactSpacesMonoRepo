@@ -7,6 +7,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 ReactSpacesMonoRepo - A React-based monorepo for Unity WebGL integration with Firebase backend. Provides micro-frontends for metaverse experiences.
 
 ### Tech Stack
+
 - **Frontend**: React, TypeScript
 - **Build**: npm workspaces, Vite
 - **Backend**: Firebase (Firestore, Functions, Hosting, Auth)
@@ -14,6 +15,7 @@ ReactSpacesMonoRepo - A React-based monorepo for Unity WebGL integration with Fi
 - **3D**: Unity WebGL integration
 
 ### Package Structure
+
 ```
 packages/
 ├── webgl/           # Unity WebGL loader and messaging
@@ -38,20 +40,22 @@ functions/           # Firebase Cloud Functions
 
 Activate relevant skills based on task:
 
-| Task | Skill |
-|------|-------|
-| React/TypeScript code | `frontend-development`, `web-frameworks` |
-| UI/UX work | `ui-styling`, `frontend-design` |
-| Code review | `code-review`, `github-pr-review` |
-| Firebase/backend | `backend-development`, `databases` |
+| Task                  | Skill                                            |
+| --------------------- | ------------------------------------------------ |
+| React/TypeScript code | `frontend-development`, `web-frameworks`         |
+| UI/UX work            | `ui-styling`, `frontend-design`                  |
+| Code review           | `code-review`, `github-pr-review`                |
+| Firebase/backend      | `backend-development`, `databases`               |
 | Unity WebGL messaging | `theone-unity-standards` (C# patterns reference) |
-| Debugging | `debugging` |
-| Documentation | `docs-seeker` |
-| Planning | `planning`, `sequential-thinking` |
+| Normcore multiplayer  | `normcore` (full API reference, WebGL, patterns) |
+| Debugging             | `debugging`                                      |
+| Documentation         | `docs-seeker`                                    |
+| Planning              | `planning`, `sequential-thinking`                |
 
 ## Commands
 
 ### Development
+
 ```bash
 # Install all dependencies
 npm install
@@ -67,6 +71,7 @@ cd packages/testing && npm run dev
 ```
 
 ### Build & Deploy
+
 ```bash
 # Full build
 npm run build
@@ -79,6 +84,7 @@ npm run deploy:rules
 ```
 
 ### Reset
+
 ```bash
 # Clean reinstall
 npm run reset
@@ -87,24 +93,28 @@ npm run reset
 ## Code Standards
 
 ### TypeScript
+
 - Strict mode enabled
 - No `any` types - use proper typing
 - Prefer functional components with hooks
 - Use `const` for immutable values
 
 ### React Patterns
+
 - Functional components only
 - Custom hooks for shared logic
 - Use React Context for state that spans component tree
 - Memoize expensive computations with `useMemo`/`useCallback`
 
 ### Firebase
+
 - All Firestore access through typed services
 - Use transactions for atomic operations
 - Follow security rules in `firestore.rules`
 - Rate limiting enabled - see `RATE_LIMITING.md`
 
 ### Unity WebGL Integration
+
 - Messages to Unity go through `packages/webgl`
 - Use `useUnityMessaging` hook for React-Unity communication
 - Build files stored in `packages/testing/public/devBuilds/`
@@ -120,12 +130,14 @@ npm run reset
 ## Environment Variables
 
 Copy `.env.example` to `.env` and configure:
+
 - Firebase credentials (optional - fallbacks exist)
 - Agora credentials for chat features
 
 ## Documentation
 
 Key documentation files:
+
 - [README.md](README.md) - Setup and overview
 - [ANALYTICS_QUICK_START.md](ANALYTICS_QUICK_START.md) - Analytics integration
 - [FIRESTORE_RULES.md](FIRESTORE_RULES.md) - Security rules explanation
@@ -134,6 +146,7 @@ Key documentation files:
 ## Agents
 
 Available agents in `./.claude/agents/`:
+
 - `planner` - Implementation planning
 - `researcher` - Technical research
 - `code-reviewer` - Code quality review
@@ -144,6 +157,7 @@ Available agents in `./.claude/agents/`:
 ## Session Initialization
 
 On session start:
+
 1. Check `./ctx` for recent errors/patterns
 2. Read this CLAUDE.md
 3. Check `.claude/workflows/` for task-specific guidance
