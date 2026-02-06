@@ -3,6 +3,7 @@ import { doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc, setD
 import { getStorage, ref, getDownloadURL, uploadBytes, deleteObject } from 'firebase/storage';
 
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 import { fetchHttpUrlFromGsUrl } from '@disruptive-spaces/shared/firebase/firebaseStorage';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { checkClientRateLimit } from '@disruptive-spaces/shared/utils/clientRateLimiter';
@@ -422,6 +423,7 @@ export const userCanModerateSpace = async (spaceId, userID) => {
  */
 export const uploadSpaceLogo = async (spaceId, logoFile) => {
   try {
+    guardFirebaseWrite('uploadSpaceLogo');
     // Client-side rate limiting
     const rateLimitCheck = checkClientRateLimit('fileUpload', spaceId);
     if (!rateLimitCheck.allowed) {
@@ -483,6 +485,7 @@ export const uploadSpaceLogo = async (spaceId, logoFile) => {
  */
 export const deleteSpaceLogo = async (spaceId) => {
   try {
+    guardFirebaseWrite('deleteSpaceLogo');
     // Get the space document to find the storage reference
     const spaceRef = doc(db, 'spaces', spaceId);
     const spaceSnap = await getDoc(spaceRef);
@@ -533,6 +536,7 @@ export const deleteSpaceLogo = async (spaceId) => {
  */
 export const uploadSpaceBackground = async (spaceId, backgroundFile) => {
   try {
+    guardFirebaseWrite('uploadSpaceBackground');
     // Client-side rate limiting
     const rateLimitCheck = checkClientRateLimit('fileUpload', spaceId);
     if (!rateLimitCheck.allowed) {
@@ -595,6 +599,7 @@ export const uploadSpaceBackground = async (spaceId, backgroundFile) => {
  */
 export const deleteSpaceBackground = async (spaceId) => {
   try {
+    guardFirebaseWrite('deleteSpaceBackground');
     // Get the space document to find the storage reference
     const spaceRef = doc(db, 'spaces', spaceId);
     const spaceSnap = await getDoc(spaceRef);
@@ -645,6 +650,7 @@ export const deleteSpaceBackground = async (spaceId) => {
  */
 export const addBannedUserToSpace = async (spaceId, bannedUserData) => {
   try {
+    guardFirebaseWrite('addBannedUserToSpace');
     if (!spaceId || !bannedUserData || !bannedUserData.uid) {
       throw new Error('Missing required parameters');
     }
@@ -692,6 +698,7 @@ export const addBannedUserToSpace = async (spaceId, bannedUserData) => {
 
 export const updateSpaceSettings = async (spaceId, settings) => {
   try {
+    guardFirebaseWrite('updateSpaceSettings');
     Logger.log(`spacesFirestore: Updating settings for space: ${spaceId}`, settings);
     const spaceRef = doc(db, 'spaces', spaceId);
     await updateDoc(spaceRef, {
@@ -714,6 +721,7 @@ export const setSpaceAccessibleToAllUsers = async (spaceId, accessible) => {
 
 export const createSpace = async (spaceData) => {
   try {
+    guardFirebaseWrite('createSpace');
     const spacesCollection = collection(db, 'spaces');
     const docRef = await addDoc(spacesCollection, {
       ...spaceData,

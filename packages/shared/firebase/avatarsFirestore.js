@@ -14,6 +14,7 @@ import {
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db } from './firebase';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 
 const AVATARS_COLLECTION = 'avatars';
 const AVATAR_STORAGE_PATH = 'avatars/collection';
@@ -145,6 +146,7 @@ export const getAvatarById = async (avatarId) => {
  */
 export const createAvatar = async (avatarData) => {
   try {
+    guardFirebaseWrite('createAvatar');
     const avatarsRef = collection(db, AVATARS_COLLECTION);
 
     const newAvatar = {
@@ -181,6 +183,7 @@ export const createAvatar = async (avatarData) => {
  */
 export const updateAvatar = async (avatarId, updates) => {
   try {
+    guardFirebaseWrite('updateAvatar');
     const avatarRef = doc(db, AVATARS_COLLECTION, avatarId);
 
     await updateDoc(avatarRef, {
@@ -218,6 +221,7 @@ export const deleteAvatar = async (avatarId) => {
  */
 export const permanentlyDeleteAvatar = async (avatarId) => {
   try {
+    guardFirebaseWrite('permanentlyDeleteAvatar');
     const storage = getStorage();
 
     // Delete storage files
@@ -257,6 +261,7 @@ export const uploadAvatarCollectionAssets = async (glbFile, pngFile, metadata) =
   const tempId = `temp_${Date.now()}`;
 
   try {
+    guardFirebaseWrite('uploadAvatarCollectionAssets');
     Logger.log('Uploading avatar assets:', metadata.name);
 
     // Upload GLB file

@@ -1,10 +1,13 @@
 // shared/firebase/spaceChatFirestore.js
+/** @deprecated Use packages/shared/services/chat-service.ts instead. */
 import { collection, addDoc, onSnapshot, query, orderBy, startAt } from 'firebase/firestore';
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 
 export const sendMessageToSpaceChat = async (spaceId, message) => {
     try {
+        guardFirebaseWrite('sendMessageToSpaceChat');
         const chatRef = collection(db, `spaces/${spaceId}/chatMessages`);
         await addDoc(chatRef, message); // Directly store the provided message
         Logger.log('Message sent to space chat:', message);

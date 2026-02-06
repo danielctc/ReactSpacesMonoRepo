@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, writeBatch, query, collection, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth, db } from '@disruptive-spaces/shared/firebase/firebase';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { isUsernameSafe } from '@disruptive-spaces/shared/utils/profanityFilter';
 import { getDefaultAvatarForUsername } from '@disruptive-spaces/shared/firebase/firebaseStorage';
@@ -127,6 +128,7 @@ const getUserProfileData = async (userID) => {
 // Function to register a new user and store profile data (public and private)
 const registerUser = async (email, password, additionalData) => {
     try {
+        guardFirebaseWrite('registerUser');
         // Log operation start without exposing all data - only log field names, not values
         Logger.log('userFirestore: Starting registerUser process');
         Logger.log('userFirestore: Fields in additionalData:', Object.keys(additionalData || {}).join(', '));
@@ -346,6 +348,7 @@ const onUserRpmUrlChange = (userId, callback) => {
 // Update the existing updateRpmUrlInFirestore function to trigger a refresh
 const updateRpmUrlInFirestore = async (userId, newRpmUrl) => {
     try {
+        guardFirebaseWrite('updateRpmUrlInFirestore');
         Logger.log(`userFirestore: Updating rpmURL for user ID: ${userId}`);
         const userDocRef = doc(db, 'users', userId);
 
@@ -373,6 +376,7 @@ const updateRpmUrlInFirestore = async (userId, newRpmUrl) => {
  */
 const updateUserAvatar = async (userId, avatarId, glbUrl, thumbnailUrl) => {
     try {
+        guardFirebaseWrite('updateUserAvatar');
         Logger.log(`userFirestore: Updating avatar for user ID: ${userId} to avatar: ${avatarId}`);
         const userDocRef = doc(db, 'users', userId);
 
@@ -409,6 +413,7 @@ const userBelongsToGroup = async (userId, groupName) => {
 // Add a function to add a user to a group
 const addUserToGroup = async (userId, groupName, callerUserId) => {
     try {
+        guardFirebaseWrite('addUserToGroup');
         // SECURITY CHECK: Verify the caller has permission to add users to groups
         // If no callerUserId is provided, use the current authenticated user
         if (!callerUserId) {
@@ -481,6 +486,7 @@ const addUserToGroup = async (userId, groupName, callerUserId) => {
 // Function to update username in Firestore
 const updateUsername = async (userId, newUsername) => {
     try {
+        guardFirebaseWrite('updateUsername');
         // Validate the username for profanity before allowing update
         if (!isUsernameSafe(newUsername)) {
             throw new Error('Username contains inappropriate content');

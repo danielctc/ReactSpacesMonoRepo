@@ -1,6 +1,7 @@
 import { db } from './firebase';
 import { collection, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Logger } from '../logging/react-log';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 
 const SPACES_COLLECTION = 'spaces';
 const PORTALS_SUBCOLLECTION = 'portals';
@@ -14,6 +15,7 @@ const PORTALS_SUBCOLLECTION = 'portals';
  */
 export const savePortal = async (sourceSpaceId, portalId, portalData) => {
   try {
+    guardFirebaseWrite('savePortal');
     const portalRef = doc(db, SPACES_COLLECTION, sourceSpaceId, PORTALS_SUBCOLLECTION, portalId);
     
     // Add timestamp and ensure all required fields
@@ -68,6 +70,7 @@ export const getSpacePortals = async (spaceId) => {
  */
 export const deletePortal = async (spaceId, portalId) => {
   try {
+    guardFirebaseWrite('deletePortal');
     const portalRef = doc(db, SPACES_COLLECTION, spaceId, PORTALS_SUBCOLLECTION, portalId);
     await deleteDoc(portalRef);
     Logger.log(`Deleted portal ${portalId} from space ${spaceId}`);
@@ -87,6 +90,7 @@ export const deletePortal = async (spaceId, portalId) => {
  */
 export const updatePortal = async (spaceId, portalId, updateData) => {
   try {
+    guardFirebaseWrite('updatePortal');
     const portalRef = doc(db, SPACES_COLLECTION, spaceId, PORTALS_SUBCOLLECTION, portalId);
     
     // Add updatedAt timestamp

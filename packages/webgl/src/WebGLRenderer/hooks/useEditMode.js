@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useToast } from '@chakra-ui/react';
 
 /**
  * useEditMode - Manages edit mode state and content admin modal.
  */
 export const useEditMode = (canEditSpace, setIsModalOpen) => {
-  const toast = useToast();
   const [isEditMode, setIsEditMode] = useState(false);
   const [isContentAdminOpen, setIsContentAdminOpen] = useState(false);
 
@@ -28,14 +26,7 @@ export const useEditMode = (canEditSpace, setIsModalOpen) => {
   const handleEditModeButtonClick = useCallback(() => {
     // Check if user has permission to edit
     if (!canEditSpace) {
-      toast({
-        title: 'Permission Denied',
-        description: "You don't have permission to edit this space. Only space owners can use Edit Mode.",
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-        position: 'top',
-      });
+      console.warn('Permission Denied: You don\'t have permission to edit this space.');
       return;
     }
 
@@ -60,7 +51,7 @@ export const useEditMode = (canEditSpace, setIsModalOpen) => {
       setIsEditMode(false);
       window.dispatchEvent(new CustomEvent('editModeChanged', { detail: { enabled: false } }));
     }
-  }, [canEditSpace, isContentAdminOpen, isEditMode, setIsModalOpen, toast]);
+  }, [canEditSpace, isContentAdminOpen, isEditMode, setIsModalOpen]);
 
   // Handle closing the Content Admin modal
   const handleCloseContentAdmin = useCallback(() => {

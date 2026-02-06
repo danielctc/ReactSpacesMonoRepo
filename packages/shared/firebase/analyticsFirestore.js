@@ -16,6 +16,7 @@ import {
   trackAnalyticsEventSecure, 
   endAnalyticsSessionSecure 
 } from './analyticsCloudFunctions';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 
 // Analytics event types
 export const ANALYTICS_EVENT_TYPES = {
@@ -330,6 +331,7 @@ export const getAllPortalAnalytics = async (spaceId, options = {}) => {
  */
 export const batchTrackEvents = async (spaceId, events) => {
   try {
+    guardFirebaseWrite('batchTrackEvents');
     Logger.log(`Batch tracking ${events.length} events for space ${spaceId}`);
     
     const batch = writeBatch(db);

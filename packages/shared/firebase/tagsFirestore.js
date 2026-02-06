@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 
 /**
  * Fetch all tags from Firestore
@@ -76,6 +77,7 @@ const getTagById = async (tagId) => {
  */
 const createTag = async ({ id, name, color, description }) => {
     try {
+        guardFirebaseWrite('createTag');
         Logger.log(`tagsFirestore: Creating new tag: ${name}`);
         
         const tagData = {
@@ -118,6 +120,7 @@ const createTag = async ({ id, name, color, description }) => {
  */
 const updateTag = async (tagId, updateData) => {
     try {
+        guardFirebaseWrite('updateTag');
         Logger.log(`tagsFirestore: Updating tag with ID: ${tagId}`);
         const tagRef = doc(db, 'tags', tagId);
         
@@ -152,6 +155,7 @@ const updateTag = async (tagId, updateData) => {
  */
 const deleteTag = async (tagId) => {
     try {
+        guardFirebaseWrite('deleteTag');
         Logger.log(`tagsFirestore: Deleting tag with ID: ${tagId}`);
         const tagRef = doc(db, 'tags', tagId);
         await deleteDoc(tagRef);
@@ -170,6 +174,7 @@ const deleteTag = async (tagId) => {
  */
 const addTagToSpace = async (spaceId, tagId) => {
     try {
+        guardFirebaseWrite('addTagToSpace');
         Logger.log(`tagsFirestore: Adding tag ${tagId} to space ${spaceId}`);
         
         // First verify the tag exists
@@ -201,6 +206,7 @@ const addTagToSpace = async (spaceId, tagId) => {
  */
 const removeTagFromSpace = async (spaceId, tagId) => {
     try {
+        guardFirebaseWrite('removeTagFromSpace');
         Logger.log(`tagsFirestore: Removing tag ${tagId} from space ${spaceId}`);
         
         const spaceRef = doc(db, 'spaces', spaceId);
@@ -223,6 +229,7 @@ const removeTagFromSpace = async (spaceId, tagId) => {
  */
 const setSpaceTags = async (spaceId, tagIds) => {
     try {
+        guardFirebaseWrite('setSpaceTags');
         Logger.log(`tagsFirestore: Setting tags for space ${spaceId}:`, tagIds);
         
         // Verify all tags exist
@@ -443,8 +450,9 @@ const initializeDefaultTags = async () => {
  */
 const updateAllSpacesWithTagsField = async () => {
     Logger.log('tagsFirestore: Updating spaces with tags field');
-    
+
     try {
+        guardFirebaseWrite('updateAllSpacesWithTagsField');
         // Get all spaces
         const spacesRef = collection(db, 'spaces');
         const spacesSnapshot = await getDocs(spacesRef);

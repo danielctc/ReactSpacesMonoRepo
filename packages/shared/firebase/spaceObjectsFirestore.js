@@ -1,6 +1,7 @@
 import { db } from './firebase';
 import { collection, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
 import { Logger } from '../logging/react-log';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 
 const COLLECTION_NAME = 'spaces';
 const OBJECTS_SUBCOLLECTION = 'objects';
@@ -14,6 +15,7 @@ const OBJECTS_SUBCOLLECTION = 'objects';
  */
 export const saveSpaceObject = async (spaceId, objectId, objectData) => {
   try {
+    guardFirebaseWrite('saveSpaceObject');
     const objectRef = doc(db, COLLECTION_NAME, spaceId, OBJECTS_SUBCOLLECTION, objectId);
     
     // Add timestamp and ensure all required fields
@@ -68,6 +70,7 @@ export const getSpaceObjects = async (spaceId) => {
  */
 export const deleteSpaceObject = async (spaceId, objectId) => {
   try {
+    guardFirebaseWrite('deleteSpaceObject');
     const objectRef = doc(db, COLLECTION_NAME, spaceId, OBJECTS_SUBCOLLECTION, objectId);
     await deleteDoc(objectRef);
     Logger.log(`Deleted object ${objectId} from space ${spaceId}`);
@@ -87,6 +90,7 @@ export const deleteSpaceObject = async (spaceId, objectId) => {
  */
 export const updateSpaceObject = async (spaceId, objectId, updateData) => {
   try {
+    guardFirebaseWrite('updateSpaceObject');
     const objectRef = doc(db, COLLECTION_NAME, spaceId, OBJECTS_SUBCOLLECTION, objectId);
     
     // Add updatedAt timestamp

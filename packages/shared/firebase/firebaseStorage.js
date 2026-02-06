@@ -2,6 +2,7 @@ import { getStorage, ref, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 
 const AVATAR_PATH = 'avatars';
 
@@ -81,6 +82,7 @@ export const uploadAvatarGLB = async (userId, glbFile) => {
   const storageRef = ref(storage, `${AVATAR_PATH}/${userId}/avatar.glb`);
 
   try {
+    guardFirebaseWrite('uploadAvatarGLB');
     Logger.log('Uploading avatar GLB for user:', userId);
     const snapshot = await uploadBytes(storageRef, glbFile, {
       contentType: 'model/gltf-binary',

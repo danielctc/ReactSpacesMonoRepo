@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
 import { version } from './package.json';
@@ -8,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   base: './', // Use relative paths
   resolve: {
     alias: {
@@ -21,7 +22,7 @@ export default defineConfig({
       '@disruptive-spaces/shared': path.resolve(__dirname, '../shared')
     },
     // Dedupe React - ensures single copy
-    dedupe: ['react', 'react-dom', 'framer-motion', '@chakra-ui/react']
+    dedupe: ['react', 'react-dom']
   },
   optimizeDeps: {
     // Pre-bundle these to avoid duplicate resolution
@@ -32,7 +33,7 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     rollupOptions: {
-      input: path.resolve(__dirname, 'src/main.jsx'), // Specify your main entry file
+      input: path.resolve(__dirname, 'src/main.tsx'), // Specify your main entry file
       output: {
         // Include the semantic version from package.json and a short hash for cache busting
         entryFileNames: `assets/main.v${version}.js`,

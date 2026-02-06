@@ -110,11 +110,10 @@ export const useKeyboardFocus = (isLoaded, unityProvider, nameplateData) => {
 
         // Don't refocus if clicking inside UI containers
         if (
-          e.target.closest('.chakra-modal__content') ||
           e.target.closest('[role="dialog"]') ||
           e.target.closest('[role="menu"]') ||
-          e.target.closest('.chakra-popover__content') ||
-          e.target.closest('[role="tooltip"]')
+          e.target.closest('[role="tooltip"]') ||
+          e.target.closest('.modal')
         ) {
           return;
         }

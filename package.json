@@ -29,6 +29,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.1.0",
@@ -37,6 +38,7 @@
     "@vitest/coverage-v8": "^4.0.18",
     "canvas": "^3.2.1",
     "cross-env": "^7.0.3",
+    "daisyui": "^5.5.18",
     "husky": "^9.1.7",
     "jsdom": "^27.4.0",
     "lint-staged": "^16.2.7",
@@ -44,12 +46,11 @@
     "prettier": "^3.8.1",
     "rimraf": "^5.0.5",
     "shx": "^0.3.4",
+    "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "agora-rtc-react": "^2.3.0",
-    "agora-rtc-sdk-ng": "^4.23.2",
     "dotenv": "^16.3.1",
     "firebase": "^11.5.0",
     "react-google-recaptcha": "^3.1.0"

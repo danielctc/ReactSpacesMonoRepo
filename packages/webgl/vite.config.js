@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { version } from './package.json';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   base: './', // Use relative paths
   resolve: {
     alias: {
@@ -15,7 +16,7 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     rollupOptions: {
-      input: path.resolve(__dirname, 'src/main.jsx'), // Specify your main entry file
+      input: path.resolve(__dirname, 'src/main.tsx'),
       output: {
         // Include the semantic version from package.json and a short hash for cache busting
         entryFileNames: `assets/main.v${version}.js`,

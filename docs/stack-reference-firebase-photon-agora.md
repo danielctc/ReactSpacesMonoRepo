@@ -1,7 +1,8 @@
-# Stack Reference: Firebase, Photon, Agora & Integration Patterns
+# Stack Reference: Firebase, Normcore, Agora & Integration Patterns
 
-> **Last Updated:** January 2026
-> **Purpose:** Comprehensive reference for Firebase, Photon networking, Agora RTC, and React/Unity integration patterns
+> **Last Updated:** February 2026
+> **Purpose:** Comprehensive reference for Firebase, Normcore multiplayer, Agora RTC, and React/Unity integration patterns
+> **Migration Note:** Photon Fusion was replaced with Normcore in February 2026. See [Normcore Networking](#normcore-networking) section.
 
 ---
 
@@ -14,10 +15,12 @@
    - [Cloud Functions](#cloud-functions)
    - [Storage](#storage)
    - [Hosting](#hosting)
-3. [Photon Networking](#photon-networking)
-   - [PUN2 vs Fusion](#pun2-vs-fusion)
-   - [Voice Integration](#voice-integration)
-   - [WebGL Considerations](#webgl-considerations)
+3. [Normcore Networking](#normcore-networking)
+   - [Core Concepts](#core-concepts)
+   - [Player Sync](#player-sync)
+   - [Custom Data Models](#custom-data-models)
+   - [Voice Chat](#voice-chat)
+   - [WebGL Support](#webgl-support)
 4. [Agora RTC](#agora-rtc)
    - [React SDK](#react-sdk)
    - [Unity SDK](#unity-sdk)
@@ -55,9 +58,9 @@
 │         │         REALTIME SERVICES              │              │
 ├─────────┼─────────────────┼──────────────────────┼──────────────┤
 │  ┌──────▼───────┐  ┌──────▼───────┐  ┌──────────▼───────────┐  │
-│  │   Firebase   │  │    Photon    │  │        Agora         │  │
-│  │   Auth/DB    │  │   PUN2/      │  │        RTC           │  │
-│  │   Storage    │  │   Fusion     │  │   Voice/Video        │  │
+│  │   Firebase   │  │   Normcore   │  │        Agora         │  │
+│  │   Auth/DB    │  │  Multiplayer │  │        RTC           │  │
+│  │   Storage    │  │   + Voice    │  │   Voice/Video        │  │
 │  └──────────────┘  └──────────────┘  └──────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
           │
@@ -84,7 +87,7 @@
 | Functions | Cloud Functions v2 | Serverless backend |
 | Storage | Firebase Storage | Media/asset storage |
 | Hosting | Firebase Hosting | CDN & deployment |
-| Networking | Photon PUN2/Fusion | Multiplayer state sync |
+| Networking | Normcore 3.0 | Multiplayer state sync |
 | Voice/Video | Agora RTC | Real-time communication |
 
 ---
@@ -463,142 +466,169 @@ gsutil cors set cors.json gs://your-bucket.appspot.com
 
 ---
 
-## Photon Networking
+## Normcore Networking
 
-### PUN2 vs Fusion
+> **Normcore** replaced Photon Fusion in February 2026. Normcore provides authoritative multiplayer networking with built-in voice chat, WebGL support, and a simpler API.
+>
+> **App Key:** `f41dbed8-197d-4ff7-895d-163915d85372`
+> **Dashboard:** [dashboard.normcore.io](https://dashboard.normcore.io)
 
-| Feature | PUN2 | Fusion |
-|---------|------|--------|
-| Status | LTS/Maintenance | Active Development |
-| Architecture | Client Authoritative | Client + Server Auth |
-| State Sync | PhotonView + OnSerialize | Networked Properties |
-| Physics | PhotonRigidbodyView | NetworkRigidbody3D |
-| WebGL | Supported | Supported (WebSockets) |
-| Lag Compensation | Basic | Advanced |
-| New Projects | Not recommended | Recommended |
+### Core Concepts
 
-**Recommendation:** Use Fusion for new projects, PUN2 for existing.
-
-### PUN2 Core Concepts
+| Concept | Description |
+|---------|-------------|
+| `Realtime` | Connection manager — lives in scene, handles room join/leave |
+| `RealtimeView` | Identity for synced objects (like PhotonView) |
+| `RealtimeTransform` | Syncs position/rotation automatically |
+| `RealtimeComponent<T>` | Base class for custom synced components |
+| `RealtimeModel` | Data model for custom synced properties |
+| Ownership | Who controls an object — `isOwnedLocallySelf` |
 
 **Connection Flow:**
 ```csharp
-using Photon.Pun;
-using Photon.Realtime;
+using Normal.Realtime;
 
-public class NetworkManager : MonoBehaviourPunCallbacks
+public class PlayerSpawner : MonoBehaviour
 {
-    void Start()
+    [SerializeField] private string playerPrefabName = "Player"; // Must be in Resources/
+
+    private Realtime _realtime;
+
+    void Awake()
     {
-        PhotonNetwork.ConnectUsingSettings();
+        _realtime = GetComponent<Realtime>();
+        _realtime.didConnectToRoom += DidConnectToRoom;
     }
 
-    public override void OnConnectedToMaster()
+    void DidConnectToRoom(Realtime realtime)
     {
-        PhotonNetwork.JoinRandomRoom();
-    }
+        var options = new Realtime.InstantiateOptions
+        {
+            ownedByClient = true,
+            preventOwnershipTakeover = true,
+            useInstance = realtime
+        };
 
-    public override void OnJoinRandomFailed(short returnCode, string message)
-    {
-        PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = 10 });
-    }
-
-    public override void OnJoinedRoom()
-    {
-        Debug.Log($"Joined room: {PhotonNetwork.CurrentRoom.Name}");
-        PhotonNetwork.Instantiate("PlayerPrefab", Vector3.zero, Quaternion.identity);
+        Realtime.Instantiate(playerPrefabName, Vector3.zero, Quaternion.identity, options);
     }
 }
 ```
 
-**PhotonView Serialization:**
-```csharp
-public class PlayerSync : MonoBehaviourPun, IPunObservable
-{
-    private Vector3 networkPosition;
-    private Quaternion networkRotation;
+### Player Sync
 
-    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+**RealtimeTransform** handles position/rotation sync automatically. No serialisation code needed.
+
+**Ownership Check (Critical):**
+```csharp
+using Normal.Realtime;
+
+public class PlayerController : MonoBehaviour
+{
+    private RealtimeView _realtimeView;
+
+    void Start()
     {
-        if (stream.IsWriting)
-        {
-            stream.SendNext(transform.position);
-            stream.SendNext(transform.rotation);
-        }
-        else
-        {
-            networkPosition = (Vector3)stream.ReceiveNext();
-            networkRotation = (Quaternion)stream.ReceiveNext();
-        }
+        _realtimeView = GetComponent<RealtimeView>();
     }
 
     void Update()
     {
-        if (!photonView.IsMine)
+        // CRITICAL: Only process input for local player
+        if (!_realtimeView.isOwnedLocallyInHierarchy)
+            return;
+
+        float h = Input.GetAxis("Horizontal");
+        float v = Input.GetAxis("Vertical");
+        // ... movement code
+    }
+}
+```
+
+### Custom Data Models
+
+For syncing custom data (health, UIDs, avatar URLs, etc.):
+
+```csharp
+// 1. Define the model
+[RealtimeModel]
+public partial class PlayerUIDModel
+{
+    [RealtimeProperty(1, true, true)]
+    private string _uid;
+}
+
+// 2. Create component
+public class PlayerUIDSharer : RealtimeComponent<PlayerUIDModel>
+{
+    public string NetworkedUID => model?.uid ?? "";
+
+    protected override void OnRealtimeModelReplaced(PlayerUIDModel previousModel, PlayerUIDModel currentModel)
+    {
+        if (previousModel != null)
+            previousModel.uidDidChange -= OnUIDChanged;
+        if (currentModel != null)
         {
-            transform.position = Vector3.Lerp(transform.position, networkPosition, Time.deltaTime * 10);
-            transform.rotation = Quaternion.Slerp(transform.rotation, networkRotation, Time.deltaTime * 10);
+            currentModel.uidDidChange += OnUIDChanged;
+            // Handle existing value
+            if (!string.IsNullOrEmpty(currentModel.uid))
+                OnUIDChanged(currentModel, currentModel.uid);
         }
     }
-}
-```
 
-**RPCs:**
-```csharp
-[PunRPC]
-public void ReceiveChatMessage(string sender, string message)
-{
-    chatUI.AddMessage($"{sender}: {message}");
-}
-
-public void SendChatMessage(string message)
-{
-    photonView.RPC("ReceiveChatMessage", RpcTarget.All,
-                   PhotonNetwork.LocalPlayer.NickName, message);
-}
-```
-
-### Photon Voice Integration
-
-```csharp
-// Requires Photon Voice 2 asset
-using Photon.Voice.PUN;
-using Photon.Voice.Unity;
-
-public class VoiceSetup : MonoBehaviour
-{
-    public Recorder recorder;
-    public Speaker speaker;
-
-    void Start()
+    private void OnUIDChanged(PlayerUIDModel model, string uid)
     {
-        // Enable 3D spatial audio
-        speaker.GetComponent<AudioSource>().spatialBlend = 1f;
+        // React to UID changes
+        Debug.Log($"Player UID: {uid}");
     }
 
-    public void ToggleMicrophone(bool enabled)
+    public void SetUID(string uid)
     {
-        recorder.TransmitEnabled = enabled;
+        // Only the owner can set the value
+        model.uid = uid;
     }
 }
 ```
 
-### WebGL Considerations
+### Voice Chat
 
-**Important:** WebGL uses WebSockets (TCP), not UDP.
+Normcore includes built-in voice chat. On our project, voice is currently managed via React using the WebGL messaging bridge (see [Integration Patterns](#integration-patterns)).
 
+**React-side voice events:**
+- `ToggleNormcoreMic` — React → Unity: toggle microphone
+- `NormcoreVoiceStateChanged` — Unity → React: voice state updates
+
+**Native Normcore voice (if needed):**
 ```csharp
-// Check platform in code
-#if UNITY_WEBGL && !UNITY_EDITOR
-    // WebGL-specific code
-    PhotonNetwork.PhotonServerSettings.AppSettings.Protocol = ConnectionProtocol.WebSocketSecure;
-#endif
+// Add RealtimeAvatarVoice to player prefab for automatic voice
+// Normcore handles the rest — WebRTC transport, echo cancellation, etc.
 ```
 
-**Limitations:**
-- Higher latency than native UDP
-- TCP head-of-line blocking
-- Recommended: Fusion Shared Authority mode for WebGL
+### WebGL Support
+
+Normcore fully supports WebGL via WebSockets. No special configuration needed.
+
+**Key differences from Photon WebGL:**
+- No manual protocol switching required
+- WebSocket transport is the default
+- Lower overhead than Photon's WebSocket layer
+- Prefabs must be in `Assets/Resources/` for `Realtime.Instantiate()`
+
+### Normcore vs Photon Mapping
+
+| Photon | Normcore |
+|--------|----------|
+| `NetworkBehaviour` | `RealtimeComponent<T>` or `MonoBehaviour` |
+| `PhotonView` / `NetworkObject` | `RealtimeView` |
+| `[Networked]` property | `[RealtimeModel]` + `[RealtimeProperty]` |
+| `Object.HasStateAuthority` | `realtimeView.isOwnedLocallySelf` |
+| `NetworkRunner` | `Realtime` |
+| `Runner.Spawn()` | `Realtime.Instantiate()` |
+| `Runner.Despawn()` | `Realtime.Destroy()` |
+| `Runner.Shutdown()` | `realtime.Disconnect()` |
+| `PlayerRef` | `ownerIDSelf` (int client ID) |
+| `[Rpc]` methods | Model property changes + `DidChange` events |
+| `Spawned()` override | `OnRealtimeModelReplaced()` |
+| `Render()` for change detection | `model.propertyDidChange` event delegates |
 
 ---
 
@@ -892,12 +922,12 @@ User Joins Space Flow:
        │
        ├─► Load 3D environment
        │
-       ├─► Connect Photon (room = spaceId)
+       ├─► Connect Normcore (room = spaceId)
        │
        ├─► Connect Agora (channel = spaceId)
        │
-       └─► Sync player state via Photon
-           Voice/Video via Agora
+       └─► Sync player state via Normcore
+           Voice via Normcore (React bridge) / Agora
 ```
 
 ---
@@ -966,14 +996,16 @@ exports.rateLimitedFunction = onCall(async (request) => {
 | Cold start latency | Set minInstances, use concurrency |
 | Security rules blocking | Test with emulator, check auth state |
 
-### Photon
+### Normcore
 
 | Issue | Solution |
 |-------|----------|
-| Players can't join same room | Check region settings, use Fixed Region |
-| High latency on WebGL | Expected (TCP vs UDP), use Fusion Shared Auth |
-| PhotonView not syncing | Ensure Observed component implements IPunObservable |
-| Master client migration | Enable in Room Options, handle OnMasterClientSwitched |
+| Players can't join same room | Check room name matches, verify app key in NormcoreAppSettings |
+| Object not syncing | Ensure `RealtimeView` + `RealtimeTransform` on prefab |
+| Can't modify synced property | Check ownership: `realtimeView.isOwnedLocallySelf` |
+| Prefab not spawning | Must be in `Assets/Resources/` folder |
+| Missing scripts after migration | Expected from GameCreator Fusion components — rebuild with standard GC actions |
+| Voice not working | Check React bridge: `ToggleNormcoreMic` / `NormcoreVoiceStateChanged` events |
 
 ### Agora
 
@@ -1045,13 +1077,13 @@ firebase projects:list
 firebase use project-id
 ```
 
-### Photon Dashboard
+### Normcore Dashboard
 
-- [Photon Dashboard](https://dashboard.photonengine.com/)
-- Check CCU (concurrent users)
+- [Normcore Dashboard](https://dashboard.normcore.io/)
+- App Key: `f41dbed8-197d-4ff7-895d-163915d85372`
 - View room statistics
-- Configure regions
-- Monitor bandwidth
+- Monitor bandwidth and CCU
+- Manage app settings
 
 ### Agora Console
 
@@ -1071,11 +1103,13 @@ firebase use project-id
 - [Security Rules](https://firebase.google.com/docs/rules/)
 - [App Check](https://firebase.google.com/docs/app-check)
 
-### Photon
-- [PUN2 Documentation](https://doc.photonengine.com/pun/current/getting-started/pun-intro)
-- [Fusion Documentation](https://doc.photonengine.com/fusion/current/getting-started/fusion-intro)
-- [Photon Voice](https://doc.photonengine.com/voice/current/getting-started/voice-intro)
-- [WebGL Metaverse Sample](https://doc.photonengine.com/fusion/current/industries-samples/metaverse/fusion-metaverse-webgl)
+### Normcore
+- [Normcore Documentation](https://normcore.io/documentation/)
+- [Normcore Dashboard](https://dashboard.normcore.io/)
+- [RealtimeComponent Guide](https://normcore.io/documentation/realtime/realtimecomponent)
+- [RealtimeModel Guide](https://normcore.io/documentation/realtime/realtimemodel)
+- [WebGL Support](https://normcore.io/documentation/platforms/webgl)
+- [Voice Chat](https://normcore.io/documentation/realtime-voice/)
 
 ### Agora
 - [React SDK](https://github.com/AgoraIO-Extensions/agora-rtc-react)

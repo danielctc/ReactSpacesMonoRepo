@@ -2,6 +2,7 @@ import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc } from '
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db } from '@disruptive-spaces/shared/firebase/firebase';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 
 /**
  * Uploads an image to Firebase Storage and stores its reference in Firestore
@@ -17,6 +18,7 @@ import { Logger } from '@disruptive-spaces/shared/logging/react-log';
  */
 export const uploadMediaScreenImage = async (spaceId, mediaScreenId, imageFile, options = {}) => {
   try {
+    guardFirebaseWrite('uploadMediaScreenImage');
     // Extract options
     const { mediaType = 'image', displayAsVideo = false, directUrl = null } = options;
     
@@ -154,6 +156,7 @@ export const getMediaScreenImage = async (spaceId, mediaScreenId) => {
  */
 export const deleteMediaScreenImage = async (spaceId, mediaScreenId) => {
   try {
+    guardFirebaseWrite('deleteMediaScreenImage');
     // Get the media screen document to find the storage reference
     const mediaScreenData = await getMediaScreenImage(spaceId, mediaScreenId);
     
@@ -219,6 +222,7 @@ export const deleteMediaScreenImage = async (spaceId, mediaScreenId) => {
  */
 export const updateMediaScreenDisplayMode = async (spaceId, mediaScreenId, displayAsVideo) => {
   try {
+    guardFirebaseWrite('updateMediaScreenDisplayMode');
     // Validate inputs
     if (!spaceId || !mediaScreenId || typeof displayAsVideo !== 'boolean') {
       throw new Error('Missing or invalid required parameters');

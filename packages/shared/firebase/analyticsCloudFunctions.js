@@ -1,6 +1,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase';
 import { Logger } from '../logging/react-log';
+import { guardFirebaseWrite } from './firebaseWriteGuard';
 
 // Cloud Functions
 const trackAnalyticsFunction = httpsCallable(functions, 'trackAnalytics');
@@ -15,6 +16,7 @@ const endAnalyticsSessionFunction = httpsCallable(functions, 'endAnalyticsSessio
  */
 export const createAnalyticsSessionSecure = async (spaceId, sessionData = {}) => {
   try {
+    guardFirebaseWrite('createAnalyticsSessionSecure');
     Logger.log(`Creating secure analytics session for space ${spaceId}`);
     
     const result = await createAnalyticsSessionFunction({
@@ -47,6 +49,7 @@ export const createAnalyticsSessionSecure = async (spaceId, sessionData = {}) =>
  */
 export const trackAnalyticsEventSecure = async (spaceId, sessionId, eventType, eventData = {}) => {
   try {
+    guardFirebaseWrite('trackAnalyticsEventSecure');
     Logger.log(`Tracking secure analytics event: ${eventType} in space ${spaceId}`);
     
     const result = await trackAnalyticsFunction({
@@ -77,6 +80,7 @@ export const trackAnalyticsEventSecure = async (spaceId, sessionId, eventType, e
  */
 export const endAnalyticsSessionSecure = async (spaceId, sessionId) => {
   try {
+    guardFirebaseWrite('endAnalyticsSessionSecure');
     Logger.log(`Ending secure analytics session: ${sessionId} in space ${spaceId}`);
     
     // Add validation and debug logging
