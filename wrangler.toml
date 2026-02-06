@@ -1,0 +1,90 @@
+# =============================================================================
+# Cloudflare Wrangler Configuration
+# ReactSpacesMonoRepo — Local compatibility testing
+# =============================================================================
+#
+# SETUP:
+#   1. npm install -g wrangler
+#   2. Copy .dev.vars.example to .dev.vars and fill in your keys
+#   3. Run: npm run build
+#   4. Test static hosting: wrangler pages dev ./dist --port 8788
+#   5. Test worker functions: wrangler dev --local
+#
+# NO Cloudflare account needed for local testing (--local flag)
+# =============================================================================
+
+name = "disruptive-metaverse"
+compatibility_date = "2025-12-01"
+main = "functions/worker.ts"
+
+# -----------------------------------------------------------------------------
+# Pages (Static Hosting) — replaces Firebase Hosting
+# -----------------------------------------------------------------------------
+# Test with: wrangler pages dev ./dist --port 8788
+#
+# The dist/ folder maps directly to Cloudflare Pages.
+# Unity WebGL .wasm files need correct MIME types — handled by _headers file.
+
+[site]
+bucket = "./dist"
+
+# -----------------------------------------------------------------------------
+# Environment Variables — available in Workers runtime
+# -----------------------------------------------------------------------------
+# Non-secret vars go here. Secrets go in .dev.vars (see .dev.vars.example)
+
+[vars]
+ENVIRONMENT = "development"
+
+# -----------------------------------------------------------------------------
+# D1 Database — replaces Firestore
+# -----------------------------------------------------------------------------
+# Local testing creates a local SQLite DB automatically.
+# wrangler d1 create disruptive-metaverse-db  (only needed for remote)
+
+[[d1_databases]]
+binding = "DB"
+database_name = "disruptive-metaverse-db"
+database_id = "local-testing-id"
+
+# -----------------------------------------------------------------------------
+# KV Namespace — for session/cache data
+# -----------------------------------------------------------------------------
+# wrangler kv namespace create "SESSIONS"  (only needed for remote)
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "local-testing-id"
+
+# -----------------------------------------------------------------------------
+# R2 Bucket — replaces Firebase Storage
+# -----------------------------------------------------------------------------
+# wrangler r2 bucket create disruptive-metaverse-assets  (only needed for remote)
+
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "disruptive-metaverse-assets"
+
+# -----------------------------------------------------------------------------
+# Durable Objects — for real-time room state (Normcore alternative/supplement)
+# -----------------------------------------------------------------------------
+# Uncomment if testing real-time features via Cloudflare
+
+# [[durable_objects.bindings]]
+# name = "ROOMS"
+# class_name = "RoomDurableObject"
+
+# [[migrations]]
+# tag = "v1"
+# new_classes = ["RoomDurableObject"]
+
+# -----------------------------------------------------------------------------
+# Development Server
+# -----------------------------------------------------------------------------
+
+[dev]
+port = 8787
+local_protocol = "http"
+
+# Unity WebGL builds need these headers
+# Create a _headers file in dist/ or use the worker to set them

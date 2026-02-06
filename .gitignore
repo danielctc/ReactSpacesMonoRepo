@@ -69,6 +69,7 @@ node_modules/
 
 # dotenv environment variables file
 .env
+.dev.vars
 .plastic
 .DS_Store
 ignore.conf
