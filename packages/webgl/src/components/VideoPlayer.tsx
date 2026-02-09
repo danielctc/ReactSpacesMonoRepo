@@ -1,4 +1,5 @@
 import React, { useEffect, useContext } from "react";
+import { createPortal } from "react-dom";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { useUnityOnPlayVideo } from "../hooks/unityEvents";
@@ -79,13 +80,13 @@ const VideoPlayer: React.FC = () => {
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div ref={fullscreenRef as any}>
-      <dialog open className="modal modal-open">
-        <div className="fixed inset-0 bg-black bg-opacity-80" onClick={handleClose} />
-        <div className="modal-box max-w-[80vw] max-h-[80vh] bg-gray-900 text-white rounded-lg overflow-hidden flex justify-center items-center relative z-[1000]">
+      <dialog open className="modal modal-open" style={{ zIndex: 9998 }}>
+        <div className="fixed inset-0 bg-black bg-opacity-80 z-[9998]" onClick={handleClose} />
+        <div className="modal-box max-w-[80vw] max-h-[80vh] bg-gray-900 text-white rounded-lg overflow-hidden flex justify-center items-center relative z-[9999]">
           <button
-            className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 bg-gray-700 text-white hover:bg-gray-600 z-[1001]"
+            className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 bg-gray-700 text-white hover:bg-gray-600 z-[10000]"
             onClick={handleClose}
           >
             ✕
@@ -105,7 +106,8 @@ const VideoPlayer: React.FC = () => {
           </div>
         </div>
       </dialog>
-    </div>
+    </div>,
+    document.body
   );
 };
 

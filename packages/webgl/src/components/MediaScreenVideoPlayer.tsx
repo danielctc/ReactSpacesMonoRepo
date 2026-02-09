@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { useUnityInputManager } from '../hooks/useUnityInputManager';
@@ -129,13 +130,13 @@ const MediaScreenVideoPlayer: React.FC<MediaScreenVideoPlayerProps> = ({ videoUr
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <>
       <VideoModalStyles />
       <div ref={fullscreenRef as any}>
-        <dialog open className="modal modal-open">
+        <dialog open className="modal modal-open" style={{ zIndex: 9998 }}>
           <div
-            className="modal-overlay fixed inset-0 bg-black bg-opacity-80 z-[1001]"
+            className="modal-overlay fixed inset-0 bg-black bg-opacity-80 z-[9998]"
             style={{ pointerEvents: 'auto' }}
             onClick={(e) => {
               if (e.target === e.currentTarget) {
@@ -169,9 +170,9 @@ const MediaScreenVideoPlayer: React.FC<MediaScreenVideoPlayerProps> = ({ videoUr
               }
             }}
           />
-          <div className="modal-box max-w-[80vw] max-h-[80vh] bg-gray-900 text-white rounded-lg overflow-hidden z-[1002] video-modal-content">
+          <div className="modal-box max-w-[80vw] max-h-[80vh] bg-gray-900 text-white rounded-lg overflow-hidden z-[9999] video-modal-content">
             <button
-              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 bg-gray-700 text-white hover:bg-gray-600 z-[10004]"
+              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 bg-gray-700 text-white hover:bg-gray-600 z-[10000]"
               onClick={onClose}
             >
               ✕
@@ -204,7 +205,8 @@ const MediaScreenVideoPlayer: React.FC<MediaScreenVideoPlayerProps> = ({ videoUr
           </div>
         </dialog>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 
