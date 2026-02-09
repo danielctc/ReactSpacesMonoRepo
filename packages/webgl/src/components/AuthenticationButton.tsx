@@ -92,7 +92,7 @@ function AuthenticationButton() {
             return null;
         }
         return (
-            <div>
+            <div className="flex items-center gap-2">
                 <SignOut />
             </div>
         );
@@ -106,17 +106,10 @@ function AuthenticationButton() {
         }
 
         return (
-            <div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-[30px] backdrop-saturate-200 backdrop-brightness-110 bg-gradient-to-br from-black/50 to-neutral-900/40 border border-white/20 shadow-[0_4px_15px_rgba(0,0,0,0.3)]">
                 <SignIn
                     mode="button"
                     label="Sign In"
-                    buttonProps={{
-                        bg: "black",
-                        color: "white",
-                        borderRadius: "lg",
-                        _hover: { bg: "gray.800" },
-                        _active: { bg: "gray.900" }
-                    }}
                 />
             </div>
         );
@@ -133,7 +126,7 @@ function AuthenticationButton() {
     }
 
     return (
-        <div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-[30px] backdrop-saturate-200 backdrop-brightness-110 bg-gradient-to-br from-black/50 to-neutral-900/40 border border-white/20 shadow-[0_4px_15px_rgba(0,0,0,0.3)]">
             <Register />
             <SignIn />
         </div>

@@ -90,12 +90,12 @@ function ProfileButton() {
 
   return (
     <div
-      className={`relative ${profileData?.isGuest ? '' : ''}`}
+      className="relative cursor-pointer"
       onMouseEnter={() => setIsAvatarHovered(true)}
       onMouseLeave={() => setIsAvatarHovered(false)}
     >
       <div className="avatar">
-        <div className="w-12 rounded-full bg-white border border-white/30">
+        <div className="w-12 h-12 rounded-full overflow-hidden border border-white/30 shadow-[0_4px_15px_rgba(0,0,0,0.3)] transition-all duration-300 hover:scale-105 hover:border-white/50 hover:shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
           {!isLoading && profileData?.avatarUrl ? (
             <img src={profileData.avatarUrl} alt="avatar" />
           ) : (

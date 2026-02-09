@@ -206,20 +206,22 @@ export const CanvasMainMenu: React.FC<Props> = ({ onTogglePlayerList, spaceID, c
 
   return (
     <>
-      <div className="dropdown">
+      <div className="relative">
         <button
-          tabIndex={0}
-          className={`btn btn-ghost btn-md ${isOpen ? 'bg-black/50' : 'bg-black/40'} backdrop-blur-md text-white hover:bg-black/30`}
+          className={`btn btn-circle btn-ghost relative z-[9999] w-12 h-12 text-white backdrop-blur-[30px] backdrop-saturate-200 backdrop-brightness-110 transition-all duration-300 ease-in-out border bg-gradient-to-br from-black/50 to-neutral-900/40 border-white/20 shadow-[0_4px_15px_rgba(0,0,0,0.3)] hover:scale-105 hover:backdrop-blur-[35px] hover:backdrop-saturate-[220%] hover:backdrop-brightness-115 hover:from-black/60 hover:to-neutral-900/50`}
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Main menu"
         >
           <FaBars />
         </button>
         {isOpen && (
+          <>
+          <div
+            className="fixed inset-0 z-[9998]"
+            onClick={handleCloseMenu}
+          />
           <ul
-            tabIndex={0}
-            className="dropdown-content menu bg-black/40 backdrop-blur-md rounded-lg shadow-lg z-[9999] w-[300px] p-3"
-            style={{ transform: 'none' }}
+            className="absolute right-0 top-full mt-2 menu rounded-xl z-[9999] w-[280px] p-3 bg-gradient-to-br from-black/70 to-neutral-900/60 backdrop-blur-[30px] backdrop-saturate-200 border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
           >
             {/* Header */}
             <li className="flex flex-row items-center gap-3 mb-3 px-2">
@@ -247,7 +249,7 @@ export const CanvasMainMenu: React.FC<Props> = ({ onTogglePlayerList, spaceID, c
                   )}
                   {!canEditSpace && isSpaceHost && !isDisruptiveAdmin && (
                     <div className="tooltip" data-tip="Host">
-                      <FaStar className="text-purple-400" size={10} />
+                      <FaStar className="text-teal-400" size={10} />
                     </div>
                   )}
                   {isDisruptiveAdmin && (
@@ -268,15 +270,6 @@ export const CanvasMainMenu: React.FC<Props> = ({ onTogglePlayerList, spaceID, c
                 aria-label="People"
               >
                 <FaUsers />
-              </button>
-              <button className="btn btn-ghost btn-sm" aria-label="Action 2">
-                <div className="w-4 h-4" />
-              </button>
-              <button className="btn btn-ghost btn-sm" aria-label="Action 3">
-                <div className="w-4 h-4" />
-              </button>
-              <button className="btn btn-ghost btn-sm" aria-label="Action 4">
-                <div className="w-4 h-4" />
               </button>
             </li>
 
@@ -314,18 +307,19 @@ export const CanvasMainMenu: React.FC<Props> = ({ onTogglePlayerList, spaceID, c
               </li>
 
               <li>
-                <a className="text-sm text-red-300 hover:bg-white/20 rounded-md">
+                <a className="text-sm text-red-300 hover:bg-white/20 rounded-md" onClick={() => window.location.href = '/'}>
                   Leave
                 </a>
               </li>
             </div>
           </ul>
+          </>
         )}
       </div>
 
       {openControlsModal && <SpacesControlsModal open={openControlsModal} onClose={handleControlsModalToggle} />}
       {isSettingsOpen && <SpacesSettingsModal open={isSettingsOpen} onClose={handleSettingsToggle} containerRef={containerRef} />}
-      <SpaceManageModal isOpen={openManageSpaceModal} onClose={handleManageSpaceToggle} />
+      {openManageSpaceModal && <SpaceManageModal isOpen={openManageSpaceModal} onClose={handleManageSpaceToggle} />}
 
       {toast && (
         <div className="toast toast-top">

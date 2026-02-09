@@ -55,15 +55,20 @@ service cloud.firestore {
       // 3. Accessible to all users flag is set
       // 4. User is authenticated AND (owner/host/admin)
       
-      // Combined read rule (covers both get and list operations)
-      allow read: if !('isPublic' in resource.data) ||  // No field = assume public (backward compat)
-                     resource.data.isPublic == true ||  // Explicitly public
-                     resource.data.allowGuestUsers == true ||  // Guest access enabled (React app field)
-                     resource.data.accessibleToAllUsers == true ||  // Open to authenticated users
-                     (request.auth != null && (
-                       isSpaceOwnerOrHost(spaceId) ||  // Owners and hosts
-                       isDisruptiveAdmin()  // Admins
-                     ));
+      // Single document reads (get) - allow non-existent doc lookups for slug resolution
+      allow get: if resource == null ||  // Non-existent docs return null (needed for slug fallback)
+                    !('isPublic' in resource.data) ||  // No field = assume public (backward compat)
+                    resource.data.isPublic == true ||  // Explicitly public
+                    resource.data.allowGuestUsers == true ||  // Guest access enabled (React app field)
+                    resource.data.accessibleToAllUsers == true ||  // Open to authenticated users
+                    (request.auth != null && (
+                      isSpaceOwnerOrHost(spaceId) ||  // Owners and hosts
+                      isDisruptiveAdmin()  // Admins
+                    ));
+
+      // Query/list operations - allow for slug resolution by unauthenticated users
+      // Space metadata (name, slug, description) is public; write ops still require auth
+      allow list: if true;
       
       // Allow write access only to the space owner or an admin
       allow write: if isSpaceOwner(spaceId) || isDisruptiveAdmin();

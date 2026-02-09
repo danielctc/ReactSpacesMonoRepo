@@ -67,7 +67,7 @@ function LoaderProgress() {
         align-items: center;
         justify-content: center;
         transition: opacity 1.5s ease-in-out;
-        pointer-events: auto !important;
+        pointer-events: none !important;
         transform: translateZ(0);
       }
 

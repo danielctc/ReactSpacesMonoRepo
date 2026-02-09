@@ -226,8 +226,18 @@ const WebGLRenderer = forwardRef<HTMLDivElement, WebGLRendererProps>(({
   // Voice chat check
   const showVoiceChat = user && settings.enableVoiceChat;
 
+  /* Z-index layering hierarchy (low to high):
+   *   z-0    : Frosted glass backdrop (pointer-events-none)
+   *   z-[1]  : Unity canvas wrapper
+   *   z-[2]  : Logo + bottom-right controls (Help, Fullscreen)
+   *   z-[6]  : Legacy LoaderProgress (hidden, superseded by PersistentLoader)
+   *   z-50   : PersistentLoader (DOM-injected, pointer-events-none, removed after load)
+   *   z-[100]: Sign-in overlay + OverlayControls (non-overlapping positions)
+   *   z-[200]: CanvasMainMenu (inside OverlayControls)
+   *   z-[1000]: Portal editor
+   */
   return (
-    <div className="webgl-renderer">
+    <div className="webgl-renderer relative w-full h-full" style={{ contain: 'paint' }}>
       {/* Background */}
       {settings.urlLoadingBackground && (
         <PersistentBackground
@@ -287,7 +297,7 @@ const WebGLRenderer = forwardRef<HTMLDivElement, WebGLRendererProps>(({
           className="relative overflow-hidden w-full h-full bg-no-repeat bg-cover bg-center bg-[#666666]"
         >
           {/* Frosted glass overlay */}
-          <div className="absolute top-0 left-0 w-full h-full backdrop-blur-lg bg-white/10 z-0" />
+          <div className="absolute top-0 left-0 w-full h-full backdrop-blur-lg bg-white/10 z-0 pointer-events-none" />
 
           {/* Unity display */}
           <div {...fadeStyles} className="w-full h-full absolute z-[1]">
@@ -309,7 +319,9 @@ const WebGLRenderer = forwardRef<HTMLDivElement, WebGLRendererProps>(({
             )}
           </div>
 
-          {/* Hidden loader */}
+          {/* Legacy loader - hidden; PersistentLoader handles loading now.
+             Kept for potential fallback. The "hidden" class prevents rendering
+             and neutralises LoaderProgress's injected z-index: 99999 styles. */}
           <div className="absolute z-[6] w-full h-full hidden">
             <LoaderProgress />
           </div>

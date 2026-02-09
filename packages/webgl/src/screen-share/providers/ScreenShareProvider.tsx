@@ -68,10 +68,14 @@ export const ScreenShareProvider: React.FC<ScreenShareProviderProps> = ({ childr
   );
 };
 
+const defaultScreenShareContext: ScreenShareContextValue = {
+  isSharing: false,
+  localStream: null,
+  startSharing: async () => {},
+  stopSharing: () => {},
+};
+
 export const useScreenShareContext = (): ScreenShareContextValue => {
   const context = useContext(ScreenShareContext);
-  if (!context) {
-    throw new Error('useScreenShareContext must be used within ScreenShareProvider');
-  }
-  return context;
+  return context ?? defaultScreenShareContext;
 };

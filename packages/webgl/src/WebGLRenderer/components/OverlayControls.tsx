@@ -46,7 +46,7 @@ const OverlayControls: React.FC<OverlayControlsProps> = ({
   onTogglePlayerList,
 }) => {
   return (
-    <div className="absolute z-10 top-4 right-4 flex items-center gap-2">
+    <div className="absolute z-[100] top-4 right-4 flex items-center gap-2 pointer-events-auto">
       <AuthenticationButton />
 
       {/* Live Stream Button */}
@@ -108,7 +108,7 @@ const OverlayControls: React.FC<OverlayControlsProps> = ({
 
       <ProfileButton />
 
-      <div className="relative z-[9999]">
+      <div className="relative z-[200]">
         <CanvasMainMenu
           onTogglePlayerList={onTogglePlayerList}
           spaceID={spaceID}

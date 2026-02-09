@@ -110,10 +110,18 @@ export function VoiceProvider({ children, devMode = false }: VoiceProviderProps)
   return <VoiceContext.Provider value={value}>{children}</VoiceContext.Provider>;
 }
 
+const defaultVoiceContext: VoiceContextValue = {
+  isMuted: true,
+  isSpeaking: false,
+  connectedUsers: [],
+  voiceDisabled: true,
+  isConnected: false,
+  micDeviceId: null,
+  toggleMute: () => {},
+  setMicDevice: () => {},
+};
+
 export function useVoiceContext(): VoiceContextValue {
   const context = useContext(VoiceContext);
-  if (!context) {
-    throw new Error('useVoiceContext must be used within VoiceProvider');
-  }
-  return context;
+  return context ?? defaultVoiceContext;
 }
