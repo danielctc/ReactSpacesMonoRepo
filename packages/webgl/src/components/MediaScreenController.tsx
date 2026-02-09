@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import MediaScreenUploadModal from './MediaScreenUploadModal';
 import { getMediaScreenImagesFromFirestore, getMediaScreenImage } from '@disruptive-spaces/shared/firebase/mediaScreenFirestore';
@@ -507,90 +508,93 @@ const MediaScreenController: React.FC = () => {
         onImageChange={handleImageChange}
       />
 
-      <ImageViewerStyles />
-      <div ref={fullscreenRef as any}>
-        {isViewerOpen && (
-          <dialog open className="modal modal-open">
-            <div
-              className="fixed inset-0 bg-black bg-opacity-80 z-[10000]"
-              onClick={(e) => {
-                preventPropagation(e as any);
-                onViewerClose();
-              }}
-              onMouseMove={(e) => preventPropagation(e as any)}
-              onMouseDown={(e) => preventPropagation(e as any)}
-              onMouseUp={(e) => preventPropagation(e as any)}
-              onWheel={(e) => preventPropagation(e as any)}
-            />
-            <div
-              ref={modalContentRef}
-              className="modal-box max-w-[80vw] max-h-[80vh] bg-gray-900 text-white rounded-lg relative z-[10001] image-viewer-modal-content"
-              onClick={(e) => preventPropagation(e as any)}
-              onMouseMove={(e) => preventPropagation(e as any)}
-              onMouseDown={(e) => preventPropagation(e as any)}
-              onMouseUp={(e) => preventPropagation(e as any)}
-              onWheel={(e) => preventPropagation(e as any)}
-            >
-              <button
-                className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 bg-gray-700 text-white hover:bg-gray-600"
-                onClick={onViewerClose}
+      {isViewerOpen && createPortal(
+        <>
+          <ImageViewerStyles />
+          <div ref={fullscreenRef as any}>
+            <dialog open className="modal modal-open" style={{ zIndex: 9998 }}>
+              <div
+                className="fixed inset-0 bg-black bg-opacity-80 z-[9998]"
+                onClick={(e) => {
+                  preventPropagation(e as any);
+                  onViewerClose();
+                }}
+                onMouseMove={(e) => preventPropagation(e as any)}
+                onMouseDown={(e) => preventPropagation(e as any)}
+                onMouseUp={(e) => preventPropagation(e as any)}
+                onWheel={(e) => preventPropagation(e as any)}
+              />
+              <div
+                ref={modalContentRef}
+                className="modal-box max-w-[80vw] max-h-[80vh] bg-gray-900 text-white rounded-lg relative z-[9999] image-viewer-modal-content"
+                onClick={(e) => preventPropagation(e as any)}
+                onMouseMove={(e) => preventPropagation(e as any)}
+                onMouseDown={(e) => preventPropagation(e as any)}
+                onMouseUp={(e) => preventPropagation(e as any)}
+                onWheel={(e) => preventPropagation(e as any)}
               >
-                ✕
-              </button>
-              <div className="p-0 w-full">
-                {currentImageUrl ? (
-                  <div
-                    className="relative w-full h-full flex justify-center items-center"
-                    onClick={(e) => preventPropagation(e as any)}
-                    onMouseMove={(e) => preventPropagation(e as any)}
-                    onMouseDown={(e) => preventPropagation(e as any)}
-                    onMouseUp={(e) => preventPropagation(e as any)}
-                    onWheel={(e) => preventPropagation(e as any)}
-                  >
-                    {currentMediaType === 'image' ? (
-                      <img
-                        src={currentImageUrl}
-                        className="max-w-full max-h-[80vh] object-contain"
-                        alt="Media Screen Image"
-                        onError={(e) => console.error("Error loading image:", e, currentImageUrl)}
-                        onClick={(e) => preventPropagation(e as any)}
-                      />
-                    ) : (
-                      <div
-                        className="w-full text-center"
-                        onClick={(e) => preventPropagation(e as any)}
-                        onMouseMove={(e) => preventPropagation(e as any)}
-                        onMouseDown={(e) => preventPropagation(e as any)}
-                        onMouseUp={(e) => preventPropagation(e as any)}
-                        onWheel={(e) => preventPropagation(e as any)}
-                      >
-                        <p className="mb-4 text-lg">Video URL:</p>
-                        <p className="p-3 bg-gray-800 rounded-md text-sm break-all max-w-full">
-                          {currentImageUrl}
-                        </p>
-                        <p className="mt-4 text-sm text-gray-400">
-                          Video playback will be implemented in a future update
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    className="flex flex-col items-center justify-center h-[400px]"
-                    onClick={(e) => preventPropagation(e as any)}
-                    onMouseMove={(e) => preventPropagation(e as any)}
-                    onMouseDown={(e) => preventPropagation(e as any)}
-                    onMouseUp={(e) => preventPropagation(e as any)}
-                    onWheel={(e) => preventPropagation(e as any)}
-                  >
-                    <p>No image available</p>
-                  </div>
-                )}
+                <button
+                  className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2 bg-gray-700 text-white hover:bg-gray-600"
+                  onClick={onViewerClose}
+                >
+                  ✕
+                </button>
+                <div className="p-0 w-full">
+                  {currentImageUrl ? (
+                    <div
+                      className="relative w-full h-full flex justify-center items-center"
+                      onClick={(e) => preventPropagation(e as any)}
+                      onMouseMove={(e) => preventPropagation(e as any)}
+                      onMouseDown={(e) => preventPropagation(e as any)}
+                      onMouseUp={(e) => preventPropagation(e as any)}
+                      onWheel={(e) => preventPropagation(e as any)}
+                    >
+                      {currentMediaType === 'image' ? (
+                        <img
+                          src={currentImageUrl}
+                          className="max-w-full max-h-[80vh] object-contain"
+                          alt="Media Screen Image"
+                          onError={(e) => console.error("Error loading image:", e, currentImageUrl)}
+                          onClick={(e) => preventPropagation(e as any)}
+                        />
+                      ) : (
+                        <div
+                          className="w-full text-center"
+                          onClick={(e) => preventPropagation(e as any)}
+                          onMouseMove={(e) => preventPropagation(e as any)}
+                          onMouseDown={(e) => preventPropagation(e as any)}
+                          onMouseUp={(e) => preventPropagation(e as any)}
+                          onWheel={(e) => preventPropagation(e as any)}
+                        >
+                          <p className="mb-4 text-lg">Video URL:</p>
+                          <p className="p-3 bg-gray-800 rounded-md text-sm break-all max-w-full">
+                            {currentImageUrl}
+                          </p>
+                          <p className="mt-4 text-sm text-gray-400">
+                            Video playback will be implemented in a future update
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      className="flex flex-col items-center justify-center h-[400px]"
+                      onClick={(e) => preventPropagation(e as any)}
+                      onMouseMove={(e) => preventPropagation(e as any)}
+                      onMouseDown={(e) => preventPropagation(e as any)}
+                      onMouseUp={(e) => preventPropagation(e as any)}
+                      onWheel={(e) => preventPropagation(e as any)}
+                    >
+                      <p>No image available</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </dialog>
-        )}
-      </div>
+            </dialog>
+          </div>
+        </>,
+        document.body
+      )}
 
       <MediaScreenVideoPlayer
         videoUrl={videoUrl}

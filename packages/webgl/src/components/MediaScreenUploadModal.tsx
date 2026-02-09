@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { FiUpload, FiTrash2, FiImage, FiVideo, FiLink } from 'react-icons/fi';
 import {
   uploadMediaScreenImage,
@@ -349,10 +350,10 @@ const MediaScreenUploadModal: React.FC<MediaScreenUploadModalProps> = ({ isOpen,
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <>
-      <dialog open className="modal modal-open">
-        <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm" onClick={handleClose} />
+      <dialog open className="modal modal-open" style={{ zIndex: 9998 }}>
+        <div className="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm z-[9998]" onClick={handleClose} />
         <div className="modal-box max-w-[650px] bg-[#1a1a1a] text-white rounded-xl border border-[#333]">
           <div className="flex justify-between items-center pb-1 pt-3 px-4">
             <h3 className="text-md font-semibold">Media Screen</h3>
@@ -628,7 +629,8 @@ const MediaScreenUploadModal: React.FC<MediaScreenUploadModalProps> = ({ isOpen,
           </div>
         </dialog>
       )}
-    </>
+    </>,
+    document.body
   );
 };
 
