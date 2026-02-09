@@ -8,7 +8,7 @@
  * and remove all guardFirebaseWrite() calls (search the codebase).
  */
 
-const FIREBASE_WRITES_BLOCKED = true;
+const FIREBASE_WRITES_BLOCKED = false;
 
 export const guardFirebaseWrite = (operation: string): void => {
   if (FIREBASE_WRITES_BLOCKED) {
