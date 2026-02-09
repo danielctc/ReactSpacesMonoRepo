@@ -142,7 +142,7 @@ function logScriptTags() {
   console.log(
     `\n${COLORS.GREEN}==============================================================================================================`
   );
-  console.log(`Latest script tags for WebFlow:`);
+  console.log(`Latest embed script tags:`);
   console.log(
     `--------------------------------------------------------------------------------------------------------------${COLORS.RESET}`
   );
@@ -171,7 +171,7 @@ function logScriptTags() {
     `\n${COLORS.GREEN}--------------------------------------------------------------------------------------------------------------${COLORS.RESET}`
   );
   console.log(
-    `Manage WebFlow scripts here: ${COLORS.BLUE}https://webflow.com/dashboard/sites/disruptive-spaces/code${COLORS.RESET}`
+    `Base URL: ${COLORS.BLUE}${baseURL}${COLORS.RESET}`
   );
   console.log(
     `${COLORS.GREEN}==============================================================================================================${COLORS.RESET}\n`

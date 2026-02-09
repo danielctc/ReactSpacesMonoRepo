@@ -92,7 +92,7 @@ https://disruptive-metaverse.web.app/header-auth-links
 Other follow this format.
 https://disruptive-metaverse.web.app/{microframework-name}
 
-WebFlow Test Page
+Test Page
 https://spaces.disruptive.live/spaces/spaces-master-build
 
 ## Space Accessibility
