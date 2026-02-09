@@ -10,8 +10,6 @@ import SpacesControlsModal from './SpacesControlsModal';
 import SpacesSettingsModal from './SpacesSettingsModal';
 import SpaceManageModal from './SpaceManageModal';
 import AuthenticationButton from './AuthenticationButton';
-import AvatarModal from './AvatarModal';
-
 interface Props {
   onTogglePlayerList?: () => void;
   spaceID: string;
@@ -25,7 +23,6 @@ export const CanvasMainMenu: React.FC<Props> = ({ onTogglePlayerList, spaceID, c
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [openControlsModal, setOpenControlsModal] = useState(false);
   const [openManageSpaceModal, setOpenManageSpaceModal] = useState(false);
-  const [openAvatarModal, setOpenAvatarModal] = useState(false);
   const [profileData, setProfileData] = useState<{rpmURL: string | null; isGuest: boolean} | null>(null);
   const [editModeEnabled, setEditModeEnabled] = useState(false);
   const [canEditSpace, setCanEditSpace] = useState(false);
@@ -194,11 +191,6 @@ export const CanvasMainMenu: React.FC<Props> = ({ onTogglePlayerList, spaceID, c
     handleCloseMenu();
   };
 
-  const handleAvatarToggle = () => {
-    setOpenAvatarModal(!openAvatarModal);
-    handleCloseMenu();
-  };
-
   const handleTogglePlayerList = (e: React.MouseEvent) => {
     e.stopPropagation();
 
@@ -312,14 +304,6 @@ export const CanvasMainMenu: React.FC<Props> = ({ onTogglePlayerList, spaceID, c
                 </a>
               </li>
 
-              {user && !profileData?.isGuest && (
-                <li>
-                  <a className="text-sm hover:bg-white/20 rounded-md" onClick={handleAvatarToggle}>
-                    Avatar
-                  </a>
-                </li>
-              )}
-
               <li>
                 <a
                   className="text-sm hover:bg-white/20 rounded-md"
@@ -342,7 +326,6 @@ export const CanvasMainMenu: React.FC<Props> = ({ onTogglePlayerList, spaceID, c
       {openControlsModal && <SpacesControlsModal open={openControlsModal} onClose={handleControlsModalToggle} />}
       {isSettingsOpen && <SpacesSettingsModal open={isSettingsOpen} onClose={handleSettingsToggle} containerRef={containerRef} />}
       <SpaceManageModal isOpen={openManageSpaceModal} onClose={handleManageSpaceToggle} />
-      <AvatarModal isOpen={openAvatarModal} onClose={handleAvatarToggle} spaceId={spaceID} />
 
       {toast && (
         <div className="toast toast-top">

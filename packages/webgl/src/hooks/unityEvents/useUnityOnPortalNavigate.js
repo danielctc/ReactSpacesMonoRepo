@@ -5,8 +5,6 @@ import { ANALYTICS_EVENT_TYPES, ANALYTICS_CATEGORIES } from '@disruptive-spaces/
 import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 import { useUnity } from '../../providers/UnityProvider';
 import { fetchPortalAnalyticsData } from '../../utils/portalAnalyticsUtils';
-import { saveTransition } from '@disruptive-spaces/shared/utils/portal-transition';
-
 export const useUnityOnPortalNavigate = () => {
   const { user } = useContext(UserContext);
   const listenToUnityMessage = useListenForUnityEvent();
@@ -71,21 +69,7 @@ export const useUnityOnPortalNavigate = () => {
             }
           }
 
-          // Save transition state for portal navigation
-          saveTransition({
-            fromSpaceId: spaceID,
-            toSpaceId: targetSpaceId,
-            portalId: portalData.portalId,
-            fromUrl: window.location.href
-          });
-
-          // Add fade-out class for portal transition animation
-          document.body.classList.add('portal-transitioning');
-
-          // Wait for fade animation then navigate
-          setTimeout(() => {
-            window.location.href = `/w/${targetSpaceId}`;
-          }, 400);
+          window.location.href = `/?spaceId=${targetSpaceId}`;
         } else {
           console.error('Could not determine target space ID from portal:', portalData.portalId);
         }

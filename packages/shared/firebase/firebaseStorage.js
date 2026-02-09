@@ -7,51 +7,6 @@ import { guardFirebaseWrite } from './firebaseWriteGuard';
 const AVATAR_PATH = 'avatars';
 
 /**
- * Default avatars hosted on Firebase Storage.
- * Used for deterministic assignment based on username.
- */
-export const DEFAULT_AVATARS = [
-  'https://firebasestorage.googleapis.com/v0/b/disruptive-metaverse.appspot.com/o/avatars%2Fdefaults%2F65a18fa5676505696ce66a14.glb?alt=media',
-  'https://firebasestorage.googleapis.com/v0/b/disruptive-metaverse.appspot.com/o/avatars%2Fdefaults%2F65a18fcf6698a5166e9a1b43.glb?alt=media',
-  'https://firebasestorage.googleapis.com/v0/b/disruptive-metaverse.appspot.com/o/avatars%2Fdefaults%2F65a294956698a5166ea194c8.glb?alt=media',
-  'https://firebasestorage.googleapis.com/v0/b/disruptive-metaverse.appspot.com/o/avatars%2Fdefaults%2F65a54ab950377ef74b6dff36.glb?alt=media',
-  'https://firebasestorage.googleapis.com/v0/b/disruptive-metaverse.appspot.com/o/avatars%2Fdefaults%2F66759370ab338d43c80ee3a3.glb?alt=media',
-  'https://firebasestorage.googleapis.com/v0/b/disruptive-metaverse.appspot.com/o/avatars%2Fdefaults%2F66759420c5fe24b037ad1488.glb?alt=media',
-  'https://firebasestorage.googleapis.com/v0/b/disruptive-metaverse.appspot.com/o/avatars%2Fdefaults%2F66759500ab338d43c80ef226.glb?alt=media',
-];
-
-/**
- * Simple hash function to convert a string to a number.
- * Used for deterministic avatar assignment.
- * @param {string} str - The string to hash.
- * @returns {number} A positive integer hash.
- */
-const hashString = (str) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash);
-};
-
-/**
- * Gets a deterministic default avatar URL based on username.
- * The same username will always return the same avatar.
- *
- * @param {string} username - The user's username.
- * @returns {string} The default avatar URL for this username.
- */
-export const getDefaultAvatarForUsername = (username) => {
-  if (!username) {
-    return DEFAULT_AVATARS[0];
-  }
-  const index = hashString(username.toLowerCase()) % DEFAULT_AVATARS.length;
-  return DEFAULT_AVATARS[index];
-};
-
-/**
  * Fetches the HTTP URL for a given gs:// URL from Firebase Storage.
  *
  * @param {string} gsUrl - The gs:// URL to the file in Firebase Storage.

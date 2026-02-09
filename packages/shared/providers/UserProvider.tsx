@@ -399,9 +399,8 @@ export const UserProvider = ({ children }) => {
                                 Logger.log("UserProvider: Applying Override RPM URL:", customPlayerUrl);
                                 Logger.log("UserProvider: Original RPM URL was:", filteredUser.rpmURL);
 
-                                // Temporarily override both RPM URL and avatarUrl (does NOT save to Firestore)
+                                // Temporarily override RPM URL (does NOT save to Firestore)
                                 filteredUser.rpmURL = customPlayerUrl;
-                                filteredUser.avatarUrl = customPlayerUrl;
                             }
                         } else {
                             Logger.log("UserProvider: Override enabled but no custom player URLs configured");

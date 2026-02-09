@@ -32,10 +32,7 @@ export const userProperties = [
     // Firestore User collection Fields (PUBLIC - Social Profile)
     //-----------------------------------
     "name",
-    "rpmURL",  // Avatar URL (legacy)
-    "avatarUrl",  // Avatar GLB URL (new system)
-    "avatarId",  // Reference to avatars collection
-    "avatarThumbnailUrl",  // Avatar thumbnail PNG URL
+    "rpmURL",  // Avatar URL
     "Nickname",  // Display name
     "username",  // @username for mentions/searches
     "created_on",

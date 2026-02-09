@@ -29,5 +29,3 @@ export { useUnityOnPortalNavigate } from './useUnityOnPortalNavigate';
 export { useSpaceCatalogueItems } from './useSpaceCatalogueItems';
 export { useUnityOnCatalogueItemClick } from './useUnityOnCatalogueItemClick';
 
-// Avatar Auto-Sync Hook
-export { useAutoAvatarSync } from '../useAutoAvatarSync';

@@ -1,13 +1,4 @@
 {
-  "indexes": [
-    {
-      "collectionGroup": "avatars",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "isActive", "order": "ASCENDING" },
-        { "fieldPath": "sortOrder", "order": "ASCENDING" }
-      ]
-    }
-  ],
+  "indexes": [],
   "fieldOverrides": []
 }

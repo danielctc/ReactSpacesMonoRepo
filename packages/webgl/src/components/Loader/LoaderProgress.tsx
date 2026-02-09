@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
-import PropTypes from "prop-types";
 import { useUnity } from "../../providers/UnityProvider";
 import SignIn from "@disruptive-spaces/shared/components/auth/SignIn";
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { getSpaceItem } from "@disruptive-spaces/shared/firebase/spacesFirestore";
 import { useListenForUnityEvent } from "../../hooks/unityEvents/core/useListenForUnityEvent";
 
-interface Props {
-  isPortalTransition?: boolean;
-}
-
-function LoaderProgress({ isPortalTransition = false }: Props) {
+function LoaderProgress() {
   const { loadingProgression, isLoaded, error, spaceID } = useUnity();
   const { user } = useContext(UserContext);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
@@ -246,12 +241,6 @@ function LoaderProgress({ isPortalTransition = false }: Props) {
   }, [isFirstSceneLoaded, isPlayerInstantiated]);
 
   const getLoadingStage = () => {
-    if (isPortalTransition) {
-      if (!isLoaded) return "Traveling to new world...";
-      if (isLoaded && !isFirstSceneLoaded && !isPlayerInstantiated) return "Arriving at destination...";
-      if (isFirstSceneLoaded && !isPlayerInstantiated) return "Materializing...";
-      return "Welcome!";
-    }
     if (!isLoaded) return "World loading";
     if (isLoaded && !isFirstSceneLoaded && !isPlayerInstantiated) return "Scene initializing";
     if (isFirstSceneLoaded && !isPlayerInstantiated) return "Player initializing";
@@ -288,7 +277,7 @@ function LoaderProgress({ isPortalTransition = false }: Props) {
       ) : (
         <div
           ref={loaderRef}
-          className={`loader-overlay${isPortalTransition ? ' portal-continuation' : ''}`}
+          className="loader-overlay"
           style={{
             transform: 'translateZ(0)',
             zIndex: 99999
@@ -313,9 +302,5 @@ function LoaderProgress({ isPortalTransition = false }: Props) {
     </>
   );
 }
-
-LoaderProgress.propTypes = {
-  isPortalTransition: PropTypes.bool
-};
 
 export default LoaderProgress;

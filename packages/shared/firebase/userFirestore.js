@@ -1,10 +1,9 @@
-import { doc, getDoc, setDoc, updateDoc, onSnapshot, writeBatch, query, collection, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, query, collection, getDocs, limit } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth, db } from '@disruptive-spaces/shared/firebase/firebase';
 import { guardFirebaseWrite } from './firebaseWriteGuard';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
 import { isUsernameSafe } from '@disruptive-spaces/shared/utils/profanityFilter';
-import { getDefaultAvatarForUsername } from '@disruptive-spaces/shared/firebase/firebaseStorage';
 
 // Function to generate a username from first and last name with random numbers
 const generateUsername = (firstName, lastName) => {
@@ -148,9 +147,6 @@ const registerUser = async (email, password, additionalData) => {
             linkedInProfile: additionalData.linkedInProfile || "",
             username: username,
             Nickname: additionalData.Nickname || "",
-            // Assign deterministic default avatar based on username
-            avatarUrl: additionalData.avatarUrl || getDefaultAvatarForUsername(username),
-            // Keep rpmURL for legacy support
             rpmURL: additionalData.rpmURL || "",
         };
         
@@ -208,7 +204,6 @@ const registerUser = async (email, password, additionalData) => {
             if (!existingData.username) fieldsToUpdate.username = capturedData.username;
             if (!existingData.companyName) fieldsToUpdate.companyName = capturedData.companyName;
             if (!existingData.linkedInProfile) fieldsToUpdate.linkedInProfile = capturedData.linkedInProfile;
-            if (!existingData.avatarUrl) fieldsToUpdate.avatarUrl = capturedData.avatarUrl;
             if (!existingData.rpmURL && capturedData.rpmURL) fieldsToUpdate.rpmURL = capturedData.rpmURL;
             
             // Only update if there are fields to update
@@ -279,7 +274,6 @@ const registerUser = async (email, password, additionalData) => {
             username: capturedData.username,
             companyName: capturedData.companyName,
             linkedInProfile: capturedData.linkedInProfile,
-            avatarUrl: capturedData.avatarUrl
         };
         
         Logger.log('userFirestore: Registration complete, returning user data');
@@ -361,37 +355,6 @@ const updateRpmUrlInFirestore = async (userId, newRpmUrl) => {
         Logger.log('userFirestore: rpmURL updated successfully.');
     } catch (error) {
         Logger.error('userFirestore: Error updating rpmURL:', error);
-        throw error;
-    }
-};
-
-/**
- * Updates user's avatar selection from the avatar collection.
- * Updates all avatar-related fields for consistency.
- * @param {string} userId - The user's Firebase UID.
- * @param {string} avatarId - The avatar document ID from avatars collection.
- * @param {string} glbUrl - The GLB model URL for Unity.
- * @param {string} thumbnailUrl - The PNG thumbnail URL for UI display.
- * @returns {Promise<void>}
- */
-const updateUserAvatar = async (userId, avatarId, glbUrl, thumbnailUrl) => {
-    try {
-        guardFirebaseWrite('updateUserAvatar');
-        Logger.log(`userFirestore: Updating avatar for user ID: ${userId} to avatar: ${avatarId}`);
-        const userDocRef = doc(db, 'users', userId);
-
-        await updateDoc(userDocRef, {
-            avatarId,
-            avatarUrl: glbUrl,
-            avatarThumbnailUrl: thumbnailUrl,
-            // Keep rpmURL in sync for backwards compatibility
-            rpmURL: glbUrl,
-            lastUpdated: new Date().toISOString()
-        });
-
-        Logger.log('userFirestore: Avatar updated successfully.');
-    } catch (error) {
-        Logger.error('userFirestore: Error updating avatar:', error);
         throw error;
     }
 };
@@ -518,7 +481,6 @@ export {
     getUserPrivateData,
     registerUser,
     updateRpmUrlInFirestore,
-    updateUserAvatar,
     onUserRpmUrlChange,
     userBelongsToGroup,
     addUserToGroup,

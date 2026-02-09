@@ -7,7 +7,6 @@ import {
   FiUsers,
   FiVideo,
   FiTool,
-  FiUser,
 } from 'react-icons/fi';
 
 import { useSpaceManage } from './hooks/useSpaceManage';
@@ -19,7 +18,6 @@ import {
   UsersTab,
   StreamingTab,
   CustomTab,
-  AvatarsTab,
 } from './tabs';
 
 interface SpaceManageModalProps {
@@ -55,7 +53,6 @@ const SpaceManageModal: React.FC<SpaceManageModalProps> = ({ isOpen, onClose }) 
     { icon: FiUsers, label: 'Users' },
     { icon: FiVideo, label: 'Stream' },
     { icon: FiTool, label: 'Custom' },
-    { icon: FiUser, label: 'Avatars' },
   ];
 
   return (
@@ -213,7 +210,6 @@ const SpaceManageModal: React.FC<SpaceManageModalProps> = ({ isOpen, onClose }) 
               />
             )}
 
-            {state.tabIndex === 7 && <AvatarsTab />}
           </div>
         </div>
       </div>

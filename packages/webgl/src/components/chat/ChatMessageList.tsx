@@ -74,13 +74,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, isCurrentUser, space
     return date.toLocaleDateString();
   };
 
-  // Get avatar URL with fallback chain
+  // Get avatar URL from rpmURL
   const getAvatarUrl = (message: any) => {
-    // Prefer avatarThumbnailUrl (new system)
-    if (message.avatarThumbnailUrl) {
-      return message.avatarThumbnailUrl;
-    }
-    // Fallback to rpmURL conversion (legacy)
     if (message.rpmURL) {
       return message.rpmURL.includes('.glb')
         ? message.rpmURL.replace('.glb', '.png?scene=fullbody-portrait-closeupfront&w=640&q=75')

@@ -1,5 +1,5 @@
 // @jsxImportSource react
-import React, { useState, useEffect, useRef, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import PropTypes from 'prop-types';
 import { UserContext } from '@disruptive-spaces/shared/providers/UserProvider';
 import SignIn from '@disruptive-spaces/shared/components/auth/SignIn';
@@ -9,20 +9,7 @@ import { UnityProvider } from "./providers/UnityProvider";
 import { getSpaceItem } from '@disruptive-spaces/shared/firebase/spacesFirestore';
 import { fetchHttpUrlFromGsUrl } from '@disruptive-spaces/shared/firebase/firebaseStorage';
 import { Logger } from '@disruptive-spaces/shared/logging/react-log';
-import { getTransition, clearTransition } from '@disruptive-spaces/shared/utils/portal-transition';
-
 import WebGLRenderer from "./WebGLRenderer";
-
-// Optional import for single-tab navigation context
-// Uses try/catch to avoid breaking when provider is not available
-let useSpaceNavigation: any;
-try {
-  const module = require('@disruptive-spaces/shared/providers/SpaceNavigationProvider');
-  useSpaceNavigation = module.useSpaceNavigation;
-} catch {
-  // SpaceNavigationProvider not available - provide no-op hook
-  useSpaceNavigation = () => null;
-}
 
 // Define a fallback MultipleView class if it doesn't exist
 // This ensures there's always a MultipleView available
@@ -180,27 +167,7 @@ const WebGLLoader: React.FC<WebGLLoaderProps> = ({ spaceID: propSpaceID, overrid
   const [banned, setBanned] = useState(false);
   const [requiresAuth, setRequiresAuth] = useState(false);
 
-  // Single-tab navigation context (optional - for portal transitions without page reload)
-  const spaceNav = useSpaceNavigation?.() || {};
-  const { currentSpaceId } = spaceNav;
-
-  // Use context spaceId if available (during navigation), otherwise use prop
-  const spaceID = currentSpaceId || propSpaceID;
-
-  // Check for portal transition on mount
-  const [portalTransition, setPortalTransition] = useState(() => {
-    const transition = getTransition();
-    // Only use transition if it matches the current space we're loading
-    return (transition && transition.toSpaceId === spaceID) ? transition : null;
-  });
-
-  const isPortalTransition = !!portalTransition;
-
-  // Callback to clear transition when load completes
-  const handleTransitionComplete = useCallback(() => {
-    clearTransition();
-    setPortalTransition(null);
-  }, []);
+  const spaceID = propSpaceID;
 
   // Setup Unity configuration
   const [unityConfig, setUnityConfig] = useState({
@@ -241,7 +208,18 @@ const WebGLLoader: React.FC<WebGLLoaderProps> = ({ spaceID: propSpaceID, overrid
           showDisruptiveLogo: false,
           showHelpButton: true,
           enableVoiceChat: true,
-        }
+        },
+        'dantest': {
+          loaderUrl: '/devBuilds/dantest/Build/dantest.loader.js',
+          dataUrl: '/devBuilds/dantest/Build/dantest.data',
+          frameworkUrl: '/devBuilds/dantest/Build/dantest.framework.js',
+          codeUrl: '/devBuilds/dantest/Build/dantest.wasm',
+          allowGuestUsers: true,
+          showAuthButton: true,
+          showDisruptiveLogo: false,
+          showHelpButton: true,
+          enableVoiceChat: true,
+        },
       };
 
       if (localDevBuilds[spaceID] && ((import.meta as any).env.DEV || window.location.hostname === 'localhost')) {
@@ -413,9 +391,6 @@ const WebGLLoader: React.FC<WebGLLoaderProps> = ({ spaceID: propSpaceID, overrid
           <WebGLRenderer
             ref={fullscreenRef}
             settings={spaceSettings}
-            isPortalTransition={isPortalTransition}
-            transitionData={portalTransition}
-            onTransitionComplete={handleTransitionComplete}
           />
         </UnityProvider>
       )}

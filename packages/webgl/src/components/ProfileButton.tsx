@@ -2,7 +2,6 @@ import React, { useState, useContext, useEffect, useCallback } from "react";
 import { useFullscreenContext } from '@disruptive-spaces/shared/providers/FullScreenProvider';
 import { UserContext } from "@disruptive-spaces/shared/providers/UserProvider";
 import { getUserProfileData } from '@disruptive-spaces/shared/firebase/userFirestore';
-import AvatarModal from './AvatarModal';
 
 interface ProfileData {
   avatarUrl: string | null;
@@ -11,19 +10,6 @@ interface ProfileData {
   username?: string;
   isGuest: boolean;
 }
-
-// Helper to get avatar thumbnail URL with fallback (outside component to avoid dependency issues)
-const getAvatarThumbnail = (profile: any) => {
-  // Prefer avatarThumbnailUrl (new system)
-  if (profile?.avatarThumbnailUrl) {
-    return profile.avatarThumbnailUrl;
-  }
-  // Fallback to rpmURL conversion (legacy)
-  if (profile?.rpmURL) {
-    return profile.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75");
-  }
-  return null;
-};
 
 const getInitials = (firstName: string, lastName: string) => {
   if (!firstName || !lastName) return "?";
@@ -43,7 +29,6 @@ const getGuestInitials = (username: string) => {
 function ProfileButton() {
   const { fullscreenRef } = useFullscreenContext();
   const [isPlayerInstantiated, setIsPlayerInstantiated] = useState(false);
-  const [openModal, setOpenModal] = useState(false);
   const [isAvatarHovered, setIsAvatarHovered] = useState(false);
   const { user, currentUser, isGuestUser } = useContext(UserContext);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -57,7 +42,9 @@ function ProfileButton() {
       try {
         const userProfile = await getUserProfileData(user.uid);
         setProfileData({
-          avatarUrl: getAvatarThumbnail(userProfile),
+          avatarUrl: userProfile?.rpmURL
+            ? userProfile.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75")
+            : null,
           firstName: userProfile.firstName,
           lastName: userProfile.lastName,
           isGuest: false
@@ -69,7 +56,9 @@ function ProfileButton() {
     // Handle guest users
     else if (currentUser && isGuestUser(currentUser)) {
       setProfileData({
-        avatarUrl: getAvatarThumbnail(currentUser),
+        avatarUrl: currentUser?.rpmURL
+          ? currentUser.rpmURL.replace(".glb", ".png?scene=fullbody-portrait-closeupfront&w=640&q=75")
+          : null,
         firstName: "Guest",
         lastName: "User",
         username: currentUser.username || currentUser.Nickname,
@@ -97,50 +86,31 @@ function ProfileButton() {
     };
   }, []);
 
-  const handleModalToggle = () => setOpenModal(!openModal);
-
-  const handleModalClose = () => {
-    setOpenModal(false);
-    // Fetch new profile data when modal closes
-    fetchProfileData();
-  };
-
   if (!isPlayerInstantiated) return null;
 
   return (
-    <>
-      <div
-        className={`relative ${profileData?.isGuest ? '' : 'cursor-pointer'} tooltip tooltip-top`}
-        data-tip={profileData?.isGuest ? "Guest Avatar" : "Edit Avatar"}
-        onMouseEnter={() => setIsAvatarHovered(true)}
-        onMouseLeave={() => setIsAvatarHovered(false)}
-        onClick={profileData?.isGuest ? undefined : handleModalToggle}
-      >
-        <div className="avatar">
-          <div className="w-12 rounded-full bg-white border border-white/30">
-            {!isLoading && profileData?.avatarUrl ? (
-              <img src={profileData.avatarUrl} alt="avatar" />
-            ) : (
-              <div className="flex items-center justify-center h-full text-lg font-bold">
-                {!isLoading && profileData ?
-                  (profileData.isGuest ?
-                    getGuestInitials(profileData.username || '') :
-                    getInitials(profileData.firstName, profileData.lastName)
-                  ) : ' '
-                }
-              </div>
-            )}
-          </div>
+    <div
+      className={`relative ${profileData?.isGuest ? '' : ''}`}
+      onMouseEnter={() => setIsAvatarHovered(true)}
+      onMouseLeave={() => setIsAvatarHovered(false)}
+    >
+      <div className="avatar">
+        <div className="w-12 rounded-full bg-white border border-white/30">
+          {!isLoading && profileData?.avatarUrl ? (
+            <img src={profileData.avatarUrl} alt="avatar" />
+          ) : (
+            <div className="flex items-center justify-center h-full text-lg font-bold">
+              {!isLoading && profileData ?
+                (profileData.isGuest ?
+                  getGuestInitials(profileData.username || '') :
+                  getInitials(profileData.firstName, profileData.lastName)
+                ) : ' '
+              }
+            </div>
+          )}
         </div>
-        {isAvatarHovered && !profileData?.isGuest && (
-          <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center bg-black/40 rounded-full">
-            <p className="text-xs font-bold text-white">Edit</p>
-          </div>
-        )}
       </div>
-
-      <AvatarModal isOpen={openModal} onClose={handleModalClose} />
-    </>
+    </div>
   );
 }
 
